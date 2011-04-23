@@ -71,8 +71,8 @@ object ProcSehen {
          if( !succ ) System.exit( 1 )
          Server.test { s =>
             ProcDemiurg.addServer( s )
-//            processTemplate( "StalkerPt1Ed.aif", "StalkerTemplate2.aif" )
-            prepareFull( "StalkerPt1Ed.aif" )
+            processTemplate( "StalkerPt1Ed.aif", "StalkerTemplate7.aif" )
+//            prepareFull( "StalkerPt1Ed.aif" )
          }
       }
    }
@@ -107,6 +107,7 @@ object ProcSehen {
 
       spawnAtomic( "ana1" ) { implicit tx =>
          process( tempPath ) { mat2 =>
+            fixNaNs( mat2 )
             norm( mat2, mins, maxs )
             spawnAtomic( "ana-done" ) { implicit tx => actProcessAna( mat1, mat2, ctrlPath, inPath, outPath )}
          }
@@ -161,6 +162,7 @@ object ProcSehen {
       val numm1 = mat.numFrames - 1
 //      var found = false
       do {
+         cnt = 0
          var x = 1; while( x < numm1 ) {
             val frame = mat.arr( x )
             var y = 0; while( y < mat.numChannels ) {
@@ -439,7 +441,7 @@ if( cnt != lastSeen + 1 ) { informDir( "FRAME SKIP!", force = true )}
 
          var sum          = 0.0
          def processMeasure( dstMat: Similarity.Mat ) : Float = {
-            val m = Similarity.xcorr( mat )( dstMat )
+            val m = Similarity.xcorr3( mat )( dstMat )
             if( pos < numAnaFrames ) {
                afChan( pos ) = m
                pos += 1

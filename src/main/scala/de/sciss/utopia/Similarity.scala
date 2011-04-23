@@ -285,6 +285,42 @@ object Similarity {
       (sum / (a.size - 1)).toFloat
    }
 
+   def xcorr2( a: Similarity.Mat )( b: Similarity.Mat ) : Float = {
+      var sum = 0.0
+      var energy = 0.0
+      var x = 0; while( x < a.numFrames ) {
+         val af = a.arr( x )
+         val df = b.arr( x )
+         var y = 0; while( y < a.numChannels ) {
+            energy += af( y ) * af( y ) + df( y ) * df( y )
+            sum += af( y ) * df( y )
+         y += 1 }
+      x += 1 }
+//      (sum / (a.size - 1)).toFloat
+      (sum / energy).toFloat
+   }
+
+
+   def xcorr3( a: Similarity.Mat )( b: Similarity.Mat ) : Float = {
+      var sum = 0.0
+      val (amean, astddev) = stat( a )
+      val (bmean, bstddev) = stat( b )
+      val aadd = -amean
+      val amul = 1.0 / astddev
+      val badd = -bmean
+      val bmul = 1.0 / bstddev
+
+      var x = 0; while( x < a.numFrames ) {
+         val af = a.arr( x )
+         val bf = b.arr( x )
+         var y = 0; while( y < a.numChannels ) {
+            sum += ((af( y ) + aadd) * amul)  * ((bf( y ) + badd) * bmul)
+         y += 1 }
+      x += 1 }
+      (sum / (a.size - 1)).toFloat
+//      (sum / energy).toFloat
+   }
+
 //   private def xcorr( a: Mat, b: Mat ) : Double = {
 //      var sum = 0.0
 //      var x = 0; while( x < a.numFrames ) {
