@@ -38,6 +38,7 @@ import de.sciss.fscape.FScapeJobs
 import collection.immutable.{SortedSet => ISortedSet}
 import AnalysisBuffer._
 import actors.Actor
+import DSL._
 
 /**
  * Picks up the current spectral and temporal pattern from the sum signal,
@@ -105,7 +106,7 @@ object ProcSehen {
       afAna.close
 
       spawnAtomic( "ana1" ) { implicit tx =>
-         process( tempPath, norm = false ) { mat2 =>
+         process( tempPath ) { mat2 =>
             norm( mat2, mins, maxs )
             spawnAtomic( "ana-done" ) { implicit tx => actProcessAna( mat1, mat2, ctrlPath, inPath, outPath )}
          }
@@ -121,10 +122,15 @@ object ProcSehen {
 //      val statPath   = "/Users/hhrutz/Desktop/Utopia/audio_work/StalkerPt1Ed_Stat.aif"
 
       spawnAtomic( "ana1" ) { implicit tx =>
-         process( inPath, norm = false  ) { mat1 =>
+         process( inPath ) { mat1 =>
 
+            println( "Fix NaNs..." )
+            fixNaNs( mat1 )
             println( "Done. Stats..." )
             val (mins, maxs) = stat( mat1 )
+//            println( "mat:" + mat1.arr.map(_.toList).toList.mkString( ", " ))
+            println( "mins: " + mins.toList.mkString( ", "))
+            println( "maxs: " + maxs.toList.mkString( ", "))
 //            val afStat = AudioFile.openWrite( statPath, AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, mins.size, 44100.0 ))
 //            println( "Done. Write Stats..." )
 //            afStat.writeFrames( Array( mins ))
@@ -145,17 +151,62 @@ object ProcSehen {
             x += 1 }
             afOut.close
             println( "Done." )
+            System.exit( 0 )
          }
       }
    }
 
+   def fixNaNs( mat: Similarity.Mat ) {
+      var cnt = 0
+      val numm1 = mat.numFrames - 1
+//      var found = false
+      do {
+         var x = 1; while( x < numm1 ) {
+            val frame = mat.arr( x )
+            var y = 0; while( y < mat.numChannels ) {
+               if( frame( y ).isNaN ) {
+                  cnt += 1
+                  frame( y ) = {
+                     val f1 = mat.arr( x - 1 )( y )
+                     val f2 = mat.arr( x + 1 )( y )
+                     if( f1.isNaN ) f2 else if( f2.isNaN ) f1 else (f2 + f1) * 0.5f
+                  }
+               }
+            y += 1 }
+         x += 1 }
+         if( cnt > 0 ) {
+            println( cnt.toString + " NaNs found (" + (cnt * 100 / (mat.numFrames * mat.numChannels)) + "%)" )
+         }
+      } while( cnt > 0 )
+
+      {
+         val frame = mat.arr( 0 )
+         var y = 0; while( y < mat.numChannels ) {
+            if( frame( y ).isNaN ) {
+               frame( y ) = mat.arr( 1 )( y )
+            }
+         y += 1 }
+      }
+
+      {
+         val frame = mat.arr( numm1 )
+         var y = 0; while( y < mat.numChannels ) {
+            if( frame( y ).isNaN ) {
+               frame( y ) = mat.arr( numm1 - 1 )( y )
+            }
+         y += 1 }
+      }
+   }
+
    private def norm( mat: Similarity.Mat, mins: Array[ Float ], maxs: Array[ Float ]) {
-      require( mins.zip(maxs).forall( tup => tup._2 > tup._1 ))
+//      require( mins.zip(maxs).forall( tup => tup._2 > tup._1 ))
 
       var x = 0; while( x < mat.numFrames ) {
          val frame = mat.arr( x )
          var y = 0; while( y < mat.numChannels ) {
-            frame( y ) = (frame( y ) - mins( y )) / (maxs( y ) - mins( y ))
+            val d = maxs( y ) - mins( y )
+            val m = frame( y ) - mins( y )
+            frame( y ) = if( d > 0 ) m / d else m
          y += 1 }
       x += 1 }
    }
@@ -167,8 +218,9 @@ object ProcSehen {
       var x = 0; while( x < mat.numFrames ) {
          val frame = mat.arr( x )
          var y = 0; while( y < mat.numChannels ) {
-            mins( y ) = math.min( mins( y ), frame( y ))
-            maxs( y ) = math.max( maxs( y ), frame( y ))
+            val f = frame( y )
+            mins( y ) = math.min( mins( y ), f )
+            maxs( y ) = math.max( maxs( y ), f )
          y += 1 }
       x += 1 }
       (mins, maxs)
@@ -176,8 +228,7 @@ object ProcSehen {
 
 
 
-   def process( path: String, speed: Double = 1.0, norm: Boolean = true )( doneFun: Similarity.Mat => Unit )(  implicit tx: ProcTxn ) {
-      import DSL._
+   def process( path: String, speed: Double = 1.0 )( doneFun: Similarity.Mat => Unit )(  implicit tx: ProcTxn ) {
       val d = (gen( "ana" ) {
          graph {
             val spec       = audioFileSpec( path )
@@ -194,15 +245,19 @@ object ProcSehen {
 println( "anaFrames = " + anaFrames )
             val anaBuf     = Similarity.Mat( anaFrames, anaChans )
 var percDone = 0
+var lastSeen = -1
+var didStop = false
             fftTrig.react( fftCnt +: coeffs.outputs ) { data =>
                try {
                val iter    = data.iterator
                val cnt     = iter.next.toInt - 1
+if( cnt != lastSeen + 1 ) { informDir( "FRAME SKIP!", force = true )}
+               lastSeen = cnt
                if( cnt < anaFrames ) {
                   val frame = anaBuf.arr( cnt )
                   var i = 0; while( i < numMelCoeffs ) {
                      val f1 = iter.next.toFloat
-                     frame( i ) = if( !norm ) f1 else (f1 + normAdd( i )) * normMul( i )
+                     frame( i ) = f1 // if( !norm ) f1 else (f1 + normAdd( i )) * normMul( i )
                   i += 1 }
                   val p = ((cnt + 1) * 20) / anaFrames
                   while( percDone < p ) {
@@ -210,12 +265,15 @@ var percDone = 0
                      percDone += 1
                   }
                } else {
-                  spawnAtomic( "ana removal" ) { implicit tx =>
-//                     ProcessHelper.stopAndDispose( me )
-                     println()
-                     me.stop
-                     me.dispose
-                     doneFun( anaBuf )
+                  if( !didStop ) {
+                     didStop = true
+                     spawnAtomic( "ana removal" ) { implicit tx =>
+                        println()
+                        informDir( "ana remove!" )
+                        stopAndDispose( me, postFun = _ => doneFun( anaBuf ))
+//                     me.stop
+//                     me.dispose
+                     }
                   }
                }
                } catch { case e => e.printStackTrace() }
@@ -225,6 +283,86 @@ var percDone = 0
       }).make
 
       d.play
+   }
+
+   private def disposeProc( proc: Proc, preFun: ProcTxn => Unit, postFun: ProcTxn => Unit ) {
+      atomic( "helper : disposeProc" ) { implicit tx =>
+         preFun( tx )
+         proc.anatomy match {
+            case ProcFilter   => disposeFilter( proc )
+            case _            => disposeGenDiff( proc )
+         }
+         postFun( tx )
+      }
+   }
+
+   private def stopAndDisposeListener( preFun: ProcTxn => Unit, postFun: ProcTxn => Unit ) = new Proc.Listener {
+      def updated( u: Proc.Update ) {
+//println( "UPDATE " + u )
+         if( !u.state.fading && (u.state.bypassed || u.controls.find( tup =>
+            (tup._1.name == "amp") && tup._2.mapping.isEmpty ).isDefined) ) {
+            if( verbose ) println( "" + new java.util.Date() + " FINAL-DISPOSE " + u.proc )
+            disposeProc( u.proc, preFun, postFun ) // atomic { implicit tx => }
+         }
+      }
+   }
+
+   // XXX copied from Nuages. we should have this going into SoundProcesses directly somehow
+   private def disposeFilter( proc: Proc )( implicit tx: ProcTxn ) {
+      val in   = proc.audioInput( "in" )
+      val out  = proc.audioOutput( "out" )
+      val ines = in.edges.toSeq
+      val outes= out.edges.toSeq
+      val outesf = outes.filterNot( _.targetVertex.name.startsWith( "$" ))  // XXX tricky shit to determine the meters
+//      if( ines.size > 1 ) println( "WARNING : Filter is connected to more than one input!" )
+      if( ines.size > 1 && outesf.size > 1 ) {
+         println( "WARNING : Filter is connected to several inputs and outputs! (" + proc.name + " : inputs = " +
+         ines.map( _.sourceVertex ) + " ; outputs = " + outesf.map( _.targetVertex ) + ")" )
+      }
+      if( verbose && outes.nonEmpty ) println( "" + new java.util.Date() + " " + out + " ~/> " + outes.map( _.in ))
+      outes.foreach( out ~/> _.in )
+      ines.foreach( ine => {
+         val out = ine.out
+         if( verbose ) println( "" + new java.util.Date() + " " + out + " ~> " + outesf.map( _.in ))
+         outesf.foreach( out ~> _.in )
+      })
+      // XXX tricky: this needs to be last, so that
+      // the pred out's bus isn't set to physical out
+      // (which is currently not undone by AudioBusImpl)
+      if( verbose && ines.nonEmpty ) println( "" + new java.util.Date() + " " + ines.map( _.out ) + " ~/> " + in )
+      ines.foreach( _.out ~/> in )
+      proc.dispose
+   }
+
+   // XXX copied from Nuages. we should have this going into SoundProcesses directly somehow
+   private def disposeGenDiff( p: Proc )( implicit tx: ProcTxn ) {
+//      val toDispose = MSet.empty[ Proc ]
+//      addToDisposal( toDispose, proc )
+//      toDispose.foreach( p => {
+//val p = proc
+         val ines = p.audioInputs.flatMap( _.edges ).toSeq // XXX
+         val outes= p.audioOutputs.flatMap( _.edges ).toSeq // XXX
+         outes.foreach( oute => oute.out ~/> oute.in )
+         ines.foreach( ine => ine.out ~/> ine.in )
+         p.dispose
+//      })
+   }
+
+   def stopAndDispose( p: Proc, fadeTime: Double = 0.0, preFun: ProcTxn => Unit = _ => (), postFun: ProcTxn => Unit = _ => () )( implicit tx: ProcTxn ) {
+      val state = p.state
+      if( !state.fading && (!state.playing || state.bypassed || (fadeTime == 0.0)) ) {
+         disposeProc( p, preFun, postFun )
+      } else {
+         p.addListener( stopAndDisposeListener( preFun, postFun ))
+         p.anatomy match {
+            case ProcFilter => {
+               xfade( fadeTime ) { p.bypass }
+            }
+            case _ => {
+               glide( fadeTime ) { p.control( "amp" ).v = 0.001 }
+            }
+         }
+      }
    }
 
    private def blockWithTimeOut[ Z ]( info: => String, block: ProcTxn => Z, tx: ProcTxn ) : Z = {
