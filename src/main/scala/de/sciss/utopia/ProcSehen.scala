@@ -186,14 +186,16 @@ object ProcSehen {
 
             val chain      = FFT( bufEmpty( anaFFTSize ).id, Mix( sig ), anaFFTOver.reciprocal )
             val coeffs     = MFCC.kr( chain, numMelCoeffs )
-            val fftTrig    = Impulse.kr( SampleRate.ir / anaWinStep ) & (Mix( coeffs ) > 0)
+            val fftTrig    = Impulse.kr( SampleRate.ir / anaWinStep ) & RunningMax.kr( (Mix( coeffs ) > 0), 0 )
             val fftCnt     = PulseCount.kr( fftTrig )
             val me         = Proc.local
 //            val anaFrames  = (TEND_ANA_DUR.decide * SAMPLE_RATE / anaWinStep + 0.5).toInt
             val anaFrames  = (spec.numFrames / (speed * anaWinStep) + 0.5).toInt
+println( "anaFrames = " + anaFrames )
             val anaBuf     = Similarity.Mat( anaFrames, anaChans )
 var percDone = 0
             fftTrig.react( fftCnt +: coeffs.outputs ) { data =>
+               try {
                val iter    = data.iterator
                val cnt     = iter.next.toInt - 1
                if( cnt < anaFrames ) {
@@ -216,6 +218,7 @@ var percDone = 0
                      doneFun( anaBuf )
                   }
                }
+               } catch { case e => e.printStackTrace() }
             }
             sig // 0.0
          }
