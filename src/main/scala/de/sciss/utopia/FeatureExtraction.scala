@@ -135,18 +135,18 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             val coeffs     = MFCC.kr( chain, settings.numCoeffs )
 //            val rmax       = RunningMax.kr( coeffs, 0 )
 //            val rmin       = RunningMin.kr( coeffs, 0 )
-            val trig       = Impulse.kr( coeffRate ) - Impulse.kr( 0 )
+            val trig       = Impulse.kr( coeffRate ) // - Impulse.kr( 0 )
             val phaseHi    = coeffBufSize - 1
 //            val phase      = Stepper.kr( trig, lo = 0, hi = phaseHi, resetVal = phaseHi )
             val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
 //            phase.poll(trig)
-            BufWr.kr( coeffs, coeffBufID, phase, loop = 0 )
+            BufWr.kr( coeffs, coeffBufID, phase )
          }
 
          val syn        = Synth( s )
          val fftBuf     = new Buffer( s, fftBufID )
          val coeffBuf   = new Buffer( s, coeffBufID )
-         val numFFTs    = ((spec.numFrames + stepSize - 1) / stepSize).toInt
+         val numFFTs    = ((spec.numFrames + stepSize - 1) / stepSize).toInt // + 1
          val numWrites  = (numFFTs + coeffBufSize - 1) / coeffBufSize
 
          def tmpName( i: Int ) = new File( tmpDir, "feat" + i + ".aif" )
@@ -157,9 +157,13 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             val numFrames  = stopFrame - startFrame
             val msg        = coeffBuf.writeMsg( tmpName( i ).getAbsolutePath,
                AudioFileType.AIFF, SampleFormat.Float,
-               numFrames, 0, false )
+               if( i == 0 ) numFrames - 1 else numFrames, if( i == 0 ) 1 else 0, false )
 //            val time       = (i + 1.5) * stepSize / coeffRate // spec.sampleRate
-            val time       = (stopFrame + 0.5) / coeffRate
+
+            // i don't know... in theory i should be writing the half a frame before or after,
+            // but that causes trouble. so just write it exactly at the Stepper boundaries
+            // and hope it scales up to long durations :-(
+            val time       = (stopFrame - 0.0) / coeffRate
             OSCBundle.secs( time, msg )
          }
 
