@@ -76,7 +76,7 @@ object FeatureExtraction {
    extends SettingsLike
 
    sealed trait ProgressOrResult
-   final case class Progress( amount: Float ) extends ProgressOrResult
+   final case class Progress( percent: Int ) extends ProgressOrResult
    sealed trait Result extends ProgressOrResult
    case object Success extends Result
    final case class Failure( t: Throwable ) extends Result
@@ -201,9 +201,9 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             def out( line: => String ) {
                if( line.startsWith( "nextOSCPacket" )) {
                   val time = line.substring( 14 ).toFloat
-                  val prog = (time / dur * 100).toInt
+                  val prog = (time / dur * 80).toInt
                   if( prog != lastProg ) {
-                     Act ! Progress( prog * 0.008f )  // up to 80%
+                     Act ! Progress( prog )  // up to 80%
                      lastProg = prog
                   }
                } else {
@@ -242,7 +242,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             afIn.close
             afOut.writeFrames( b )
             afIn.file.foreach( _.delete() )
-            val prog = (i + 1).toFloat / numWrites * 0.2f + 0.8f
+            val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
             Act ! Progress( prog )
          }
          afOut.close

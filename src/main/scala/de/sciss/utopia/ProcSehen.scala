@@ -53,7 +53,7 @@ object ProcSehen {
 
    val folder     = new File( "/Users/hhrutz/Desktop/Utopia/audio_work" )
 
-   private val actor = new Actor { def act = loop { react {
+   private val actor = new Actor { def act() = loop { react {
       case d: Do => try {
          d.perform
       } catch {
@@ -63,9 +63,9 @@ object ProcSehen {
       }
    }}}
 
-   def main( args: Array[ String ]) {
+   def perform() {
       System.setProperty( "actors.enableForkJoin", "false" )
-      actor.start
+      actor.start()
       FScape.fsc.connect() { succ =>
          println( "FScape connect : " + succ )
          if( !succ ) System.exit( 1 )
