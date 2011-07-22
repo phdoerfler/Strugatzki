@@ -39,7 +39,7 @@ import xml.XML
 import actors.Actor
 
 object FeatureExtraction {
-   var verbose = true
+   var verbose = false
 
    private lazy val tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
 
@@ -206,7 +206,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
                      Act ! Progress( prog )  // up to 80%
                      lastProg = prog
                   }
-               } else {
+               } else if( line != "start time 0" ) {
                   Console.out.println( line )
                }
             }

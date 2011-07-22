@@ -41,18 +41,20 @@ object Utopia {
       var feat    = false
       var inputs  = IndexedSeq.empty[ String ]
       var target  = Option.empty[ String ]
+      var verbose = false
 
       val parser  = new OptionParser( "Utopia" ) {
          opt( "prepare", "Preparatory stuff (ProcSehen)", sehen = true )
          opt( "f", "feature", "Feature extraction", feat = true )
+         opt( "v", "verbose", "Verbose output", verbose = true )
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
          opt( "d", "dir", "<directory>", "Target directory", (s: String) => target = Some( s ))
-
       }
       if( parser.parse( args )) {
          if( sehen ) {
             ProcSehen.perform()
          } else if( feat ) {
+            FeatureExtraction.verbose = verbose
             if( inputs.isEmpty ) {
                parser.showUsage
             }
@@ -81,7 +83,7 @@ object Utopia {
 
    }
 
-   def feature( inputFile: File, outDir: File )( success: Boolean => Unit ) {
+   def feature( inputFile: File, outDir: File )( whenDone: Boolean => Unit ) {
       import FeatureExtraction._
 
 //      val inDir   = "/Users/hhrutz/Desktop/new_projects/Utopia/audio_work"
@@ -108,9 +110,14 @@ object Utopia {
       FeatureExtraction( set ) {
          case Success =>
             println( "  Success." )
+            whenDone( true )
          case Failure( e ) =>
             println( "  Failed: " )
             e.printStackTrace()
+            whenDone( false )
+         case Aborted =>
+            println( "  Aborted" )
+            whenDone( false )
          case Progress( perc ) =>
 //            println( (f * 100).toInt )
             val i = perc >> 2
