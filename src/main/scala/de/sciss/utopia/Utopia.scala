@@ -37,50 +37,55 @@ object Utopia {
    val defaultDir = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
 
    def main( args: Array[ String ]) {
-      var sehen   = false
-      var feat    = false
+      var which   = ""
+
+      val parser  = new OptionParser( "Utopia" ) {
+         opt( "prepare", "Preparatory stuff (ProcSehen)", which = "sehen" )
+         opt( "f", "feature", "Feature extraction", which = "feat" )
+      }
+      if( parser.parse( args.take( 1 ))) {
+         which match {
+            case "sehen" => ProcSehen.perform()
+            case "feat"  => featurePre( args.drop( 1 ))
+            case _ => parser.showUsage
+         }
+      } else parser.showUsage
+   }
+
+   def featurePre( args: Array[ String ]) {
       var inputs  = IndexedSeq.empty[ String ]
       var target  = Option.empty[ String ]
       var verbose = false
 
-      val parser  = new OptionParser( "Utopia" ) {
-         opt( "prepare", "Preparatory stuff (ProcSehen)", sehen = true )
-         opt( "f", "feature", "Feature extraction", feat = true )
+      val parser  = new OptionParser( "Utopia -f" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
          opt( "d", "dir", "<directory>", "Target directory", (s: String) => target = Some( s ))
       }
       if( parser.parse( args )) {
-         if( sehen ) {
-            ProcSehen.perform()
-         } else if( feat ) {
-            FeatureExtraction.verbose = verbose
-            if( inputs.isEmpty ) {
-               parser.showUsage
-            }
-            val inFiles: List[ File ] = inputs.flatMap( p => {
-               val f = new File( p )
-               if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
-                  def accept( f: File ) = try {
-                     AudioFile.identify( f ).isDefined
-                  } catch { case _ => false }
-               }).toList
-            })( breakOut )
-            val targetDir = new File( target.getOrElse( defaultDir ))
-            def iter( list: List[ File ]) {
-               list match {
-                  case head :: tail => feature( head, targetDir )( if( _ ) iter( tail ))
-                  case _ =>
-               }
-            }
-            iter( inFiles )
-         } else {
+         FeatureExtraction.verbose = verbose
+         if( inputs.isEmpty ) {
             parser.showUsage
          }
+         val inFiles: List[ File ] = inputs.flatMap( p => {
+            val f = new File( p )
+            if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
+               def accept( f: File ) = try {
+                  AudioFile.identify( f ).isDefined
+               } catch { case _ => false }
+            }).toList
+         })( breakOut )
+         val targetDir = new File( target.getOrElse( defaultDir ))
+         def iter( list: List[ File ]) {
+            list match {
+               case head :: tail => feature( head, targetDir )( if( _ ) iter( tail ))
+               case _ =>
+            }
+         }
+         iter( inFiles )
       } else {
          parser.showUsage
       }
-
    }
 
    def feature( inputFile: File, outDir: File )( whenDone: Boolean => Unit ) {
