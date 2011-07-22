@@ -7,7 +7,9 @@ object Utopia {
       import FeatureExtraction._
 
       val inDir   = "/Users/hhrutz/Desktop/new_projects/Utopia/audio_work"
-      val name    = "Raspad_30'58"
+//      val name    = "Raspad_30'58"
+//      val name    = "Klangbeispiel7"
+      val name    = "SweepInv"
       val set     = new SettingsBuilder
       set.audioInput    = new File( inDir, name + ".aif" )
       set.featureOutput = new File( inDir, name + "_feat.aif" )

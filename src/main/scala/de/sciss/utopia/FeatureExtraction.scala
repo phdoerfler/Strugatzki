@@ -125,19 +125,21 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          so.nrtSampleFormat   = SampleFormat.Int16
 
          val s                = Server.dummy( "nrt", so.build )
-         val coeffBufSize     = 1024
+         val coeffBufSize     = 888 // 1024
          val fftBufID         = 0
          val coeffBufID       = 1
+         val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
          val df = SynthDef( "nrt" ) {
             val in         = Mix( In.ar( NumOutputBuses.ir, spec.numChannels )) // XXX mono mix could be configurable
-            val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap )
+            val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
             val coeffs     = MFCC.kr( chain, settings.numCoeffs )
 //            val rmax       = RunningMax.kr( coeffs, 0 )
 //            val rmin       = RunningMin.kr( coeffs, 0 )
             val trig       = Impulse.kr( coeffRate ) - Impulse.kr( 0 )
             val phaseHi    = coeffBufSize - 1
 //            val phase      = Stepper.kr( trig, lo = 0, hi = phaseHi, resetVal = phaseHi )
-            val phase      = Stepper.kr( trig, 0, 0, phaseHi, phaseHi )
+            val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
+//            phase.poll(trig)
             BufWr.kr( coeffs, coeffBufID, phase, loop = 0 )
          }
 
@@ -151,12 +153,13 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 
          val bufBndls = IndexedSeq.tabulate( numWrites ) { i =>
             val startFrame = i * coeffBufSize
-            val stopFrame  = math.max( numFFTs, startFrame + coeffBufSize )
+            val stopFrame  = math.min( numFFTs, startFrame + coeffBufSize )
             val numFrames  = stopFrame - startFrame
             val msg        = coeffBuf.writeMsg( tmpName( i ).getAbsolutePath,
                AudioFileType.AIFF, SampleFormat.Float,
                numFrames, 0, false )
-            val time       = (i + 1.5) * stepSize / spec.sampleRate
+//            val time       = (i + 1.5) * stepSize / coeffRate // spec.sampleRate
+            val time       = (stopFrame + 0.5) / coeffRate
             OSCBundle.secs( time, msg )
          }
 
@@ -185,10 +188,13 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 
          val dur = OSCBundle.timetagToSecs( bufBndls.last.timetag )
 
+         if( verbose ) println( "dur: " + dur.round(0.01) + "s ; numFFTs: " + numFFTs +
+            "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )
+
          val log = new ProcessLogger {
             var lastProg = -1
             def buffer[ T ]( f: => T ) : T = f  // ???
-            def err( line: => String ) {
+            def out( line: => String ) {
                if( line.startsWith( "nextOSCPacket" )) {
                   val time = line.substring( 14 ).toFloat
                   val prog = (time / dur * 100).toInt
@@ -197,10 +203,10 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
                      lastProg = prog
                   }
                } else {
-                  Console.out.println( s )
+                  Console.out.println( line )
                }
             }
-            def out( line: => String ) {
+            def err( line: => String ) {
                Console.err.println( line )
             }
          }
@@ -265,6 +271,8 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
                      ProcT.aborted = true
                      if( ProcT.p != null ) ProcT.p.destroy()
                   }
+               case res @ Progress( _ ) =>
+                  observer( res )
                case res @ Aborted =>
                   result = res
                case res @ Failure( _ ) =>
