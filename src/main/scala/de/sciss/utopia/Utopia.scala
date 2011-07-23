@@ -28,28 +28,74 @@
 
 package de.sciss.utopia
 
-import java.io.{FileFilter, File}
-import de.sciss.synth.io.AudioFile
 import scopt.OptionParser
 import collection.breakOut
+import java.io.{FilenameFilter, FileFilter, File}
+import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 
 object Utopia {
    val defaultDir = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
+   val name       = "Utopia"
 
    def main( args: Array[ String ]) {
       var which   = ""
 
-      val parser  = new OptionParser( "Utopia" ) {
+      val parser  = new OptionParser( name ) {
          opt( "prepare", "Preparatory stuff (ProcSehen)", which = "sehen" )
          opt( "f", "feature", "Feature extraction", which = "feat" )
+         opt( "stats", "Statistics from feature database", which = "stats" )
       }
       if( parser.parse( args.take( 1 ))) {
          which match {
-            case "sehen" => ProcSehen.perform()
-            case "feat"  => featurePre( args.drop( 1 ))
-            case _ => parser.showUsage
+            case "sehen"   => ProcSehen.perform()
+            case "feat"    => featurePre( args.drop( 1 ))
+            case "stats"   => featureStats( args.drop( 1 ))
+            case _         => parser.showUsage
          }
       } else parser.showUsage
+   }
+
+   def featureStats( args: Array[ String ]) {
+      var dirOption = Option.empty[ String ]
+      var verbose = false
+
+      val parser  = new OptionParser( name + " -f" ) {
+         opt( "v", "verbose", "Verbose output", verbose = true )
+         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
+      }
+      if( parser.parse( args )) {
+         val dir = new File( dirOption.getOrElse( defaultDir ))
+         println( "Starting stats... " )
+         var lastProg = 0
+         val paths: IndexedSeq[ File ] = dir.listFiles( new FilenameFilter {
+            def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
+         })
+         import FeatureStats._
+         FeatureStats( paths ) {
+            case Success( spans ) =>
+               println( "  Success." )
+               val afNorm = AudioFile.openWrite( new File( dir, "feat_norms.aif" ),
+                  AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
+               val b = afNorm.frameBuffer( 2 )
+               spans.zipWithIndex.foreach { case ((min, max), i) =>
+                  b( i )( 0 ) = min.toFloat
+                  b( i )( 1 ) = max.toFloat
+               }
+               afNorm.writeFrames( b )
+               afNorm.close
+               println( "Done." )
+            case Failure( e ) =>
+               println( "  Failed: " )
+               e.printStackTrace()
+            case Aborted =>
+               println( "  Aborted" )
+            case Progress( perc ) =>
+               val i = perc >> 2
+               while( lastProg < i ) {
+                  print( "#" )
+               lastProg += 1 }
+         }
+       } else parser.showUsage
    }
 
    def featurePre( args: Array[ String ]) {
@@ -57,7 +103,7 @@ object Utopia {
       var target  = Option.empty[ String ]
       var verbose = false
 
-      val parser  = new OptionParser( "Utopia -f" ) {
+      val parser  = new OptionParser( name + " -f" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
          opt( "d", "dir", "<directory>", "Target directory", (s: String) => target = Some( s ))

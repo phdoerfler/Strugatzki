@@ -126,6 +126,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 
          val s                = Server.dummy( "nrt", so.build )
          val coeffBufSize     = 888 // 1024
+         val numCh            = settings.numCoeffs + 1
          val fftBufID         = 0
          val coeffBufID       = 1
          val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
@@ -133,6 +134,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             val in         = Mix( In.ar( NumOutputBuses.ir, spec.numChannels )) // XXX mono mix could be configurable
             val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
             val coeffs     = MFCC.kr( chain, settings.numCoeffs )
+            val loud       = Loudness.kr( chain ) / 32
 //            val rmax       = RunningMax.kr( coeffs, 0 )
 //            val rmin       = RunningMin.kr( coeffs, 0 )
             val trig       = Impulse.kr( coeffRate ) // - Impulse.kr( 0 )
@@ -140,7 +142,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 //            val phase      = Stepper.kr( trig, lo = 0, hi = phaseHi, resetVal = phaseHi )
             val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
 //            phase.poll(trig)
-            BufWr.kr( coeffs, coeffBufID, phase )
+            BufWr.kr( loud +: coeffs.outputs, coeffBufID, phase )
          }
 
          val syn        = Synth( s )
@@ -169,7 +171,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 
          val initBndl = OSCBundle.secs( 0.0,
             fftBuf.allocMsg( settings.fftSize ),
-            coeffBuf.allocMsg( coeffBufSize, settings.numCoeffs ),
+            coeffBuf.allocMsg( coeffBufSize, numCh ),
             df.recvMsg,
             syn.newMsg( df.name, s.rootNode )
          )
@@ -232,14 +234,26 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          }
          if( res != 0 ) throw new RuntimeException( "scsynth failed with exit code " + res )
 
-         val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, settings.numCoeffs, coeffRate )
+         val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, numCh, coeffRate )
          val afOut      = AudioFile.openWrite( settings.featureOutput, afOutS )
          for( i <- 0 until numWrites ) {
             if( shouldAbort ) return false
             val afIn    = AudioFile.openRead( tmpName( i ))
             val b       = afIn.frameBuffer( afIn.numFrames.toInt )
+            val lasts   = new Array[ Float ]( afIn.numChannels )
             afIn.readFrames( b )
             afIn.close
+            // deal with NaNs
+            for( ch <- 0 until afIn.numChannels ) {
+               val cb = b( ch )
+               var last = lasts( ch )
+               for( i <- 0 until cb.size ) {
+                  val f = cb( i )
+                  if( f.isNaN ) cb( i ) = last else last = f
+               }
+               lasts( ch ) = last
+            }
+
             afOut.writeFrames( b )
             afIn.file.foreach( _.delete() )
             val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
