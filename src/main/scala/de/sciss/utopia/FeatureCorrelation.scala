@@ -145,6 +145,21 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          Some( b )
       } else None
 
+      def normalize( n: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
+         for( ch <- 0 until b.length ) {
+            val cb   = b( ch )
+            val cn   = n( ch )
+            val min  = cn( 0 )
+            val max  = cn( 1 )
+            val d    = max - min
+            var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
+               val f    = cb( i )
+               // XXX should values be clipped to [0...1] or not?
+               cb( i )  = (f - min) / d
+            i += 1 }
+         }
+      }
+
       val (matrixIn, matrixOutO) = {
          val afIn = AudioFile.openRead( extrIn.featureOutput )
          try {
@@ -155,20 +170,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val b          = afIn.frameBuffer( frameNum )
                afIn.seekFrame( start )
                afIn.readFrames( b )
-               normBuf.foreach { n =>
-                  for( ch <- 0 until b.length ) {
-                     val cb   = b( ch )
-                     val cn   = n( ch )
-                     val min  = cn( 0 )
-                     val max  = cn( 1 )
-                     val d    = max - min
-                     for( i <- 0 until cb.length ) {
-                        val f    = cb( i )
-                        // XXX should values be clipped to [0...1] or not?
-                        cb( i )  = (f - min) / d
-                     }
-                  }
-               }
+               normBuf.foreach( n => normalize( n, b, 0, frameNum ))
 
                def feat( mat: Array[ Array[ Float ]]) = {
                   val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
@@ -233,6 +235,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.readFrames( b, readOff, chunkLen )
+               normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
                val temporal = if( inTempWeight > 0f ) {
                   correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
                } else 0f
@@ -286,6 +289,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.readFrames( b, readOff, chunkLen )
+                        normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
                         val temporal = if( outTempWeight > 0f ) {
                            correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
                         } else 0f
