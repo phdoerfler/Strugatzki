@@ -32,8 +32,22 @@ import xml.XML
 import de.sciss.synth.io.AudioFile
 import collection.breakOut
 import java.io.{RandomAccessFile, FilenameFilter, File}
+import actors.Actor
 
-object FeatureCorrelation extends ProcessorCompanion {
+object FeatureCorrelation /* extends ProcessorCompanion */ {
+   var verbose = false
+
+   protected lazy val tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
+
+   type Observer = PartialFunction[ ProgressOrResult, Unit ]
+//   type PayLoad
+
+   sealed trait ProgressOrResult
+   final case class Progress( percent: Int ) extends ProgressOrResult
+   sealed trait Result extends ProgressOrResult
+   case class Success( result: PayLoad ) extends Result
+   final case class Failure( t: Throwable ) extends Result
+   case object Aborted extends Result
 
    type PayLoad = Option[ Match ]
 
@@ -95,11 +109,12 @@ object FeatureCorrelation extends ProcessorCompanion {
    }
 }
 final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
-                                         protected val observer: FeatureCorrelation.Observer ) extends Processor {
-   protected val companion = FeatureCorrelation
-   import companion._
+                                         protected val observer: FeatureCorrelation.Observer ) /* extends Processor */ {
+//   protected val companion = FeatureCorrelation
+//   import companion._
+   import FeatureCorrelation._
 
-   start()  // weird
+   start()
 
    protected def body() : Result = {
       import FeatureExtraction.{ Settings => ExtrSettings }
@@ -394,4 +409,56 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       ch += 1 }
       (sum / (a.matSize - 1)).toFloat
    }
+
+   // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
+
+   def abort() { Act ! Abort }
+   protected def start() { Act.start() }
+
+   private object Abort
+
+   private object Act extends Actor {
+      def act() {
+         ProcT.start()
+         var result : /* companion. */ Result = null
+         loopWhile( result == null ) {
+            react {
+               case Abort =>
+                  ProcT.aborted = true
+               case res: /* companion. */ Progress =>
+                  observer( res )
+               case res @ /* companion. */ Aborted =>
+                  result = res
+               case res: /* companion. */ Failure =>
+                  result = res
+               case res: /* companion. */ Success =>
+                  result = res
+            }
+         } andThen { observer( result )}
+      }
+   }
+
+//   protected def body() : companion.Result
+
+   private object ProcT extends Thread {
+      var aborted: Boolean = false
+      private var lastProg = -1
+      override def run() {
+         Act ! (try {
+            body()
+         } catch {
+            case e => /* companion. */ Failure( e )
+         })
+      }
+
+      def progress( i: Int ) {
+         if( i > lastProg ) {
+            lastProg = i
+            Act ! Progress( i )
+         }
+      }
+   }
+
+   protected def checkAborted = ProcT.synchronized { ProcT.aborted }
+   protected def progress( f: Float ) = ProcT.progress( (f * 100 + 0.5f).toInt )
 }
