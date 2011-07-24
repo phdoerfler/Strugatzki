@@ -131,11 +131,19 @@ object Utopia {
                   import FeatureCorrelation._
                   var lastProg = 0
                   FeatureCorrelation( set ) {
-                     case Success( Some( res )) =>
-                        println( "  Success.\n\nBest file : " + res.file.getAbsolutePath +
-                           "\nSpan start: " + res.punchIn )
-                        if( punchOutO.isDefined ) println( "Span stop: " + res.punchOut )
-                     case Success( None ) =>
+                     case Success( res ) if( res.nonEmpty ) =>
+                        println( "  Success." )
+
+                        res.foreach { m =>
+                           println( "\nFile      : " + m.file.getAbsolutePath + "\nSimilarity: " + m.sim +
+                              "\nSpan start: " + m.punchIn + "\nBoost in  : " + m.boostIn )
+                           if( punchOutO.isDefined ) {
+                              println( "Span stop : " + m.punchOut + "\nBoost out : " + m.boostOut )
+                           }
+                        }
+                        println()
+
+                     case Success( _ ) =>
                         println( "  No matches found." )
                      case Failure( e ) =>
                         println( "  Failed: " )

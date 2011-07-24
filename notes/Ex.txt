@@ -1,0 +1,2 @@
+run -c --in-start 0.800 --in-stop 1.146 --in-temp 0.4 --dur-min 0.700 --dur-max 1.400 /Users/hhrutz/Desktop/new_projects/Utopia/feature/Raspad_30'58Ct2_feat.xml 
+run -c --in-start 6.151 --in-stop 7.141 --in-temp 0.6 --dur-min 1.0 --dur-max 1.0 /Users/hhrutz/Desktop/new_projects/Utopia/feature/Raspad_30'58Ct2_feat.xml

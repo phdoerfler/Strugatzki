@@ -1,0 +1,42 @@
+--num-matches
+--num-per-file
+
+the prio list must maintain num-matches x num-matches entries,
+because num-per-file can only be established in the end!
+
+iter 1
+l1 = prio (max# num-matches)
+
+iter 2
+consider (l1' - l1.take(num-per-file)).min as threshold
+
+etc.
+
+::::::::::::::
+
+no easier:
+- min-thresh: min( total-prio )
+- per iteration find, as iter-prio, as much as num-per-file matches which are above min-thresh
+- add iter-prio to total-prio, and truncate after num-matches elements
+( - since no two items have the same prio, we can use a sortedset as well )
+- MPriorityQueue has O(1) size
+- we can invert the priority (make a queue such that head actually returns the thresh/min prio)
+- that way we can easily ask for that threshold as well as dequeue elements if
+  the prio queue grows beyond num-matches
+
+::::::::::::::
+
+should probably also add a minimum spacing within multiple matches per file
+
+--min-spacing
+
+  if( foundMatch ) {
+     if( spacing > minSpacing ) {
+        addToPrio
+     } else if( match better thanPrevious ) {
+        replacePreviousMatch
+     } else {
+        ignore
+     }
+   }
+

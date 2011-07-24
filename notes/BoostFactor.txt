@@ -1,0 +1,39 @@
+// (
+x = {
+	arg diff = 0.5;
+//	var sig = Dust.ar(LFNoise1.kr(0.1).exprange(100,4000));
+	var sig = SinOsc.ar(10000);
+	var l1 = Loudness.kr( FFT( LocalBuf( 1024 ), sig ));
+	var l2 = Loudness.kr( FFT( LocalBuf( 1024 ), sig * diff ));
+//        var phon1 = l1.log10 * 10 / 0.3;
+//        var phon2 = l2.log10 * 10 / 0.3;
+//        var lossDB = phon2 - phon1;
+//	var loss = lossDB.dbamp;
+	var loss = ((l2.log - l1.log) / 0.6).exp;
+	var err = ((loss - diff) * 100 / diff).round(0.1);
+	err.poll(2);
+	Silent.ar;
+}.play
+// )
+
+// 20% error for sine at 200 hz
+// 10% error for sine at 300 hz
+// 2.4% error for sine at 400 hz
+// 0% error for sine at 1000 hz (well...)
+// 10% error for sine at 2000 hz
+// 30% error for sine at 3000 hz (ouch)
+// 28% error for sine at 4000 hz
+// 3% error for sine at 5000 hz
+// 5% error for sine at 10 kHz
+
+x.set( \diff, 0.25 );
+x.set( \diff, -18.dbamp );
+
+::::::::::::::
+
+boost = 10 ^ (( phon1 - phon2 ) / 20)
+= 10 ^ (( 10/0.3 * (log10( loud1 ) - log10( loud2 ))) / 20 )
+= 10 ^ ((log10( loud1 ) - log10( loud2 )) / 0.6)
+= exp ((log10( loud1 ) - log10( loud2 )) / 0.6 * ln( 10 ))
+= exp ((log( loud1 ) - log( loud )) / ln( 10 ) / 0.6 * ln( 10 ))
+= exp ((log( loud1 ) - log( loud )) / 0.6 )
