@@ -80,10 +80,13 @@ object FeatureCorrelation extends ProcessorCompanion {
                               minPunch: Long, maxPunch: Long, normalize: Boolean )
    extends SettingsLike
 
-   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {
-       def compare( that: Sample ) : Int = idx.compare( that.idx )
-   }
-   private val sampleOrd = Ordering.ordered[ Sample ]
+//   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {
+//       def compare( that: Sample ) : Int = idx.compare( that.idx )
+//   }
+//   private val sampleOrd = Ordering.ordered[ Sample ]
+
+   private final case class FeatureMatrix( mat: Array[ Array[ Float ]], mean: Double, stdDev: Double )
+   private final case class InputMatrix( numFrames: Int, temporal: FeatureMatrix, spectral: FeatureMatrix )
 }
 final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                                          protected val observer: FeatureCorrelation.Observer ) extends Processor {
@@ -120,10 +123,11 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       val afIn       = AudioFile.openRead( extrIn.featureOutput )
 
-      def readInBuffer( punch: Punch ) : (Array[ Float ], Array[ Array[ Float ]]) = {
-         val start   = fullToFeat( punch.span.start )
-         val stop    = fullToFeat( punch.span.stop )
-         val b       = afIn.frameBuffer( stop - start )
+      def readInBuffer( punch: Punch ) : InputMatrix = {
+         val start      = fullToFeat( punch.span.start )
+         val stop       = fullToFeat( punch.span.stop )
+         val frameNum   = stop - start
+         val b          = afIn.frameBuffer( frameNum )
          afIn.seekFrame( start )
          afIn.readFrames( b )
          normBuf.foreach { n =>
@@ -140,17 +144,23 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                }
             }
          }
-         (b( 0 ), b.drop( 1 ))
+
+         def feat( mat: Array[ Array[ Float ]]) = {
+            val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
+            FeatureMatrix( mat, mean, stdDev )
+         }
+
+         InputMatrix( frameNum, feat( b.take( 1 )), feat( b.drop( 1 )))
       }
 
       // Outline of Algorithm:
       // - read input feature in-span and out-span
       // - optionally normalize
-      val (tempBufInIn, specBufInIn) = readInBuffer( settings.punchIn )
-      val bufInOut = settings.punchOut.map( readInBuffer( _ ))
+      val matrixIn   = readInBuffer( settings.punchIn )
+      val matrixOutO = settings.punchOut.map( readInBuffer( _ ))
       afIn.close
 
-      val punchInLen = tempBufInIn.length
+      val punchInLen = matrixIn.numFrames
 
       // - for each span:
       extrDBs foreach { extrDB =>
@@ -167,13 +177,16 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          var left       = afExtr.numFrames
          var readSz     = punchInLen   // read full buffer in first round
          var readOff    = 0
+         var logicalOff = 0
          // - go through in-span file + for each sample check span in out-span file
          // - thus determine best match
          while( left > 0 ) {
             val chunkLen   = math.min( left, readSz ).toInt
             afExtr.readFrames( b, readOff, chunkLen )
+//            val sim = correlate( a, aMean, aStdDev, aFrameOff, b, bFrameOff, frameLen, chanOff, chanLen )
             left   -= chunkLen
             readOff = (readOff + chunkLen) % punchInLen
+            logicalOff += 1
             readSz  = 1 // read single frames in successive round (and rotate buffer)
          }
       }
@@ -205,73 +218,82 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       (mean, stddev)
    }
 
-   private def correlate( a: Array[ Array[ Float ]], aMean: Double, aStdDev: Double, aFrameOff: Int,
-                          b: Array[ Array[ Float ]], bFrameOff: Int,
+   /*
+    * Perform cross correlation between two matrices a and b. A is supposed to be static,
+    * thus we expect to have its mean and standard deviation passed in. Both a and b
+    * can be larger than the actual matrix, by giving a frame offset and the number of frames,
+    * as well as a channel offset and number of channels to process.
+    *
+    * For efficiency reasons, b may be updated in a rotational manner, thus bFrame + frameLen
+    * may exceed the number of frames in b. The algorithm automatically takes the modulus
+    * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
+    */
+   private def correlate( a: FeatureMatrix, b: Array[ Array[ Float ]], bFrameOff: Int,
                           frameLen: Int, chanOff: Int, chanLen: Int ) : Float = {
       var sum = 0.0
 //      val (amean, astddev) = stat( a, aFrameOff, frameLen, chanOff, chanLen )
       val (bMean, bStdDev) = stat( b, bFrameOff, frameLen, chanOff, chanLen )
-      val aAdd = -aMean
-      val aMul = 1.0 / aStdDev
+      val aAdd = -a.mean
+      val aMul = 1.0 / a.stdDev
       val bAdd = -bMean
       val bMul = 1.0 / bStdDev
 
       val chanStop   = chanOff + chanLen
       var ch = chanOff; while( ch < chanStop ) {
-         val ca = a( ch )
+         val ca = a.mat( ch )
          val cb = b( ch )
          var i = 0; while( i < frameLen ) {
-            sum += ((ca( i + aFrameOff ) + aAdd) * aMul)  * ((cb( i + bFrameOff ) + bAdd) * bMul)
+            sum += ((ca( i ) + aAdd) * aMul)  * ((cb( (i + bFrameOff) % cb.length ) + bAdd) * bMul)
          i += 1 }
       ch += 1 }
       val matSize = frameLen * chanLen
       (sum / (matSize - 1)).toFloat
    }
 
-   private def similarityAnalysis( anaClientBuf: Similarity.Mat, frameInteg: Int, maxResults: Int = 20,
-                                   measure: Similarity.Mat => Float, rotateBuf: Boolean = false ) : ISortedSet[ Sample ] = {
-      val buf        = anaClientBuf
-      val numChannels= buf.numChannels
-      val frames     = Similarity.Mat( frameInteg, numChannels )
-      val numFrames  = buf.numFrames - frameInteg + 1
-      var res        = ISortedSet.empty[ Sample ]( sampleOrd )
-      var resCnt     = 0
-      val frameIntegM= frameInteg - 1
-
-      def karlheinz( idx: Int ) {
-         val m = measure( frames )
-         if( resCnt < maxResults ) {
-            res += Sample( idx, m )
-            resCnt += 1
-         } else if( res.last.measure > m ) {
-            res = res.dropRight( 1 ) + Sample( idx, m )
-         }
-      }
-
-      if( numFrames > 0 ) {
-         var x = 0; while( x < frameInteg ) {
-            buf.getFrame( 0, frames.arr( x ))
-         x += 1 }
-         karlheinz( 0 )
-      }
-      var off = 1; while( off < numFrames ) {
-//            val fm = frameMeasure( buf.getFrame( off, chanBuf ))
-         if( rotateBuf ) {
-            var y = 0; while( y < numChannels ) {
-               var prev = frames.arr( 0 )( y )
-               var x = frameIntegM; while( x >= 0 ) {   // ouch....
-                  val tmp = frames.arr( x )( y )
-                  frames.arr( x )( y ) = prev
-                  prev = tmp
-               x -= 1 }
-            y += 1 }
-            buf.getFrame( off, frames.arr( frameIntegM ))
-         } else {
-            buf.getFrame( off, frames.arr( (off - 1) % frameInteg ))
-         }
-         karlheinz( off )
-      off += 1 }
-
-      res
-   }
+//   private def similarityAnalysis( anaClientBuf: Similarity.Mat, frameInteg: Int, maxResults: Int = 20,
+//                                   measure: Similarity.Mat => Float, rotateBuf: Boolean = false ) : ISortedSet[ Sample ] = {
+//      val buf        = anaClientBuf
+//      val numChannels= buf.numChannels
+//      val frames     = Similarity.Mat( frameInteg, numChannels )
+//      val numFrames  = buf.numFrames - frameInteg + 1
+//      var res        = ISortedSet.empty[ Sample ]( sampleOrd )
+//      var resCnt     = 0
+//      val frameIntegM= frameInteg - 1
+//
+//      def karlheinz( idx: Int ) {
+//         val m = measure( frames )
+//         if( resCnt < maxResults ) {
+//            res += Sample( idx, m )
+//            resCnt += 1
+//         } else if( res.last.measure > m ) {
+//            res = res.dropRight( 1 ) + Sample( idx, m )
+//         }
+//      }
+//
+//      if( numFrames > 0 ) {
+//         var x = 0; while( x < frameInteg ) {
+//            buf.getFrame( 0, frames.arr( x ))
+//         x += 1 }
+//         karlheinz( 0 )
+//      }
+//      var off = 1; while( off < numFrames ) {
+////            val fm = frameMeasure( buf.getFrame( off, chanBuf ))
+//         if( rotateBuf ) {
+//            var y = 0; while( y < numChannels ) {
+//               var prev = frames.arr( 0 )( y )
+//               var x = frameIntegM; while( x >= 0 ) {   // ouch....
+//                  val tmp = frames.arr( x )( y )
+//                  frames.arr( x )( y ) = prev
+//                  prev = tmp
+//               x -= 1 }
+//            y += 1 }
+//            buf.getFrame( off, frames.arr( frameIntegM ))
+//         } else {
+//            buf.getFrame( off, frames.arr( (off - 1) % frameInteg ))
+//         }
+//         karlheinz( off )
+//      off += 1 }
+//
+//      res
+//   }
 }
