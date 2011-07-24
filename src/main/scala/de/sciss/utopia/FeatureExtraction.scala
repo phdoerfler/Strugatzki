@@ -35,8 +35,8 @@ import java.io.{RandomAccessFile, File}
 import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
-import xml.XML
 import actors.Actor
+import xml.{Elem, XML}
 
 object FeatureExtraction {
    var verbose = false
@@ -70,10 +70,28 @@ object FeatureExtraction {
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
+      def fromXML( xml: Elem ) : Settings = {
+         val sb = new SettingsBuilder
+         sb.audioInput     = new File( (xml \ "input").text )
+         sb.featureOutput  = new File( (xml \ "output").text )
+         sb.numCoeffs      = (xml \ "numCoeffs").text.toInt
+         sb.fftSize        = (xml \ "fftSize").text.toInt
+         sb.fftOverlap     = (xml \ "fftOverlap").text.toInt
+         sb.build
+      }
    }
    final case class Settings( audioInput : File, featureOutput : File, metaOutput : Option[ File ],
                               numCoeffs : Int, fftSize : Int, fftOverlap : Int )
-   extends SettingsLike
+   extends SettingsLike {
+      def toXML =
+<feature>
+   <input>{audioInput.getAbsolutePath}</input>
+   <output>{featureOutput.getAbsolutePath}</output>
+   <numCoeffs>{numCoeffs}</numCoeffs>
+   <fftSize>{fftSize}</fftSize>
+   <fftOverlap>{fftOverlap}</fftOverlap>
+</feature>
+   }
 
    sealed trait ProgressOrResult
    final case class Progress( percent: Int ) extends ProgressOrResult
@@ -262,15 +280,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          afOut.close
 
          settings.metaOutput.foreach { metaFile =>
-            val xml =
-<feature>
-   <input>{settings.audioInput.getAbsolutePath}</input>
-   <output>{settings.featureOutput.getAbsolutePath}</output>
-   <numCoeffs>{settings.numCoeffs}</numCoeffs>
-   <fftSize>{settings.fftSize}</fftSize>
-   <fftOverlap>{settings.fftOverlap}</fftOverlap>
-</feature>
-
+            val xml = settings.toXML
             XML.save( metaFile.getAbsolutePath, xml, "UTF-8", true, null )
          }
 
