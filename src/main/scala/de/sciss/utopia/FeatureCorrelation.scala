@@ -86,7 +86,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       /** Maximum number of matches to report */
       def numMatches : Int
       /** Maximum number of matches to report of a single database entry */
-      def numMatchesPerFile : Int
+      def numPerFile : Int
       /** Minimum spacing between matches within a single database entry */
       def minSpacing : Long
    }
@@ -101,11 +101,11 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       var normalize           = true
       var maxBoost            = 8f
       var numMatches          = 1
-      var numMatchesPerFile   = 1
+      var numPerFile          = 1
       var minSpacing          = 22050L
 
       def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
-         maxBoost, numMatches, numMatchesPerFile, minSpacing )
+         maxBoost, numMatches, numPerFile, minSpacing )
    }
 
    object Settings {
@@ -113,7 +113,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    }
    final case class Settings( databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[ Punch ],
                               minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float,
-                              numMatches: Int, numMatchesPerFile: Int, minSpacing: Long )
+                              numMatches: Int, numPerFile: Int, minSpacing: Long )
    extends SettingsLike
 
 //   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {

@@ -64,28 +64,34 @@ object Utopia {
       var verbose       = false
       var punchInStart  = Option.empty[ Double ]
       var punchInStop   = Option.empty[ Double ]
-      var tempIn        = Option.empty[ Double ]
+      var tempIn        = 0.5
       var punchOutStart = Option.empty[ Double ]
       var punchOutStop  = Option.empty[ Double ]
-      var tempOut       = Option.empty[ Double ]
+      var tempOut       = 0.5
       var minPunch      = Option.empty[ Double ]
       var maxPunch      = Option.empty[ Double ]
       var input         = Option.empty[ String ]
-      var maxBoost      = Option.empty[ Float ]
+      var maxBoost      = 8.0
+      var numMatches    = 1
+      var numPerFile    = 1
+      var minSpacing    = 0.5
       var normalize     = true
 
       val parser  = new OptionParser( name + " -c" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
-         opt( "d", "dir", "<directory>", "Database directory",     (s: String) => dirOption    = Some( s ))
-         doubleOpt( "in-start",  "Punch in begin (secs)",  (d: Double) => punchInStart  = Some( d ))
-         doubleOpt( "in-stop",   "Punch in end (secs)",    (d: Double) => punchInStop   = Some( d ))
-         doubleOpt( "in-temp",   "Temporal weight for punch in (0 to 1)", (d: Double) => tempIn = Some( d ))
+         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption    = Some( s ))
+         doubleOpt( "in-start", "Punch in begin (secs)", (d: Double) => punchInStart  = Some( d ))
+         doubleOpt( "in-stop", "Punch in end (secs)", (d: Double) => punchInStop   = Some( d ))
+         doubleOpt( "in-temp", "Temporal weight for punch in (0 to 1, default 0.5)", tempIn = _ )
          doubleOpt( "out-start", "Punch out begin (secs)", (d: Double) => punchOutStart = Some( d ))
-         doubleOpt( "out-stop",  "Punch out end (secs)",   (d: Double) => punchOutStop  = Some( d ))
-         doubleOpt( "out-temp",  "Temporal weight for punch out (0 to 1)", (d: Double) => tempOut = Some( d ))
-         doubleOpt( "dur-min",   "Minimum fill duration (secs)", (d: Double) => minPunch = Some( d ))
-         doubleOpt( "dur-max",   "Maximum fill duration (secs)", (d: Double) => maxPunch = Some( d ))
-         doubleOpt( "boost-max", "Maximum loudness boost factor", (d: Double) => maxBoost = Some( d.toFloat ))
+         doubleOpt( "out-stop", "Punch out end (secs)", (d: Double) => punchOutStop  = Some( d ))
+         doubleOpt( "out-temp", "Temporal weight for punch out (0 to 1, default 0.5)", tempOut = _ )
+         doubleOpt( "dur-min", "Minimum fill duration (secs)", (d: Double) => minPunch = Some( d ))
+         doubleOpt( "dur-max", "Maximum fill duration (secs)", (d: Double) => maxPunch = Some( d ))
+         doubleOpt( "boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _ )
+         intOpt( "m", "num-matches", "Maximum number of matches (default 1)", numMatches = _ )
+         intOpt( "num-per-file", "Maximum matches per single file (default 1)", numPerFile = _ )
+         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.5)", minSpacing = _ )
          arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
          opt( "no-norm", "Do not apply feature normalization", normalize = false )
       }
@@ -103,7 +109,7 @@ object Utopia {
                   case (Some( poStart ), Some( poStop )) =>
                      val outSpan = Span( secsToFrames( poStart ), secsToFrames( poStop ))
                      require( outSpan.length > 0, "Punch out span is empty" )
-                     true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.getOrElse( 0.5 ).toFloat ))
+                     true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.toFloat ))
 
                   case (None, None) => true -> None
                   case _ => false -> None
@@ -111,7 +117,7 @@ object Utopia {
                if( ok ) {
                   val inSpan  = Span( secsToFrames( piStart ), secsToFrames( piStop ))
                   require( inSpan.length > 0, "Punch in span is empty" )
-                  val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.getOrElse( 0.5 ).toFloat )
+                  val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.toFloat )
                   val minFrames  = secsToFrames( pMin )
                   require( minFrames > 0, "Minimum duration is zero" )
                   val maxFrames  = secsToFrames( pMax )
@@ -126,7 +132,10 @@ object Utopia {
                   set.minPunch         = minFrames
                   set.maxPunch         = maxFrames
                   set.normalize        = normalize
-                  maxBoost.foreach( set.maxBoost = _ )
+                  set.maxBoost         = maxBoost.toFloat
+                  set.numMatches       = numMatches
+                  set.numPerFile       = numPerFile
+                  set.minSpacing       = secsToFrames( minSpacing )
 
                   import FeatureCorrelation._
                   var lastProg = 0
