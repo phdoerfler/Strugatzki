@@ -163,8 +163,13 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( avg( b, bOff, bLen ))
 
-      def calcBoost( in: InputMatrix, b: Array[ Float ], bOff: Int, bLen: Int ) : Float = {
-         val lnAvgB = calcLnAvgLoud( b, bOff, bLen )
+//      def calcBoost( in: InputMatrix, b: Array[ Float ], bOff: Int, bLen: Int ) : Float = {
+//         val lnAvgB = calcLnAvgLoud( b, bOff, bLen )
+//         math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
+//      }
+
+      def calcBoost( in: InputMatrix, b: Array[ Float ]) : Float = {
+         val lnAvgB = calcLnAvgLoud( b, 0, in.numFrames )
          math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
       }
 
@@ -257,16 +262,22 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                if( checkAborted ) return Aborted
 
+//               if( logicalOff == 86 ) {
+//                  println( "aqui" )
+//               }
+
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.readFrames( b, readOff, chunkLen )
+               val bOff = logicalOff % punchInLen
                normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
-               val boost = calcBoost( matrixIn, b( 0 ), readOff, chunkLen )
+//               val boost = calcBoost( matrixIn, b( 0 ), readOff, chunkLen )
+               val boost = calcBoost( matrixIn, b( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
-                     correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
+                     correlate( matrixIn.temporal, b, bOff, 0 )
                   } else 0f
                   val spectral = if( inTempWeight < 1f ) {
-                     correlate( matrixIn.spectral, b, logicalOff % punchInLen, 1 )
+                     correlate( matrixIn.spectral, b, bOff, 1 )
                   } else 0f
                   temporal * inTempWeight + spectral * (1f - inTempWeight)
                } else {
@@ -323,13 +334,15 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         afExtr.readFrames( b, readOff, chunkLen )
                         normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
 //                        val boost = matrixOut.avgLoudness / avg( b( 0 ), readOff, chunkLen )
-                        val boost = calcBoost( matrixOut, b( 0 ), readOff, chunkLen )
+//                        val boost = calcBoost( matrixOut, b( 0 ), readOff, chunkLen )
+                        val bOff = logicalOff % punchOutLen
+                        val boost = calcBoost( matrixOut, b( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {
                            val temporal = if( outTempWeight > 0f ) {
-                              correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
+                              correlate( matrixOut.temporal, b, bOff, 0 )
                            } else 0f
                            val spectral = if( outTempWeight < 1f ) {
-                              correlate( matrixOut.spectral, b, logicalOff % punchOutLen, 1 )
+                              correlate( matrixOut.spectral, b, bOff, 1 )
                            } else 0f
                            temporal * outTempWeight + spectral * (1f - outTempWeight)
                         } else {
@@ -457,7 +470,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
             sum += ((ca( i ) + aAdd) * aMul)  * ((cb( (i + bFrameOff) % cb.length ) + bAdd) * bMul)
          i += 1 }
       ch += 1 }
-      (sum / (a.matSize - 1)).toFloat
+//      (sum / (a.matSize - 1)).toFloat
+      (sum / a.matSize).toFloat
    }
 
    // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
