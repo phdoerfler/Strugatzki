@@ -96,7 +96,7 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
                   require( mins.size == numCh && maxs.size == numCh )
                   for( ch <- 0 until numCh ) {
                      allMins( ch ) = math.min( allMins( ch ), mins( ch ))
-                     allMaxs( ch ) = math.min( allMaxs( ch ), maxs( ch ))
+                     allMaxs( ch ) = math.max( allMaxs( ch ), maxs( ch ))
                   }
                }
                val prog = ((i + 1).toFloat / paths.size * 100).toInt
@@ -112,8 +112,8 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
          val af      = AudioFile.openRead( path )
          val bufSz   = math.min( 8192, af.numFrames ).toInt
          val numCh   = af.numChannels
-         val maxs    = new Array[ Float ]( numCh )
-         val mins    = new Array[ Float ]( numCh )
+         val maxs    = Array.fill( numCh )( Float.NegativeInfinity )
+         val mins    = Array.fill( numCh )( Float.PositiveInfinity )
          val sums    = new Array[ Double ]( numCh )
          val skews   = new Array[ Double ]( numCh )
          val p01     = new Array[ Double ]( numCh )
@@ -182,6 +182,8 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
                i += 1
             }
             p99( ch ) = math.pow( i.toDouble / 2048, skewr ) * d + min
+
+//            println("i = "+i+"; min = " )
          }
 
          (p01, p99)
