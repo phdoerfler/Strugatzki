@@ -391,7 +391,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
     * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
     */
    private def correlate( a: FeatureMatrix, b: Array[ Array[ Float ]], bFrameOff: Int, bChanOff: Int ) : Float = {
-      val (bMean, bStdDev) = stat( b, bFrameOff, a.numFrames, bChanOff, a.numChannels )
+      // note: stat does not wrap frame offset around b.numFrames.
+      // we thus assume that b really has data from 0 to a.numFrames!
+      val (bMean, bStdDev) = stat( b, 0 /* FrameOff */, a.numFrames, bChanOff, a.numChannels )
       val aAdd = -a.mean
       val aMul = 1.0 / a.stdDev
       val bAdd = -bMean
