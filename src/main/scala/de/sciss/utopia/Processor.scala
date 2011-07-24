@@ -55,9 +55,8 @@ trait Processor {
    protected val companion: ProcessorCompanion
    protected def observer: companion.Observer
 
-   Act.start()
-
    def abort() { Act ! Abort }
+   protected def start() { Act.start() }
 
    private object Abort
 

@@ -99,6 +99,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
    protected val companion = FeatureCorrelation
    import companion._
 
+   start()  // weird
+
    protected def body() : Result = {
       import FeatureExtraction.{ Settings => ExtrSettings }
 

@@ -73,7 +73,7 @@ object Utopia {
       var input         = Option.empty[ String ]
       var normalize     = true
 
-      val parser  = new OptionParser( name + " -f" ) {
+      val parser  = new OptionParser( name + " -c" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory",     (s: String) => dirOption    = Some( s ))
          doubleOpt( "in-start",  "Punch in begin (secs)",  (d: Double) => punchInStart  = Some( d ))
