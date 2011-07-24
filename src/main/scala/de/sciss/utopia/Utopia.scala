@@ -34,8 +34,9 @@ import java.io.{FilenameFilter, FileFilter, File}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 
 object Utopia {
-   val defaultDir = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
-   val name       = "Utopia"
+   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
+   val name             = "Utopia"
+   val NORMALIZE_NAME   = "feat_norms.aif"
 
    def main( args: Array[ String ]) {
       var which   = ""
@@ -74,7 +75,7 @@ object Utopia {
          FeatureStats( paths ) {
             case Success( spans ) =>
                println( "  Success." )
-               val afNorm = AudioFile.openWrite( new File( dir, "feat_norms.aif" ),
+               val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
                   AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
                val b = afNorm.frameBuffer( 2 )
                spans.zipWithIndex.foreach { case ((min, max), i) =>
