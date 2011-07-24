@@ -60,6 +60,10 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    /** where temporal weight is between 0 (just spectral corr) and 1 (just temporal corr) */
    final case class Punch( span: Span, temporalWeight: Float = 0.5f )
 
+   /**
+    * All durations, spans and spacings are given in sample frames
+    * with respect to the sample rate of the audio input file.
+    */
    sealed trait SettingsLike {
       def databaseFolder : File
       def metaInput: File
@@ -79,26 +83,37 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
        * is `exp ((ln( loud_in ) - ln( loud_db )) / 0.6 )`
        */
       def maxBoost : Float
+      /** Maximum number of matches to report */
+      def numMatches : Int
+      /** Maximum number of matches to report of a single database entry */
+      def numMatchesPerFile : Int
+      /** Minimum spacing between matches within a single database entry */
+      def minSpacing : Long
    }
 
    final class SettingsBuilder extends SettingsLike {
-      var databaseFolder   = new File( Utopia.defaultDir )
-      var metaInput        = new File( "input_feat.xml" )
-      var punchIn          = Punch( Span( 0L, 44100L ), 0.5f )
-      var punchOut         = Option.empty[ Punch ]
-      var minPunch         = 22050L
-      var maxPunch         = 88200L
-      var normalize        = true
-      var maxBoost         = 8f
+      var databaseFolder      = new File( Utopia.defaultDir )
+      var metaInput           = new File( "input_feat.xml" )
+      var punchIn             = Punch( Span( 0L, 44100L ), 0.5f )
+      var punchOut            = Option.empty[ Punch ]
+      var minPunch            = 22050L
+      var maxPunch            = 88200L
+      var normalize           = true
+      var maxBoost            = 8f
+      var numMatches          = 1
+      var numMatchesPerFile   = 1
+      var minSpacing          = 22050L
 
-      def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize, maxBoost )
+      def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
+         maxBoost, numMatches, numMatchesPerFile, minSpacing )
    }
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
    }
    final case class Settings( databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[ Punch ],
-                              minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float )
+                              minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float,
+                              numMatches: Int, numMatchesPerFile: Int, minSpacing: Long )
    extends SettingsLike
 
 //   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {
@@ -471,7 +486,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          i += 1 }
       ch += 1 }
 //      (sum / (a.matSize - 1)).toFloat
-      (sum / a.matSize).toFloat
+      (sum / a.matSize).toFloat  // ensures correlate( a, a ) == 1.0
    }
 
    // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
