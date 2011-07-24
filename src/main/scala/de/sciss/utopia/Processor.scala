@@ -31,6 +31,7 @@ package de.sciss.utopia
 import de.sciss.synth.io.AudioFile
 import java.io.File
 import actors.Actor
+import de.sciss.utopia.FeatureExtraction.Progress
 
 trait ProcessorCompanion {
    var verbose = false
@@ -85,6 +86,7 @@ trait Processor {
 
    private object ProcT extends Thread {
       var aborted: Boolean = false
+      private var lastProg = -1
       override def run() {
          Act ! (try {
             body()
@@ -93,6 +95,14 @@ trait Processor {
          })
       }
 
-      def checkAborted = this.synchronized { aborted }
+      def progress( i: Int ) {
+         if( i > lastProg ) {
+            lastProg = i
+            Act ! Progress( i )
+         }
+      }
    }
+
+   protected def checkAborted = ProcT.synchronized { ProcT.aborted }
+   protected def progress( f: Float ) = ProcT.progress( (f * 100 + 0.5f).toInt )
 }

@@ -31,14 +31,13 @@ package de.sciss.utopia
 import xml.XML
 import de.sciss.synth.io.AudioFile
 import collection.breakOut
-import collection.immutable.{ SortedSet => ISortedSet }
 import java.io.{RandomAccessFile, FilenameFilter, File}
 
 object FeatureCorrelation extends ProcessorCompanion {
 
-   type PayLoad = Match
+   type PayLoad = Option[ Match ]
 
-   final case class Match( file: File, punchOut: Long, punchLen: Long, punchIn: Long )
+   final case class Match( file: File, punchIn: Long, punchOut: Long )
 
    def apply( settings: Settings )( observer: Observer ) : FeatureCorrelation = {
       new FeatureCorrelation( settings, observer )
@@ -107,6 +106,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val stepSize   = extrIn.fftSize / extrIn.fftOverlap
 
       def fullToFeat( n: Long ) = ((n + (stepSize >> 1)) / stepSize).toInt
+      def featToFull( i: Int )  = i.toLong * stepSize
 
       // collect all valid database files from the folder
       val punchMetas = settings.databaseFolder.listFiles( new FilenameFilter {
@@ -128,44 +128,47 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          Some( b )
       } else None
 
-      val afIn       = AudioFile.openRead( extrIn.featureOutput )
-
-      def readInBuffer( punch: Punch ) : InputMatrix = {
-         val start      = fullToFeat( punch.span.start )
-         val stop       = fullToFeat( punch.span.stop )
-         val frameNum   = stop - start
-         val b          = afIn.frameBuffer( frameNum )
-         afIn.seekFrame( start )
-         afIn.readFrames( b )
-         normBuf.foreach { n =>
-            for( ch <- 0 until b.length ) {
-               val cb   = b( ch )
-               val cn   = n( ch )
-               val min  = cn( 0 )
-               val max  = cn( 1 )
-               val d    = max - min
-               for( i <- 0 until cb.length ) {
-                  val f    = cb( i )
-                  // XXX should values be clipped to [0...1] or not?
-                  cb( i )  = (f - min) / d
+      val (matrixIn, matrixOutO) = {
+         val afIn = AudioFile.openRead( extrIn.featureOutput )
+         try {
+            def readInBuffer( punch: Punch ) : InputMatrix = {
+               val start      = fullToFeat( punch.span.start )
+               val stop       = fullToFeat( punch.span.stop )
+               val frameNum   = stop - start
+               val b          = afIn.frameBuffer( frameNum )
+               afIn.seekFrame( start )
+               afIn.readFrames( b )
+               normBuf.foreach { n =>
+                  for( ch <- 0 until b.length ) {
+                     val cb   = b( ch )
+                     val cn   = n( ch )
+                     val min  = cn( 0 )
+                     val max  = cn( 1 )
+                     val d    = max - min
+                     for( i <- 0 until cb.length ) {
+                        val f    = cb( i )
+                        // XXX should values be clipped to [0...1] or not?
+                        cb( i )  = (f - min) / d
+                     }
+                  }
                }
+
+               def feat( mat: Array[ Array[ Float ]]) = {
+                  val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
+                  FeatureMatrix( mat, frameNum, mean, stdDev )
+               }
+
+               InputMatrix( feat( b.take( 1 )), feat( b.drop( 1 )))
             }
-         }
 
-         def feat( mat: Array[ Array[ Float ]]) = {
-            val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
-            FeatureMatrix( mat, frameNum, mean, stdDev )
+            // Outline of Algorithm:
+            // - read input feature in-span and out-span
+            // - optionally normalize
+            (readInBuffer( settings.punchIn ), settings.punchOut.map( readInBuffer( _ )))
+         } finally {
+            afIn.close
          }
-
-         InputMatrix( feat( b.take( 1 )), feat( b.drop( 1 )))
       }
-
-      // Outline of Algorithm:
-      // - read input feature in-span and out-span
-      // - optionally normalize
-      val matrixIn         = readInBuffer( settings.punchIn )
-      val matrixOutO       = settings.punchOut.map( readInBuffer( _ ))
-      afIn.close
 
       val punchInLen       = matrixIn.numFrames
       val inTempWeight     = settings.punchIn.temporalWeight
@@ -177,8 +180,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       def createTempFile( id: String ) : RandomAccessFile = {
          val file = File.createTempFile( "corr_" + id, ".bin" )
-         val res  = new RandomAccessFile( file, "rw" )
          file.deleteOnExit()
+         val res  = new RandomAccessFile( file, "rw" )
          res
       }
 
@@ -186,129 +189,154 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val maxPunch = fullToFeat( settings.maxPunch )
 
       // - for each span:
-      extrDBs foreach { extrDB =>
-         val afExtr     = AudioFile.openRead( extrDB.featureOutput )
-         //   - create a temp file
-         //   - write the sliding xcorr to that file
-         // A simple optimization could be to not begin writing the
-         // temp file unless a punch-in correlation is found which is better
-         // than the previous best match. This could also trigger
-         // the punch-out measurement which could thus offset at
-         // first_punch_in + min_punch_len
-         var tmpFile    = Option.empty[ RandomAccessFile ]
-         val b          = afExtr.frameBuffer( punchInLen )
-         var left       = afExtr.numFrames
-         matrixOutO.foreach { mo => left -= minPunch + mo.numFrames }
-         var readSz     = punchInLen   // read full buffer in first round
-         var readOff    = 0
-         var logicalOff = 0
-         // - go through in-span file and calculate correlations
-         while( left > 0 ) {
-            val chunkLen   = math.min( left, readSz ).toInt
-            afExtr.readFrames( b, readOff, chunkLen )
-            val temporal = if( inTempWeight > 0f ) {
-               correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
-            } else 0f
-            val spectral = if( inTempWeight < 1f ) {
-               correlate( matrixIn.spectral, b, logicalOff % punchInLen, 1 )
-            } else 0f
-            val sim = temporal * inTempWeight + spectral * (1f - inTempWeight)
-            if( matrixOutO.isDefined ) {
-               val tf = tmpFile.getOrElse {
-                  val res = createTempFile( "in" )
-                  tmpFile = Some( res )
-                  res
+      extrDBs.zipWithIndex foreach { case (extrDB, extrIdx) =>
+
+         if( checkAborted ) return Aborted
+
+         val afExtr = AudioFile.openRead( extrDB.featureOutput )
+         try {
+            //   - create a temp file
+            //   - write the sliding xcorr to that file
+            // A simple optimization could be to not begin writing the
+            // temp file unless a punch-in correlation is found which is better
+            // than the previous best match. This could also trigger
+            // the punch-out measurement which could thus offset at
+            // first_punch_in + min_punch_len
+            var tmpFile    = Option.empty[ RandomAccessFile ]
+            val b          = afExtr.frameBuffer( punchInLen )
+            var left       = afExtr.numFrames
+            matrixOutO.foreach { mo => left -= minPunch + mo.numFrames }
+            var readSz     = punchInLen   // read full buffer in first round
+            var readOff    = 0
+            var logicalOff = 0
+            // - go through in-span file and calculate correlations
+            while( left > 0 ) {
+
+               if( checkAborted ) return Aborted
+
+               val chunkLen   = math.min( left, readSz ).toInt
+               afExtr.readFrames( b, readOff, chunkLen )
+               val temporal = if( inTempWeight > 0f ) {
+                  correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
+               } else 0f
+               val spectral = if( inTempWeight < 1f ) {
+                  correlate( matrixIn.spectral, b, logicalOff % punchInLen, 1 )
+               } else 0f
+               val sim = temporal * inTempWeight + spectral * (1f - inTempWeight)
+               if( matrixOutO.isDefined ) {
+                  val tf = tmpFile.getOrElse {
+                     val res = createTempFile( "in" )
+                     tmpFile = Some( res )
+                     res
+                  }
+                  tf.writeInt( logicalOff )
+                  tf.writeFloat( sim )
+               } else {
+                  if( sim > minSim ) {
+                     minSim      = sim
+                     bestMeta    = extrDB
+                     bestPunchIn = logicalOff
+                  }
                }
-               tf.writeInt( logicalOff )
-               tf.writeFloat( sim )
-            } else {
-               if( sim > minSim ) {
-                  minSim      = sim
-                  bestMeta    = extrDB
-                  bestPunchIn = logicalOff
-               }
+
+               left   -= chunkLen
+               readOff = (readOff + chunkLen) % punchInLen
+               logicalOff += 1
+               readSz  = 1 // read single frames in successive round (and rotate buffer)
             }
 
-            left   -= chunkLen
-            readOff = (readOff + chunkLen) % punchInLen
-            logicalOff += 1
-            readSz  = 1 // read single frames in successive round (and rotate buffer)
-         }
-
-         // - if there is no punch-out, or if no minimally good correlations have been found,
-         //   we're done, otherwise, calculate punch-out correlations
-         (matrixOutO, settings.punchOut, tmpFile) match {
-            case (Some( matrixOut ), Some( punchOut ), Some( tIn )) =>
-               tIn.seek( 0L )
-               val piOff0  = tIn.readInt()
-               val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
-               val tOut    = createTempFile( "out" )
-
-               left        = afExtr.numFrames - poOff0
-               if( left > 0 ) {
-                  val outTempWeight = punchOut.temporalWeight
-                  afExtr.seekFrame( poOff0 )
-                  val punchOutLen   = matrixOut.numFrames
-                  readSz            = punchOutLen   // read full buffer in first round
-                  readOff           = 0
-                  logicalOff        = 0
-                  // - go through out-span file and calculate correlations
-                  while( left > 0 ) {
-                     val chunkLen   = math.min( left, readSz ).toInt
-                     afExtr.readFrames( b, readOff, chunkLen )
-                     val temporal = if( outTempWeight > 0f ) {
-                        correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
-                     } else 0f
-                     val spectral = if( outTempWeight < 1f ) {
-                        correlate( matrixOut.spectral, b, logicalOff % punchOutLen, 1 )
-                     } else 0f
-                     val sim = temporal * outTempWeight + spectral * (1f - outTempWeight)
-                     tOut.writeFloat( sim )
-                     left   -= chunkLen
-                     readOff = (readOff + chunkLen) % punchOutLen
-                     logicalOff += 1
-                     readSz  = 1 // read single frames in successive round (and rotate buffer)
-                  }
-
-                  // - finally find the best match
+            // - if there is no punch-out, or if no minimally good correlations have been found,
+            //   we're done, otherwise, calculate punch-out correlations
+            (matrixOutO, settings.punchOut, tmpFile) match {
+               case (Some( matrixOut ), Some( punchOut ), Some( tIn )) =>
                   tIn.seek( 0L )
-                  left = tIn.length / 8
-                  while( left > 0 ) {
-                     val piOff   = tIn.readInt()
-                     val inSim   = tIn.readFloat()
-                     // minSim -- the best match so far, is now
-                     // defined as min( inSim, outSim )
-                     if( inSim > minSim ) {  // ... so this is a necessary condition to consider this offset
-                        var poOff   = piOff + minPunch
-                        tOut.seek( poOff0 + (piOff - piOff0) )
-                        var left2   = math.max( (tOut.length - tOut.getFilePointer) / 4, maxPunch - minPunch + 1 )
-                        while( left2 > 0 ) {
-                           val outSim  = tOut.readFloat()
-                           val sim     = math.min( inSim, outSim )
-                           if( sim > minSim ) {
-                              minSim         = sim
-                              bestMeta       = extrDB
-                              bestPunchIn    = piOff
-                              bestPunchOut   = poOff
+                  val piOff0  = tIn.readInt()
+                  val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
+                  val tOut    = createTempFile( "out" )
 
-                              // shortcut (with the definition of minSim):
-                              // if outSim >= inSim, the search is over for this round
-                              // (because minSim is bound by inSim)
-                              if( outSim >= inSim ) left2 = 0
-                           }
-                           left2 -= 1
-                           poOff += 1
-                        }
+                  left        = afExtr.numFrames - poOff0
+                  if( left > 0 ) {
+                     val outTempWeight = punchOut.temporalWeight
+                     afExtr.seekFrame( poOff0 )
+                     val punchOutLen   = matrixOut.numFrames
+                     readSz            = punchOutLen   // read full buffer in first round
+                     readOff           = 0
+                     logicalOff        = 0
+                     // - go through out-span file and calculate correlations
+                     while( left > 0 ) {
+
+                        if( checkAborted ) return Aborted
+
+                        val chunkLen   = math.min( left, readSz ).toInt
+                        afExtr.readFrames( b, readOff, chunkLen )
+                        val temporal = if( outTempWeight > 0f ) {
+                           correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
+                        } else 0f
+                        val spectral = if( outTempWeight < 1f ) {
+                           correlate( matrixOut.spectral, b, logicalOff % punchOutLen, 1 )
+                        } else 0f
+                        val sim = temporal * outTempWeight + spectral * (1f - outTempWeight)
+                        tOut.writeFloat( sim )
+                        left   -= chunkLen
+                        readOff = (readOff + chunkLen) % punchOutLen
+                        logicalOff += 1
+                        readSz  = 1 // read single frames in successive round (and rotate buffer)
                      }
-                     left -= 1
-                  }
-               }
 
-            case _ =>
+                     // - finally find the best match
+                     tIn.seek( 0L )
+                     left = tIn.length / 8
+                     while( left > 0 ) {
+
+                        if( checkAborted ) return Aborted
+
+                        val piOff   = tIn.readInt()
+                        val inSim   = tIn.readFloat()
+                        // minSim -- the best match so far, is now
+                        // defined as min( inSim, outSim )
+                        if( inSim > minSim ) {  // ... so this is a necessary condition to consider this offset
+                           var poOff   = piOff + minPunch
+                           tOut.seek( poOff0 + (piOff - piOff0) )
+                           var left2   = math.max( (tOut.length - tOut.getFilePointer) / 4, maxPunch - minPunch + 1 )
+                           while( left2 > 0 ) {
+
+                              if( checkAborted ) return Aborted
+
+                              val outSim  = tOut.readFloat()
+                              val sim     = math.min( inSim, outSim )
+                              if( sim > minSim ) {
+                                 minSim         = sim
+                                 bestMeta       = extrDB
+                                 bestPunchIn    = piOff
+                                 bestPunchOut   = poOff
+
+                                 // shortcut (with the definition of minSim):
+                                 // if outSim >= inSim, the search is over for this round
+                                 // (because minSim is bound by inSim)
+                                 if( outSim >= inSim ) left2 = 0
+                              }
+                              left2 -= 1
+                              poOff += 1
+                           }
+                        }
+                        left -= 1
+                     }
+                  }
+
+               case _ =>
+            }
+         } finally {
+            afExtr.close
          }
+
+         progress( (extrIdx + 1).toFloat / extrDBs.size )
       }
 
-      Aborted // XXX TODO
+      val pay = if( bestMeta != null ) {
+         Some( Match( bestMeta.audioInput, featToFull( bestPunchIn ), featToFull( bestPunchOut )))
+      } else None
+
+      Success( pay )
    }
 
    private def stat( mat: Array[ Array[ Float ]], frameOff: Int, frameLen: Int, chanOff: Int, chanLen: Int ) : (Double, Double) = {
