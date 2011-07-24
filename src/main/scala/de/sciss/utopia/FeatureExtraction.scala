@@ -70,6 +70,7 @@ object FeatureExtraction {
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
+      def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
       def fromXML( xml: Elem ) : Settings = {
          val sb = new SettingsBuilder
          sb.audioInput     = new File( (xml \ "input").text )

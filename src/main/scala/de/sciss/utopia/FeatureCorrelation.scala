@@ -116,7 +116,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       // collect all database entries which match the input resolution
       // (for simplicity, we ignore the fact that the sample rates could differ)
       val extrDBs: IndexedSeq[ ExtrSettings ] = punchMetas.map( file => {
-         val e = ExtrSettings.fromXML( XML.loadFile( file ))
+         val e = ExtrSettings.fromXMLFile( file )
          if( (e.numCoeffs == extrIn.numCoeffs) && (e.fftSize / e.fftOverlap == stepSize) ) Some( e ) else None
       })( breakOut ).collect { case Some( e ) => e }
 
