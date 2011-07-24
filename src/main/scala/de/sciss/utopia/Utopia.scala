@@ -137,6 +137,10 @@ object Utopia {
                   set.numPerFile       = numPerFile
                   set.minSpacing       = secsToFrames( minSpacing )
 
+                  def ampToDB( amp: Double ) = 20 * math.log10( amp )
+                  def toPercentStr( d: Double ) = ((d * 10000 + 0.5).toInt * 0.01f).toString + "%"
+                  def toDBStr( amp: Double ) = ((ampToDB( amp ) * 10 + 0.5).toInt * 0.1f).toString + " dB"
+
                   import FeatureCorrelation._
                   var lastProg = 0
                   FeatureCorrelation( set ) {
@@ -144,10 +148,13 @@ object Utopia {
                         println( "  Success." )
 
                         res.foreach { m =>
-                           println( "\nFile      : " + m.file.getAbsolutePath + "\nSimilarity: " + m.sim +
-                              "\nSpan start: " + m.punchIn + "\nBoost in  : " + m.boostIn )
+                           println(  "\nFile      : " + m.file.getAbsolutePath +
+                                     "\nSimilarity: " + toPercentStr( m.sim ) +
+                                     "\nSpan start: " + m.punchIn +
+                                     "\nBoost in  : " + toDBStr( m.boostIn ))
                            if( punchOutO.isDefined ) {
-                              println( "Span stop : " + m.punchOut + "\nBoost out : " + m.boostOut )
+                              println( "Span stop : " + m.punchOut +
+                                     "\nBoost out : " + toDBStr( m.boostOut ))
                            }
                         }
                         println()
