@@ -71,6 +71,7 @@ object Utopia {
       var minPunch      = Option.empty[ Double ]
       var maxPunch      = Option.empty[ Double ]
       var input         = Option.empty[ String ]
+      var maxBoost      = Option.empty[ Float ]
       var normalize     = true
 
       val parser  = new OptionParser( name + " -c" ) {
@@ -84,6 +85,7 @@ object Utopia {
          doubleOpt( "out-temp",  "Temporal weight for punch out (0 to 1)", (d: Double) => tempOut = Some( d ))
          doubleOpt( "dur-min",   "Minimum fill duration (secs)", (d: Double) => minPunch = Some( d ))
          doubleOpt( "dur-max",   "Maximum fill duration (secs)", (d: Double) => maxPunch = Some( d ))
+         doubleOpt( "boost-max", "Maximum loudness boost factor", (d: Double) => maxBoost = Some( d.toFloat ))
          arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
          opt( "no-norm", "Do not apply feature normalization", normalize = false )
       }
@@ -124,6 +126,7 @@ object Utopia {
                   set.minPunch         = minFrames
                   set.maxPunch         = maxFrames
                   set.normalize        = normalize
+                  maxBoost.foreach( set.maxBoost = _ )
 
                   import FeatureCorrelation._
                   var lastProg = 0

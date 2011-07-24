@@ -63,15 +63,22 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    sealed trait SettingsLike {
       def databaseFolder : File
       def metaInput: File
-      /** the span in the audio input serving for correlation to find the punch in material */
+      /** The span in the audio input serving for correlation to find the punch in material */
       def punchIn: Punch
-      /** the span in the audio input serving for correlation to find the punch out material */
+      /** The span in the audio input serving for correlation to find the punch out material */
       def punchOut : Option[ Punch ]
-      /** minimum length of the material to punch in */
+      /** Minimum length of the material to punch in */
       def minPunch: Long
-      /** maximum length of the material to punch in */
+      /** Maximum length of the material to punch in */
       def maxPunch: Long
+      /** Whether to apply normalization to the features (recommended) */
       def normalize : Boolean
+      /**
+       * Maximum energy boost (as a sone factor) allowed for a match to be considered.
+       * E.g., for a 1 kHz tone, a 10 dB boost is approximately a doubling of the
+       * loudness in sone (hence a boost factor of 2.0)
+       */
+      def maxBoost : Float
    }
 
    final class SettingsBuilder extends SettingsLike {
@@ -82,15 +89,16 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       var minPunch         = 22050L
       var maxPunch         = 88200L
       var normalize        = true
+      var maxBoost         = 8f
 
-      def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize )
+      def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize, maxBoost )
    }
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
    }
    final case class Settings( databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[ Punch ],
-                              minPunch: Long, maxPunch: Long, normalize: Boolean )
+                              minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float )
    extends SettingsLike
 
 //   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {
@@ -102,7 +110,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       def numChannels = mat.length
       def matSize = numFrames * numChannels
    }
-   private final case class InputMatrix( temporal: FeatureMatrix, spectral: FeatureMatrix ) {
+   private final case class InputMatrix( temporal: FeatureMatrix, spectral: FeatureMatrix, avgLoudness: Float ) {
       require( temporal.numFrames == spectral.numFrames )
 
       def numFrames : Int = temporal.numFrames
@@ -145,6 +153,14 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          Some( b )
       } else None
 
+      def avg( b: Array[ Float ], off: Int, len: Int ) = {
+         var sum = 0.0
+         var i = off; val stop = off + len; while( i < stop ) {
+            sum += b( i )
+         i += 1 }
+         (sum / len).toFloat
+      }
+
       def normalize( n: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
          for( ch <- 0 until b.length ) {
             val cb   = b( ch )
@@ -177,7 +193,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                   FeatureMatrix( mat, frameNum, mean, stdDev )
                }
 
-               InputMatrix( feat( b.take( 1 )), feat( b.drop( 1 )))
+               InputMatrix( feat( b.take( 1 )), feat( b.drop( 1 )), avg( b( 0 ), 0, frameNum ))
             }
 
             // Outline of Algorithm:
@@ -236,13 +252,18 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.readFrames( b, readOff, chunkLen )
                normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
-               val temporal = if( inTempWeight > 0f ) {
-                  correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
-               } else 0f
-               val spectral = if( inTempWeight < 1f ) {
-                  correlate( matrixIn.spectral, b, logicalOff % punchInLen, 1 )
-               } else 0f
-               val sim = temporal * inTempWeight + spectral * (1f - inTempWeight)
+               val boost = matrixIn.avgLoudness / avg( b( 0 ), readOff, chunkLen )
+               val sim = if( boost <= settings.maxBoost ) {
+                  val temporal = if( inTempWeight > 0f ) {
+                     correlate( matrixIn.temporal, b, logicalOff % punchInLen, 0 )
+                  } else 0f
+                  val spectral = if( inTempWeight < 1f ) {
+                     correlate( matrixIn.spectral, b, logicalOff % punchInLen, 1 )
+                  } else 0f
+                  temporal * inTempWeight + spectral * (1f - inTempWeight)
+               } else {
+                  Float.NegativeInfinity
+               }
                if( matrixOutO.isDefined ) {
                   val tf = tmpFile.getOrElse {
                      val res = createTempFile( "in" )
@@ -290,13 +311,18 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.readFrames( b, readOff, chunkLen )
                         normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
-                        val temporal = if( outTempWeight > 0f ) {
-                           correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
-                        } else 0f
-                        val spectral = if( outTempWeight < 1f ) {
-                           correlate( matrixOut.spectral, b, logicalOff % punchOutLen, 1 )
-                        } else 0f
-                        val sim = temporal * outTempWeight + spectral * (1f - outTempWeight)
+                        val boost = matrixOut.avgLoudness / avg( b( 0 ), readOff, chunkLen )
+                        val sim = if( boost <= settings.maxBoost ) {
+                           val temporal = if( outTempWeight > 0f ) {
+                              correlate( matrixOut.temporal, b, logicalOff % punchOutLen, 0 )
+                           } else 0f
+                           val spectral = if( outTempWeight < 1f ) {
+                              correlate( matrixOut.spectral, b, logicalOff % punchOutLen, 1 )
+                           } else 0f
+                           temporal * outTempWeight + spectral * (1f - outTempWeight)
+                        } else {
+                           Float.NegativeInfinity
+                        }
                         tOut.writeFloat( sim )
                         left   -= chunkLen
                         readOff = (readOff + chunkLen) % punchOutLen
