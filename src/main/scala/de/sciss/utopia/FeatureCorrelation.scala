@@ -111,6 +111,27 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val bestMatch = extrDBs map { extrDB =>
          val afExtr  = AudioFile.openRead( extrDB.featureOutput )
 
+         // Outline of Algorithm:
+         // - read input feature in-span and out-span
+         // - optionally normalize
+
+         // - for each span:
+         //   - create a temp file
+         //   - write the sliding xcorr to that file
+
+         // - go through in-span file + for each sample check span in out-span file
+         // - thus determine best match
+
+         // Obviously this could be much more effective if punchOut == None
+         // ; but let's ignore that fact for the moment (we always provide some punchOut at the moment)
+
+         // But a simple optimization could be to not begin writing the
+         // temp file unless a punch-in correlation is found which is better
+         // than the previous best match. This could also trigger
+         // the punch-out measurement which could thus offset at
+         // first_punch_in + min_punch_len
+
+
       }
 
       Aborted // XXX TODO
