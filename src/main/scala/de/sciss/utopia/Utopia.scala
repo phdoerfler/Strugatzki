@@ -104,7 +104,7 @@ object Utopia {
       var maxBoost      = 8.0
       var numMatches    = 1
       var numPerFile    = 1
-      var minSpacing    = 0.5
+      var minSpacing    = 0.0 // 0.5
       var normalize     = true
 
       val parser  = new OptionParser( name + " -c" ) {
@@ -180,10 +180,10 @@ object Utopia {
                         res.foreach { m =>
                            println(  "\nFile      : " + m.file.getAbsolutePath +
                                      "\nSimilarity: " + toPercentStr( m.sim ) +
-                                     "\nSpan start: " + m.punchIn +
+                                     "\nSpan start: " + m.punch.start +
                                      "\nBoost in  : " + toDBStr( m.boostIn ))
                            if( punchOutO.isDefined ) {
-                              println( "Span stop : " + m.punchOut +
+                              println( "Span stop : " + m.punch.stop +
                                      "\nBoost out : " + toDBStr( m.boostOut ))
                            }
                         }

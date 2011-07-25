@@ -61,7 +61,8 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
     */
    type PayLoad = IndexedSeq[ Match ]
 
-   final case class Match( sim: Float, file: File, punchIn: Long, punchOut: Long, boostIn: Float, boostOut: Float )
+//   final case class Match( sim: Float, file: File, punchIn: Long, punchOut: Long, boostIn: Float, boostOut: Float )
+   final case class Match( sim: Float, file: File, punch: Span, boostIn: Float, boostOut: Float )
 
    // reverse ordering. since sortedset orders ascending according to the ordering,
    // this means we get a sortedset with high similarities at the head and low
@@ -119,7 +120,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       var maxBoost            = 8f
       var numMatches          = 1
       var numPerFile          = 1
-      var minSpacing          = 22050L
+      var minSpacing          = 0L // 22050L
 
       def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
          maxBoost, numMatches, numPerFile, minSpacing )
@@ -177,8 +178,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          require( (afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L )
          val b = afNorm.frameBuffer( 2 )
          afNorm.readFrames( b )
-         Some( b )
-      } else None
+//         Some( b )
+         b
+      } else null // None
 
       def avg( b: Array[ Float ], off: Int, len: Int ) = {
          var sum = 0.0
@@ -195,10 +197,12 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
       }
 
-      def normalize( n: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
-         for( ch <- 0 until b.length ) {
+      def normalize( /* n: Array[ Array[ Float ]], */ b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
+         if( normBuf == null ) return
+         var ch = 0; var numCh = b.length; while( ch < numCh ) {
             val cb   = b( ch )
-            val cn   = n( ch )
+//            val cn   = n( ch )
+            val cn   = normBuf( ch )
             val min  = cn( 0 )
             val max  = cn( 1 )
             val d    = max - min
@@ -207,7 +211,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                // XXX should values be clipped to [0...1] or not?
                cb( i )  = (f - min) / d
             i += 1 }
-         }
+         ch += 1 }
       }
 
       val (matrixIn, matrixOutO) = {
@@ -220,7 +224,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val b          = afIn.frameBuffer( frameNum )
                afIn.seekFrame( start )
                afIn.readFrames( b )
-               normBuf.foreach( n => normalize( n, b, 0, frameNum ))
+               normalize( b, 0, frameNum )
 
                def feat( mat: Array[ Array[ Float ]]) = {
                   val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
@@ -251,19 +255,41 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       var allPrio       = ISortedSet.empty[ Match ]( MatchMinOrd )
       var entryPrio     = ISortedSet.empty[ Match ]( MatchMinOrd )
+      var lastEntryMatch : Match = null
 
-      val minPunch = fullToFeat( settings.minPunch )
-      val maxPunch = fullToFeat( settings.maxPunch )
+      val minPunch   = fullToFeat( settings.minPunch )
+      val maxPunch   = fullToFeat( settings.maxPunch )
+//      val minSpacing = fullToFeat( settings.minSpacing )
+//println( "minSpacing = " + settings.minSpacing + " (" + minSpacing + " frames)" )
 
       def entryHasSpace = {
          val maxEntrySz = math.min( settings.numMatches - allPrio.size, settings.numPerFile )
          entryPrio.size < maxEntrySz
       }
       def worstSim   = entryPrio.lastOption.getOrElse( allPrio.last ).sim
+
+      // adds a match to the entry's priority queue. if the queue grows beyong numPerFile,
+      // truncates the queue. if the match collides with a previous match that is closer
+      // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
+      // the previous match (if the similarity is greater).
       def addMatch( m: Match ) {
-         entryPrio += m
-         if( entryPrio.size > settings.numPerFile ) {
-            entryPrio -= entryPrio.last   // faster than dropRight( 1 ) ?
+         if( (lastEntryMatch != null) && (m.punch.spacing( lastEntryMatch.punch ) < settings.minSpacing) ) {
+            // gotta collapse them
+            if( lastEntryMatch.sim < m.sim ) {  // ok, replace previous match
+               entryPrio     -= lastEntryMatch
+               entryPrio     += m
+               lastEntryMatch = m
+            } // otherwise ignore the new match
+         } else {
+//if( lastEntryMatch != null ) {
+//   println( "Spacing ok for " + lastEntryMatch.file.getName + " @ " + lastEntryMatch.punch + " <--> " + m.punch )
+//}
+
+            entryPrio     += m
+            if( entryPrio.size > settings.numPerFile ) {
+               entryPrio -= entryPrio.last   // faster than dropRight( 1 ) ?
+            }
+            lastEntryMatch = m
          }
       }
 
@@ -273,6 +299,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          if( checkAborted ) return Aborted
 
          if( entryPrio.nonEmpty ) entryPrio = entryPrio.empty
+         lastEntryMatch = null
 
          val afExtr = AudioFile.openRead( extrDB.featureOutput )
          try {
@@ -298,7 +325,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.readFrames( b, readOff, chunkLen )
                val bOff = logicalOff % punchInLen
-               normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
+               normalize( b, readOff, chunkLen )
                val boost = calcBoost( matrixIn, b( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
@@ -322,7 +349,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                   tf.writeFloat( boost )
                } else {
                   if( entryHasSpace || sim > worstSim ) {
-                     val m = Match( sim, extrDB.audioInput, featToFull( logicalOff ), 0L, boost, 1f )
+                     val start = featToFull( logicalOff )
+                     val m = Match( sim, extrDB.audioInput, Span( start, start ), boost, 1f )
                      addMatch( m )
                   }
                }
@@ -358,7 +386,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.readFrames( b, readOff, chunkLen )
-                        normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
+                        normalize( b, readOff, chunkLen )
                         val bOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, b( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {
@@ -405,7 +433,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                               val sim     = math.min( inSim, outSim )
                               if( entryHasSpace || sim > worstSim ) {
                                  val m = Match( sim, extrDB.audioInput,
-                                    featToFull( piOff ), featToFull( poOff ), boostIn, boostOut )
+                                    Span( featToFull( piOff ), featToFull( poOff )), boostIn, boostOut )
                                  addMatch( m )
 
                                  // shortcut (with the definition of minSim):

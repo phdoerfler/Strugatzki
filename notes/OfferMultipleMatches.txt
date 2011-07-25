@@ -1,4 +1,4 @@
---num-matches
+11--num-matches
 --num-per-file
 
 the prio list must maintain num-matches x num-matches entries,
@@ -40,3 +40,17 @@ should probably also add a minimum spacing within multiple matches per file
      }
    }
 
+
+:::::::::::::::
+
+XXX
+
+XXXX
+
+maxEntrySz = min( numMatches - allPrio.size, numPerFile )
+if( entry.sz < maxEntrySz || sim > entry.headOption.getOrElse( allPrio.head ).sim ) {
+   
+}
+
+all + entry < numMatches
+   
