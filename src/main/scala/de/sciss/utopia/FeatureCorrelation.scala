@@ -33,7 +33,13 @@ import de.sciss.synth.io.AudioFile
 import collection.breakOut
 import java.io.{RandomAccessFile, FilenameFilter, File}
 import actors.Actor
+import collection.mutable.{PriorityQueue => MPriorityQueue}
 
+/**
+ * A processor which searches through the database and matches
+ * entries against a given audio file input. Returns a given
+ * number of best matches.
+ */
 object FeatureCorrelation /* extends ProcessorCompanion */ {
    var verbose = false
 
@@ -49,9 +55,18 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    final case class Failure( t: Throwable ) extends Result
    case object Aborted extends Result
 
+   /**
+    * The result is a sequence of matches, sorted
+    * by descending similarity
+    */
    type PayLoad = IndexedSeq[ Match ]
 
    final case class Match( sim: Float, file: File, punchIn: Long, punchOut: Long, boostIn: Float, boostOut: Float )
+
+   // ordered in ascending order (queue.head is element with lowest similarity)
+   private object MatchMinOrd extends Ordering[ Match ] {
+      def compare( a: Match, b: Match ) = b.sim compare a.sim
+   }
 
    def apply( settings: Settings )( observer: Observer ) : FeatureCorrelation = {
       new FeatureCorrelation( settings, observer )
@@ -116,11 +131,6 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
                               numMatches: Int, numPerFile: Int, minSpacing: Long )
    extends SettingsLike
 
-//   private case class Sample( idx: Int, measure: Float ) extends Ordered[ Sample ] {
-//       def compare( that: Sample ) : Int = idx.compare( that.idx )
-//   }
-//   private val sampleOrd = Ordering.ordered[ Sample ]
-
    private final case class FeatureMatrix( mat: Array[ Array[ Float ]], numFrames: Int, mean: Double, stdDev: Double ) {
       def numChannels = mat.length
       def matSize = numFrames * numChannels
@@ -178,11 +188,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( avg( b, bOff, bLen ))
 
-//      def calcBoost( in: InputMatrix, b: Array[ Float ], bOff: Int, bLen: Int ) : Float = {
-//         val lnAvgB = calcLnAvgLoud( b, bOff, bLen )
-//         math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
-//      }
-
       def calcBoost( in: InputMatrix, b: Array[ Float ]) : Float = {
          val lnAvgB = calcLnAvgLoud( b, 0, in.numFrames )
          math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
@@ -232,15 +237,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          }
       }
 
-      val punchInLen       = matrixIn.numFrames
-      val inTempWeight     = settings.punchIn.temporalWeight
-
-      var minSim           = Float.NegativeInfinity
-//      var bestMeta : ExtrSettings = null
-//      var bestPunchIn      = 0
-//      var bestPunchOut     = 0
-      var bestMatch : Match   = null
-
       def createTempFile( id: String ) : RandomAccessFile = {
          val file = File.createTempFile( "corr_" + id, ".bin" )
          file.deleteOnExit()
@@ -248,13 +244,37 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          res
       }
 
+      val punchInLen       = matrixIn.numFrames
+      val inTempWeight     = settings.punchIn.temporalWeight
+
+//      var minSim           = Float.NegativeInfinity
+//      var bestMatch : Match   = null
+      val allPrio          = MPriorityQueue.empty[ Match ]( MatchMinOrd )
+      val entryPrio        = MPriorityQueue.empty[ Match ]( MatchMinOrd )
+
       val minPunch = fullToFeat( settings.minPunch )
       val maxPunch = fullToFeat( settings.maxPunch )
+
+      def entryHasSpace = {
+         val maxEntrySz = math.min( settings.numMatches - allPrio.size, settings.numPerFile )
+         entryPrio.size < maxEntrySz
+      }
+      def worstSim   = entryPrio.headOption.getOrElse( allPrio.head ).sim
+      def addMatch( m: Match ) {
+         entryPrio.enqueue( m )
+         if( entryPrio.size > settings.numPerFile ) {
+            entryPrio.dequeue()
+         }
+      }
 
       // - for each span:
       extrDBs.zipWithIndex foreach { case (extrDB, extrIdx) =>
 
          if( checkAborted ) return Aborted
+
+         // - min-thresh: min( total-prio )
+//         var minSim  = allPrio.headOption.map( _.sim ).getOrElse( Float.NegativeInfinity )
+         entryPrio.clear()
 
          val afExtr = AudioFile.openRead( extrDB.featureOutput )
          try {
@@ -277,15 +297,10 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                if( checkAborted ) return Aborted
 
-//               if( logicalOff == 86 ) {
-//                  println( "aqui" )
-//               }
-
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.readFrames( b, readOff, chunkLen )
                val bOff = logicalOff % punchInLen
                normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
-//               val boost = calcBoost( matrixIn, b( 0 ), readOff, chunkLen )
                val boost = calcBoost( matrixIn, b( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
@@ -308,11 +323,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                   tf.writeFloat( sim )
                   tf.writeFloat( boost )
                } else {
-                  if( sim > minSim ) {
-                     minSim      = sim
-//                     bestMeta    = extrDB
-//                     bestPunchIn = logicalOff
-                     bestMatch   = Match( sim, extrDB.audioInput, featToFull( logicalOff ), 0L, boost, 1f )
+                  if( entryHasSpace || sim > worstSim ) {
+                     val m = Match( sim, extrDB.audioInput, featToFull( logicalOff ), 0L, boost, 1f )
+                     addMatch( m )
                   }
                }
 
@@ -328,7 +341,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                case (Some( matrixOut ), Some( punchOut ), Some( tIn )) =>
                   tIn.seek( 0L )
                   val piOff0  = tIn.readInt()
-                  val boostIn = tIn.readFloat()
+//                  /* val boostIn = */ tIn.readFloat() // skip
                   val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
                   val tOut    = createTempFile( "out" )
 
@@ -348,8 +361,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.readFrames( b, readOff, chunkLen )
                         normBuf.foreach( nb => normalize( nb, b, readOff, chunkLen ))
-//                        val boost = matrixOut.avgLoudness / avg( b( 0 ), readOff, chunkLen )
-//                        val boost = calcBoost( matrixOut, b( 0 ), readOff, chunkLen )
                         val bOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, b( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {
@@ -381,9 +392,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         val piOff   = tIn.readInt()
                         val inSim   = tIn.readFloat()
                         val boostIn = tIn.readFloat()
-                        // minSim -- the best match so far, is now
+                        // worstSim is now
                         // defined as min( inSim, outSim )
-                        if( inSim > minSim ) {  // ... so this is a necessary condition to consider this offset
+                        if( entryHasSpace || inSim > worstSim ) { // ... so this is a necessary condition to consider this offset
                            var poOff   = piOff + minPunch
                            tOut.seek( poOff0 + (piOff - piOff0) )
                            var left2   = math.max( (tOut.length - tOut.getFilePointer) / 8, maxPunch - minPunch + 1 ) // float <sim>, float <boost>
@@ -394,18 +405,16 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                               val outSim  = tOut.readFloat()
                               val boostOut= tOut.readFloat()
                               val sim     = math.min( inSim, outSim )
-                              if( sim > minSim ) {
-                                 minSim         = sim
-//                                 bestMeta       = extrDB
-//                                 bestPunchIn    = piOff
-//                                 bestPunchOut   = poOff
-                                 bestMatch   = Match( sim, extrDB.audioInput,
+                              if( entryHasSpace || sim > worstSim ) {
+//                                 worstSim        = sim
+                                 val m = Match( sim, extrDB.audioInput,
                                     featToFull( piOff ), featToFull( poOff ), boostIn, boostOut )
+                                 addMatch( m )
 
                                  // shortcut (with the definition of minSim):
                                  // if outSim >= inSim, the search is over for this round
-                                 // (because minSim is bound by inSim)
-                                 if( outSim >= inSim ) left2 = 0
+                                 // (because worstSim is bound by inSim)
+                                 if( outSim >= inSim && !entryHasSpace ) left2 = 0
                               }
                               left2 -= 1
                               poOff += 1
@@ -421,13 +430,21 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
             afExtr.close
          }
 
+         // - add iter-prio to total-prio, and truncate after num-matches elements
+         allPrio.enqueue( entryPrio.toSeq: _* )
+         while( allPrio.size > settings.numMatches ) allPrio.dequeue()
+
          progress( (extrIdx + 1).toFloat / extrDBs.size )
       }
 
 //      val pay = if( bestMeta != null ) {
 //         Some( Match( bestMeta.audioInput, featToFull( bestPunchIn ), featToFull( bestPunchOut )))
 //      } else None
-      val pay = if( bestMatch != null ) IndexedSeq( bestMatch ) else IndexedSeq.empty[ Match ]
+//      val pay = if( bestMatch != null ) IndexedSeq( bestMatch ) else IndexedSeq.empty[ Match ]
+
+      // NOTE: doesn't preserve prio?
+//      val pay = allPrio.reverse.toIndexedSeq
+      val pay: IndexedSeq[ Match ] = allPrio.reverse.dequeueAll // ()
 
       Success( pay )
    }

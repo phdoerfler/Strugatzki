@@ -32,11 +32,41 @@ import scopt.OptionParser
 import collection.breakOut
 import java.io.{FilenameFilter, FileFilter, File}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+import java.util.Locale
+import java.text.{DecimalFormat, NumberFormat}
 
 object Utopia {
    val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
    val name             = "Utopia"
    val NORMALIZE_NAME   = "feat_norms.aif"
+
+   private lazy val decibelFormat = {
+      val res = NumberFormat.getInstance( Locale.US )
+      res match {
+         case d: DecimalFormat => {
+            d.setGroupingUsed( false )
+            d.setMinimumFractionDigits( 1 )
+            d.setMaximumFractionDigits( 1 )
+            d.setNegativeSuffix( " dB" )
+            d.setPositiveSuffix( " dB" )
+         }
+         case _ =>
+      }
+      res
+   }
+
+   private lazy val percentFormat = {
+      val res = NumberFormat.getPercentInstance( Locale.US )
+      res match {
+         case d: DecimalFormat => {
+            d.setGroupingUsed( false )
+            d.setMinimumFractionDigits( 1 )
+            d.setMaximumFractionDigits( 1 )
+         }
+         case _ =>
+      }
+      res
+   }
 
    def main( args: Array[ String ]) {
       var which   = ""
@@ -138,8 +168,8 @@ object Utopia {
                   set.minSpacing       = secsToFrames( minSpacing )
 
                   def ampToDB( amp: Double ) = 20 * math.log10( amp )
-                  def toPercentStr( d: Double ) = ((d * 10000 + 0.5).toInt * 0.01f).toString + "%"
-                  def toDBStr( amp: Double ) = ((ampToDB( amp ) * 10 + 0.5).toInt * 0.1f).toString + " dB"
+                  def toPercentStr( d: Double ) = percentFormat.format( d )
+                  def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
 
                   import FeatureCorrelation._
                   var lastProg = 0
