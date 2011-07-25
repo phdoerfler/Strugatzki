@@ -34,7 +34,6 @@ import collection.breakOut
 import java.io.{RandomAccessFile, FilenameFilter, File}
 import actors.Actor
 import collection.immutable.{SortedSet => ISortedSet}
-import collection.mutable.{PriorityQueue => MPriorityQueue}
 
 /**
  * A processor which searches through the database and matches
@@ -64,14 +63,12 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
 
    final case class Match( sim: Float, file: File, punchIn: Long, punchOut: Long, boostIn: Float, boostOut: Float )
 
-   // ordered in ascending order (queue.head is element with lowest similarity)
+   // reverse ordering. since sortedset orders ascending according to the ordering,
+   // this means we get a sortedset with high similarities at the head and low
+   // similarities at the tail, like a priority queue
    private object MatchMinOrd extends Ordering[ Match ] {
       def compare( a: Match, b: Match ) = b.sim compare a.sim
    }
-
-//   private object MatchMaxOrd extends Ordering[ Match ] {
-//      def compare( a: Match, b: Match ) = a.sim compare b.sim
-//   }
 
    def apply( settings: Settings )( observer: Observer ) : FeatureCorrelation = {
       new FeatureCorrelation( settings, observer )
@@ -252,14 +249,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val punchInLen       = matrixIn.numFrames
       val inTempWeight     = settings.punchIn.temporalWeight
 
-//      var minSim           = Float.NegativeInfinity
-//      var bestMatch : Match   = null
-//      val allPrio       = MPriorityQueue.empty[ Match ]( MatchMinOrd )
       var allPrio       = ISortedSet.empty[ Match ]( MatchMinOrd )
-//      val entryPrio        = MPriorityQueue.empty[ Match ]( MatchMinOrd )
       var entryPrio     = ISortedSet.empty[ Match ]( MatchMinOrd )
-      // TreeSet has O(1) size!
-//      var entryPrioSz   = 0
 
       val minPunch = fullToFeat( settings.minPunch )
       val maxPunch = fullToFeat( settings.maxPunch )
@@ -268,14 +259,10 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          val maxEntrySz = math.min( settings.numMatches - allPrio.size, settings.numPerFile )
          entryPrio.size < maxEntrySz
       }
-//      def worstSim   = entryPrio.headOption.getOrElse( allPrio.head ).sim
       def worstSim   = entryPrio.lastOption.getOrElse( allPrio.last ).sim
       def addMatch( m: Match ) {
-//          entryPrio.enqueue( m )
          entryPrio += m
          if( entryPrio.size > settings.numPerFile ) {
-//            entryPrio.dequeue()
-//            entryPrioSz -= 1
             entryPrio -= entryPrio.last   // faster than dropRight( 1 ) ?
          }
       }
@@ -285,10 +272,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
          if( checkAborted ) return Aborted
 
-         // - min-thresh: min( total-prio )
-//         var minSim  = allPrio.headOption.map( _.sim ).getOrElse( Float.NegativeInfinity )
-
-//         entryPrio.clear()
          if( entryPrio.nonEmpty ) entryPrio = entryPrio.empty
 
          val afExtr = AudioFile.openRead( extrDB.featureOutput )
@@ -421,7 +404,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                               val boostOut= tOut.readFloat()
                               val sim     = math.min( inSim, outSim )
                               if( entryHasSpace || sim > worstSim ) {
-//                                 worstSim        = sim
                                  val m = Match( sim, extrDB.audioInput,
                                     featToFull( piOff ), featToFull( poOff ), boostIn, boostOut )
                                  addMatch( m )
@@ -446,24 +428,13 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          }
 
          // - add iter-prio to total-prio, and truncate after num-matches elements
-//         allPrio.enqueue( entryPrio.toSeq: _* )
-//         while( allPrio.size > settings.numMatches ) allPrio.dequeue()
          allPrio ++= entryPrio
          if( allPrio.size > settings.numMatches ) allPrio = allPrio.take( settings.numMatches )
 
          progress( (extrIdx + 1).toFloat / extrDBs.size )
       }
 
-//      val pay = if( bestMeta != null ) {
-//         Some( Match( bestMeta.audioInput, featToFull( bestPunchIn ), featToFull( bestPunchOut )))
-//      } else None
-//      val pay = if( bestMatch != null ) IndexedSeq( bestMatch ) else IndexedSeq.empty[ Match ]
-
-      // NOTE: doesn't preserve prio?
-//      val pay = allPrio.reverse.toIndexedSeq
-//      val pay: IndexedSeq[ Match ] = allPrio.reverse.dequeueAll // ()
       val pay = allPrio.toIndexedSeq
-
       Success( pay )
    }
 
