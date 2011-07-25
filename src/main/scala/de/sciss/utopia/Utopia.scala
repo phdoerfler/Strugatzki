@@ -34,6 +34,7 @@ import java.io.{FilenameFilter, FileFilter, File}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
+import swing.Swing
 
 object Utopia {
    val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
@@ -76,15 +77,17 @@ object Utopia {
          opt( "f", "feature", "Feature extraction", which = "feat" )
          opt( "c", "correlate", "Find best correlation with database", which = "corr" )
          opt( "stats", "Statistics from feature database", which = "stats" )
+         opt( "feature-gui", "User interface for feature database", which = "feat-gui" )
       }
       if( parser.parse( args.take( 1 ))) {
          val argsRem = args.drop( 1 )
          which match {
-            case "sehen"   => ProcSehen.perform()
-            case "feat"    => featurePre( argsRem )
-            case "stats"   => featureStats( argsRem )
-            case "corr"    => featureCorr( argsRem )
-            case _         => parser.showUsage
+            case "sehen"      => ProcSehen.perform()
+            case "feat"       => featurePre( argsRem )
+            case "stats"      => featureStats( argsRem )
+            case "corr"       => featureCorr( argsRem )
+            case "feat-gui"   => Swing.onEDT( view.FeatureCorrelationPane.makeWindow() )
+            case _            => parser.showUsage
          }
       } else parser.showUsage
    }
