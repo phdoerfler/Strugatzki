@@ -5,12 +5,14 @@ import javax.swing.{WindowConstants, JFrame, SwingUtilities}
 import de.sciss.sonogram.{SimpleSonogramOverviewManager, SimpleSonogramView}
 import java.awt.{BorderLayout, Dimension, FileDialog}
 import de.sciss.gui.Axis
-import swing.{ProgressBar, Component, Button, BorderPanel, Frame, Panel}
+import de.sciss.synth.swing.ServerStatusPanel
+import swing.{FlowPanel, ProgressBar, Component, Button, BorderPanel, Frame, Panel}
 
 object FeatureCorrelationPane {
    def makeWindow() = new Frame {
-      title    = "Feature Correlation"
-      contents = new FeatureCorrelationPane
+      title       = "Feature Correlation"
+      resizable   = false
+      contents    = new FeatureCorrelationPane
       pack().centerOnScreen()
       peer.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE ) // sucky scala swing doesn't provide this?!
       open()
@@ -37,20 +39,28 @@ class FeatureCorrelationPane extends BorderPanel {
       }
    }
 
-   private val sonoView = new SimpleSonogramView {
-      setPreferredSize( new Dimension( 400, 128 ))
+   private val sonoView = new SonoView {
+      preferredSize = new Dimension( 400, 128 )
       boost = 8f
    }
 
    private val sonoAxis = new Axis {
       format = Axis.Format.Time()
+      preferredSize = { val d = preferredSize; d.width = 960; d }
       minimum= 0.0
    }
 
-   add( butOpenInput, North )
+   private val serverPanel = new ServerStatusPanel( ServerStatusPanel.COUNTS )
+
+   private val topPane = new FlowPanel {
+      contents += butOpenInput
+      contents += Component.wrap( serverPanel )
+   }
+
+   add( topPane, North )
 
    private val centerPane = new BorderPanel {
-      add( Component.wrap( sonoView ), Center )
+      add( sonoView, Center )
       add( sonoAxis, North )
    }
 
