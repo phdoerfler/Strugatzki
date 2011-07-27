@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.utopia
+package de.sciss.strugatzki
 
 import scopt.OptionParser
 import collection.breakOut
@@ -36,9 +36,9 @@ import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 //import swing.Swing
 
-object Utopia {
+object Strugatzki {
    val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
-   val name             = "Utopia"
+   val name             = "Strugatzki"
    val NORMALIZE_NAME   = "feat_norms.aif"
 
    private lazy val decibelFormat = {

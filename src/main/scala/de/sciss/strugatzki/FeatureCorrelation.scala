@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.utopia
+package de.sciss.strugatzki
 
 import xml.XML
 import collection.breakOut
@@ -110,7 +110,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    }
 
    final class SettingsBuilder extends SettingsLike {
-      var databaseFolder      = new File( Utopia.defaultDir )
+      var databaseFolder      = new File( Strugatzki.defaultDir )
       var metaInput           = new File( "input_feat.xml" )
       var punchIn             = Punch( Span( 0L, 44100L ), 0.5f )
       var punchOut            = Option.empty[ Punch ]
@@ -174,7 +174,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       })( breakOut ).collect { case Some( e ) => e }
 
       val normBuf = if( settings.normalize ) {
-         val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Utopia.NORMALIZE_NAME ))
+         val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
          require( (afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L )
          val b = afNorm.frameBuffer( 2 )
          afNorm.readFrames( b )

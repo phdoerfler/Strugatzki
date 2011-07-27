@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.utopia
+package de.sciss.strugatzki
 
 import de.sciss.synth.io.AudioFile
 import java.io.File

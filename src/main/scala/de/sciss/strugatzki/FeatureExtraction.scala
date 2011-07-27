@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.utopia
+package de.sciss.strugatzki
 
 import sys.error
 import de.sciss.synth

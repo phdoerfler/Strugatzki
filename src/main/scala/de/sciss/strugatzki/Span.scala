@@ -1,4 +1,4 @@
-package de.sciss.utopia
+package de.sciss.strugatzki
 
 case class Span( start: Long, stop: Long ) {
    def length: Long = stop - start
