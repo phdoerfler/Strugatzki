@@ -73,7 +73,7 @@ object Utopia {
       var which   = ""
 
       val parser  = new OptionParser( name ) {
-         opt( "prepare", "Preparatory stuff (ProcSehen)", which = "sehen" )
+//         opt( "prepare", "Preparatory stuff (ProcSehen)", which = "sehen" )
          opt( "f", "feature", "Feature extraction", which = "feat" )
          opt( "c", "correlate", "Find best correlation with database", which = "corr" )
          opt( "stats", "Statistics from feature database", which = "stats" )
@@ -82,7 +82,7 @@ object Utopia {
       if( parser.parse( args.take( 1 ))) {
          val argsRem = args.drop( 1 )
          which match {
-            case "sehen"      => ProcSehen.perform()
+//            case "sehen"      => ProcSehen.perform()
             case "feat"       => featurePre( argsRem )
             case "stats"      => featureStats( argsRem )
             case "corr"       => featureCorr( argsRem )
