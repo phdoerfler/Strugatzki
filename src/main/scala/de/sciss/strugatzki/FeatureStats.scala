@@ -51,9 +51,10 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
                                    observer: PartialFunction[ FeatureStats.ProgressOrResult, Unit ]) {
    import FeatureStats._
 
-   Act.start()
+//   Act.start()
 
    def abort() { Act ! Abort }
+   def start() { Act.start() }
 
    private object Abort
 

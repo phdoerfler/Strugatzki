@@ -150,7 +150,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 //   import companion._
    import FeatureCorrelation._
 
-   start()
+//   start()
 
    protected def body() : Result = {
       import FeatureExtraction.{ Settings => ExtrSettings }
@@ -256,6 +256,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       }
 
       val punchInLen       = matrixIn.numFrames
+      val punchOutLen      = matrixOutO.map( _.numFrames ).getOrElse( 0 )
       val inTempWeight     = settings.punchIn.temporalWeight
 
       var allPrio       = ISortedSet.empty[ Match ]( MatchMinOrd )
@@ -321,7 +322,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
             // the punch-out measurement which could thus offset at
             // first_punch_in + min_punch_len
             var tmpFile    = Option.empty[ RandomAccessFile ]
-            val b          = afExtr.frameBuffer( punchInLen )
+            val b          = afExtr.frameBuffer( math.max( punchInLen, punchOutLen ))
             var left       = afExtr.numFrames
             matrixOutO.foreach { mo => left -= minPunch + mo.numFrames }
             var readSz     = punchInLen   // read full buffer in first round
@@ -387,7 +388,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                      val outTempWeight = punchOut.temporalWeight
                      afExtr.seekFrame( poOff0 )
-                     val punchOutLen   = matrixOut.numFrames
                      readSz            = punchOutLen   // read full buffer in first round
                      readOff           = 0
                      logicalOff        = 0
@@ -582,7 +582,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
    // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
 
    def abort() { Act ! Abort }
-   protected def start() { Act.start() }
+   def start() { Act.start() }
 
    private object Abort
 

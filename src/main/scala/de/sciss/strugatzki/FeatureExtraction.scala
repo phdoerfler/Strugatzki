@@ -105,9 +105,10 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
                                         observer: PartialFunction[ FeatureExtraction.ProgressOrResult, Unit ]) {
    import FeatureExtraction._
 
-   Act.start()
+//   Act.start()
 
    def abort() { Act ! Abort }
+   def start() { Act.start() }
 
    private object Abort
 

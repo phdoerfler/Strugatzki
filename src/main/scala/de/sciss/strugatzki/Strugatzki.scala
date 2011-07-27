@@ -186,7 +186,7 @@ object Strugatzki {
 
                   import FeatureCorrelation._
                   var lastProg = 0
-                  FeatureCorrelation( set ) {
+                  val fc = FeatureCorrelation( set ) {
                      case Success( res ) if( res.nonEmpty ) =>
                         println( "  Success." )
 
@@ -215,6 +215,7 @@ object Strugatzki {
                            print( "#" )
                         lastProg += 1 }
                   }
+                  fc.start()
 
                } else parser.showUsage
 
@@ -239,7 +240,7 @@ object Strugatzki {
             })
             import FeatureStats._
             var lastProg = 0
-            FeatureStats( paths ) {
+            val fs = FeatureStats( paths ) {
                case Success( spans ) =>
                   println( "  Success." )
                   val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
@@ -263,6 +264,7 @@ object Strugatzki {
                      print( "#" )
                   lastProg += 1 }
             }
+            fs.start()
 
          case _ => parser.showUsage
        } else parser.showUsage
@@ -331,7 +333,7 @@ object Strugatzki {
 
       println( "Starting extraction... " + set.audioInput.getName )
       var lastProg = 0
-      FeatureExtraction( set ) {
+      val f = FeatureExtraction( set ) {
          case Success =>
             println( "  Success." )
             whenDone( true )
@@ -349,5 +351,6 @@ object Strugatzki {
                print( "#" )
             lastProg += 1 }
       }
+      f.start()
    }
 }
