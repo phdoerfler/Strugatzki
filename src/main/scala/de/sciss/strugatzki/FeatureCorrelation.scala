@@ -1,6 +1,6 @@
 /*
  *  FeatureCorrelation.scala
- *  (Utopia)
+ *  (Strugatzki)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -110,7 +110,7 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    }
 
    final class SettingsBuilder extends SettingsLike {
-      var databaseFolder      = new File( Strugatzki.defaultDir )
+      var databaseFolder      = new File( "database" ) // Strugatzki.defaultDir
       var metaInput           = new File( "input_feat.xml" )
       var punchIn             = Punch( Span( 0L, 44100L ), 0.5f )
       var punchOut            = Option.empty[ Punch ]

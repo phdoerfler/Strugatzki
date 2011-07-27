@@ -1,6 +1,6 @@
 /*
  *  FeatureStats.scala
- *  (Utopia)
+ *  (Strugatzki)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *

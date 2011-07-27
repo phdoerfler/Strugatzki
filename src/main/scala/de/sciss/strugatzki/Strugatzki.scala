@@ -1,6 +1,6 @@
 /*
- *  Utopia.scala
- *  (Utopia)
+ *  Strugatzki.scala
+ *  (Strugatzki)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -37,8 +37,18 @@ import java.text.{DecimalFormat, NumberFormat}
 //import swing.Swing
 
 object Strugatzki {
-   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
-   val name             = "Strugatzki"
+//   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
+
+   val name          = "Strugatzki"
+   val version       = 0.12
+   val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
+   val isSnapshot    = true
+
+   def versionString = {
+      val s = (version + 0.001).toString.substring( 0, 4 )
+      if( isSnapshot ) s + "-SNAPSHOT" else s
+   }
+
    val NORMALIZE_NAME   = "feat_norms.aif"
 
    private lazy val decibelFormat = {
@@ -130,8 +140,8 @@ object Strugatzki {
       }
 
       if( parser.parse( args )) {
-         (input, punchInStart, punchInStop, minPunch, maxPunch) match {
-            case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax )) =>
+         (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
+            case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
                val inFile  = new File( in )
                val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
                val inSpec  = AudioFile.readSpec( metaIn.audioInput )
@@ -158,7 +168,7 @@ object Strugatzki {
 
                   FeatureCorrelation.verbose = verbose
                   val set              = new FeatureCorrelation.SettingsBuilder
-                  set.databaseFolder   = new File( dirOption.getOrElse( defaultDir ))
+                  set.databaseFolder   = new File( dir )
                   set.punchIn          = punchIn
                   set.punchOut         = punchOutO
                   set.metaInput        = inFile
@@ -221,72 +231,77 @@ object Strugatzki {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
       }
-      if( parser.parse( args )) {
-         val dir = new File( dirOption.getOrElse( defaultDir ))
-         println( "Starting stats... " )
-         val paths: IndexedSeq[ File ] = dir.listFiles( new FilenameFilter {
-            def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
-         })
-         import FeatureStats._
-         var lastProg = 0
-         FeatureStats( paths ) {
-            case Success( spans ) =>
-               println( "  Success." )
-               val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
-                  AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
-               val b = afNorm.frameBuffer( 2 )
-               spans.zipWithIndex.foreach { case ((min, max), i) =>
-                  b( i )( 0 ) = min.toFloat
-                  b( i )( 1 ) = max.toFloat
-               }
-               afNorm.writeFrames( b )
-               afNorm.close
-               println( "Done." )
-            case Failure( e ) =>
-               println( "  Failed: " )
-               e.printStackTrace()
-            case Aborted =>
-               println( "  Aborted" )
-            case Progress( perc ) =>
-               val i = perc >> 2
-               while( lastProg < i ) {
-                  print( "#" )
-               lastProg += 1 }
-         }
+      if( parser.parse( args )) dirOption match {
+         case Some( dir ) =>
+            println( "Starting stats... " )
+            val paths: IndexedSeq[ File ] = new File( dir ).listFiles( new FilenameFilter {
+               def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
+            })
+            import FeatureStats._
+            var lastProg = 0
+            FeatureStats( paths ) {
+               case Success( spans ) =>
+                  println( "  Success." )
+                  val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
+                     AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
+                  val b = afNorm.frameBuffer( 2 )
+                  spans.zipWithIndex.foreach { case ((min, max), i) =>
+                     b( i )( 0 ) = min.toFloat
+                     b( i )( 1 ) = max.toFloat
+                  }
+                  afNorm.writeFrames( b )
+                  afNorm.close
+                  println( "Done." )
+               case Failure( e ) =>
+                  println( "  Failed: " )
+                  e.printStackTrace()
+               case Aborted =>
+                  println( "  Aborted" )
+               case Progress( perc ) =>
+                  val i = perc >> 2
+                  while( lastProg < i ) {
+                     print( "#" )
+                  lastProg += 1 }
+            }
+
+         case _ => parser.showUsage
        } else parser.showUsage
    }
 
    def featurePre( args: Array[ String ]) {
-      var inputs  = IndexedSeq.empty[ String ]
-      var target  = Option.empty[ String ]
-      var verbose = false
+      var inputs     = IndexedSeq.empty[ String ]
+      var dirOption  = Option.empty[ String ]
+      var verbose    = false
 
       val parser  = new OptionParser( name + " -f" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
-         opt( "d", "dir", "<directory>", "Target directory", (s: String) => target = Some( s ))
+         opt( "d", "dir", "<directory>", "Target directory", (s: String) => dirOption = Some( s ))
       }
-      if( parser.parse( args )) {
-         FeatureExtraction.verbose = verbose
-         if( inputs.isEmpty ) {
-            parser.showUsage
-         }
-         val inFiles: List[ File ] = inputs.flatMap( p => {
-            val f = new File( p )
-            if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
-               def accept( f: File ) = try {
-                  AudioFile.identify( f ).isDefined
-               } catch { case _ => false }
-            }).toList
-         })( breakOut )
-         val targetDir = new File( target.getOrElse( defaultDir ))
-         def iter( list: List[ File ]) {
-            list match {
-               case head :: tail => feature( head, targetDir )( if( _ ) iter( tail ))
-               case _ =>
+      if( parser.parse( args )) dirOption match {
+         case Some( dir ) =>
+            FeatureExtraction.verbose = verbose
+            if( inputs.isEmpty ) {
+               parser.showUsage
             }
-         }
-         iter( inFiles )
+            val inFiles: List[ File ] = inputs.flatMap( p => {
+               val f = new File( p )
+               if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
+                  def accept( f: File ) = try {
+                     AudioFile.identify( f ).isDefined
+                  } catch { case _ => false }
+               }).toList
+            })( breakOut )
+            val targetDir = new File( dir )
+            def iter( list: List[ File ]) {
+               list match {
+                  case head :: tail => feature( head, targetDir )( if( _ ) iter( tail ))
+                  case _ =>
+               }
+            }
+            iter( inFiles )
+
+         case _ => parser.showUsage
       } else {
          parser.showUsage
       }
