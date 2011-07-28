@@ -28,12 +28,12 @@
 
 package de.sciss.strugatzki
 
-import xml.XML
 import collection.breakOut
 import java.io.{RandomAccessFile, FilenameFilter, File}
 import actors.Actor
 import collection.immutable.{SortedSet => ISortedSet}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+import xml.{NodeSeq, Node, Elem, XML}
 
 /**
  * A processor which searches through the database and matches
@@ -61,8 +61,28 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
     */
    type PayLoad = IndexedSeq[ Match ]
 
-//   final case class Match( sim: Float, file: File, punchIn: Long, punchOut: Long, boostIn: Float, boostOut: Float )
-   final case class Match( sim: Float, file: File, punch: Span, boostIn: Float, boostOut: Float )
+   object Match {
+      def fromXML( xml: NodeSeq ) : Match = {
+         val sim     = (xml \ "sim").text.toFloat
+         val file    = new File( (xml \ "file").text )
+         val start   = (xml \ "start").text.toLong
+         val stop    = (xml \ "stop").text.toLong
+         val boostIn = (xml \ "boostIn").text.toFloat
+         val boostOut= (xml \ "boostOut").text.toFloat
+         Match( sim, file, Span( start, stop ), boostIn, boostOut )
+      }
+   }
+   final case class Match( sim: Float, file: File, punch: Span, boostIn: Float, boostOut: Float ) {
+      def toXML =
+<match>
+   <sim>{sim}</sim>
+   <file>{file.getPath}</file>
+   <start>{punch.start}</start>
+   <stop>{punch.stop}</stop>
+   <boostIn>{boostIn}</boostIn>
+   <boostOut>{boostOut}</boostOut>
+</match>
+   }
 
    // reverse ordering. since sortedset orders ascending according to the ordering,
    // this means we get a sortedset with high similarities at the head and low
@@ -76,7 +96,22 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    }
 
    /** where temporal weight is between 0 (just spectral corr) and 1 (just temporal corr) */
-   final case class Punch( span: Span, temporalWeight: Float = 0.5f )
+   object Punch {
+      def fromXML( xml: NodeSeq ) : Punch = {
+         val start   = (xml \ "start").text.toLong
+         val stop    = (xml \ "stop").text.toLong
+         val weight  = (xml \ "weight").text.toFloat
+         Punch( Span( start, stop ), weight )
+      }
+   }
+   final case class Punch( span: Span, temporalWeight: Float = 0.5f ) {
+      def toXML =
+<punch>
+   <start>{span.start}</start>
+   <stop>{span.stop}</stop>
+   <weight>{temporalWeight}</weight>
+</punch>
+   }
 
    /**
     * All durations, spans and spacings are given in sample frames
@@ -128,11 +163,45 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
+      def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
+      def fromXML( xml: NodeSeq ) : Settings = {
+         val sb = new SettingsBuilder
+         sb.databaseFolder = new File( (xml \ "database").text )
+         sb.metaInput      = new File( (xml \ "input").text )
+         sb.punchIn        = Punch.fromXML( xml \ "punchIn" )
+         sb.punchOut       = {
+            val e = xml \ "punchOut"
+            if( e.isEmpty ) None else Some( Punch.fromXML( e ))
+         }
+         sb.minPunch       = (xml \ "minPunch").text.toLong
+         sb.maxPunch       = (xml \ "maxPunch").text.toLong
+         sb.normalize      = (xml \ "normalize").text.toBoolean
+         sb.maxBoost       = (xml \ "maxBoost").text.toFloat
+         sb.numMatches     = (xml \ "numMatches").text.toInt
+         sb.numPerFile     = (xml \ "numPerFile").text.toInt
+         sb.minSpacing     = (xml \ "minSpacing").text.toLong
+         sb.build
+      }
    }
    final case class Settings( databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[ Punch ],
                               minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float,
                               numMatches: Int, numPerFile: Int, minSpacing: Long )
-   extends SettingsLike
+   extends SettingsLike {
+      def toXML =
+<correlate>
+   <database>{databaseFolder.getPath}</database>
+   <input>{metaInput.getPath}</input>
+   <punchIn>{punchIn.toXML.child}</punchIn>
+   {punchOut match { case Some( p ) => <punchOut>{p.toXML.child}</punchOut>; case _ => Nil }}
+   <minPunch>{minPunch}</minPunch>
+   <maxPunch>{maxPunch}</maxPunch>
+   <normalize>{normalize}</normalize>
+   <maxBoost>{maxBoost}</maxBoost>
+   <numMatches>{numMatches}</numMatches>
+   <numPerFile>{numPerFile}</numPerFile>
+   <minSpacing>{minSpacing}</minSpacing>
+</correlate>
+   }
 
    private final case class FeatureMatrix( mat: Array[ Array[ Float ]], numFrames: Int, mean: Double, stdDev: Double ) {
       def numChannels = mat.length

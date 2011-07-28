@@ -36,7 +36,7 @@ import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
 import actors.Actor
-import xml.{Elem, XML}
+import xml.{NodeSeq, Elem, XML}
 
 object FeatureExtraction {
    var verbose = false
@@ -71,10 +71,14 @@ object FeatureExtraction {
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
       def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
-      def fromXML( xml: Elem ) : Settings = {
+      def fromXML( xml: NodeSeq ) : Settings = {
          val sb = new SettingsBuilder
          sb.audioInput     = new File( (xml \ "input").text )
          sb.featureOutput  = new File( (xml \ "output").text )
+         sb.metaOutput     = {
+            val e = (xml \ "meta").text
+            if( e.isEmpty ) None else Some( new File( e ))
+         }
          sb.numCoeffs      = (xml \ "numCoeffs").text.toInt
          sb.fftSize        = (xml \ "fftSize").text.toInt
          sb.fftOverlap     = (xml \ "fftOverlap").text.toInt
@@ -86,8 +90,9 @@ object FeatureExtraction {
    extends SettingsLike {
       def toXML =
 <feature>
-   <input>{audioInput.getAbsolutePath}</input>
-   <output>{featureOutput.getAbsolutePath}</output>
+   <input>{audioInput.getPath}</input>
+   <output>{featureOutput.getPath}</output>
+   <meta>{metaOutput.map( _.getPath ).getOrElse( "" )}</meta>
    <numCoeffs>{numCoeffs}</numCoeffs>
    <fftSize>{fftSize}</fftSize>
    <fftOverlap>{fftOverlap}</fftOverlap>
