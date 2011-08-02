@@ -144,6 +144,14 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
       def minSpacing : Long
    }
 
+   object SettingsBuilder {
+      def apply() : SettingsBuilder = new SettingsBuilder
+      def apply( settings: Settings ) : SettingsBuilder = {
+         val sb = new SettingsBuilder
+         sb.read( settings )
+         sb
+      }
+   }
    final class SettingsBuilder extends SettingsLike {
       var databaseFolder      = new File( "database" ) // Strugatzki.defaultDir
       var metaInput           = new File( "input_feat.xml" )
@@ -159,6 +167,20 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
 
       def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
          maxBoost, numMatches, numPerFile, minSpacing )
+
+      def read( settings: Settings ) {
+         databaseFolder = settings.databaseFolder
+         metaInput      = settings.metaInput
+         punchIn        = settings.punchIn
+         punchOut       = settings.punchOut
+         minPunch       = settings.minPunch
+         maxPunch       = settings.maxPunch
+         normalize      = settings.normalize
+         maxBoost       = settings.maxBoost
+         numMatches     = settings.numMatches
+         numPerFile     = settings.numPerFile
+         minSpacing     = settings.minSpacing
+      }
    }
 
    object Settings {
