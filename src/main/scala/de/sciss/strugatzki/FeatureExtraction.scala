@@ -36,7 +36,7 @@ import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
 import actors.Actor
-import xml.{NodeSeq, Elem, XML}
+import xml.{NodeSeq, XML}
 
 object FeatureExtraction {
    var verbose = false
@@ -47,6 +47,23 @@ object FeatureExtraction {
       new FeatureExtraction( settings, observer )
    }
 
+   object ChannelsBehavior {
+      def fromID( id: Int ) : ChannelsBehavior = id match {
+         case 0 => Mix
+         case 1 => First
+         case 2 => Last
+         case _ => throw new IllegalArgumentException( id.toString )
+      }
+      /** Input signal's channels are mixed together before taking the analysis */
+      case object Mix extends ChannelsBehavior { val id = 0 }
+      /** Just the first channel is used in the analysis (i.e. the left channel if the audio input is stereo */
+      case object First extends ChannelsBehavior { val id = 1 }
+      /** Just the last channel is used in the analysis (i.e. the right channel if the audio input is stereo */
+      case object Last extends ChannelsBehavior { val id = 2 }
+   }
+   /** Defines how analysis data is taken from multi channel files */
+   sealed trait ChannelsBehavior { def id: Int }
+
    sealed trait SettingsLike {
       def audioInput : File
       def featureOutput : File
@@ -54,6 +71,7 @@ object FeatureExtraction {
       def numCoeffs : Int
       def fftSize : Int
       def fftOverlap : Int
+      def channelsBehavior : ChannelsBehavior
    }
 
 //   object SettingsBuilder { def apply() = new SettingsBuilder }
@@ -64,8 +82,9 @@ object FeatureExtraction {
       var numCoeffs : Int           = 13
       var fftSize : Int             = 1024
       var fftOverlap : Int          = 2
+      var channelsBehavior : ChannelsBehavior = ChannelsBehavior.Mix
 
-      def build = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap )
+      def build = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior )
    }
 
    object Settings {
@@ -82,11 +101,15 @@ object FeatureExtraction {
          sb.numCoeffs      = (xml \ "numCoeffs").text.toInt
          sb.fftSize        = (xml \ "fftSize").text.toInt
          sb.fftOverlap     = (xml \ "fftOverlap").text.toInt
+         sb.channelsBehavior = {
+            val e = (xml \ "channels").text
+            if( e.isEmpty ) ChannelsBehavior.Mix else ChannelsBehavior.fromID( e.toInt )
+         }
          sb.build
       }
    }
    final case class Settings( audioInput : File, featureOutput : File, metaOutput : Option[ File ],
-                              numCoeffs : Int, fftSize : Int, fftOverlap : Int )
+                              numCoeffs : Int, fftSize : Int, fftOverlap : Int, channelsBehavior: ChannelsBehavior )
    extends SettingsLike {
       def toXML =
 <feature>
@@ -96,6 +119,7 @@ object FeatureExtraction {
    <numCoeffs>{numCoeffs}</numCoeffs>
    <fftSize>{fftSize}</fftSize>
    <fftOverlap>{fftOverlap}</fftOverlap>
+   <channels>{channelsBehavior.id}</channels>
 </feature>
    }
 
@@ -156,7 +180,12 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          val coeffBufID       = 1
          val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
          val df = SynthDef( "nrt" ) {
-            val in         = Mix( In.ar( NumOutputBuses.ir, spec.numChannels )) // XXX mono mix could be configurable
+            val in0        = In.ar( NumOutputBuses.ir, spec.numChannels )
+            val in         = settings.channelsBehavior match {
+               case ChannelsBehavior.Mix     => Mix( in0 )
+               case ChannelsBehavior.First   => in0.outputs.head
+               case ChannelsBehavior.Last    => in0.outputs.last
+            }
             val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
             val coeffs     = MFCC.kr( chain, settings.numCoeffs )
             val loud       = Loudness.kr( chain ) / 32
