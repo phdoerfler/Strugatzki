@@ -34,6 +34,7 @@ import java.io.{FilenameFilter, FileFilter, File}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
+import FeatureExtraction.{Settings => ESettings, SettingsBuilder => ESettingsBuilder}
 //import swing.Swing
 
 object Strugatzki {
@@ -120,7 +121,7 @@ object Strugatzki {
       var minSpacing    = 0.0 // 0.5
       var normalize     = true
 
-      val parser  = new OptionParser( name + " -c" ) {
+      implicit val parser  = new OptionParser( name + " -c" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption    = Some( s ))
          doubleOpt( "in-start", "Punch in begin (secs)", (d: Double) => punchInStart  = Some( d ))
@@ -139,198 +140,205 @@ object Strugatzki {
          opt( "no-norm", "Do not apply feature normalization", normalize = false )
       }
 
-      if( parser.parse( args )) {
-         (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
-            case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
-               val inFile  = new File( in )
-               val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
-               val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+      if( !parser.parse( args )) sys.exit( 1 )
 
-               def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+      (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
+         case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
+            val inFile  = new File( in )
+            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
 
-               val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
-                  case (Some( poStart ), Some( poStop )) =>
-                     val outSpan = Span( secsToFrames( poStart ), secsToFrames( poStop ))
-                     require( outSpan.length > 0, "Punch out span is empty" )
-                     true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.toFloat ))
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
 
-                  case (None, None) => true -> None
-                  case _ => false -> None
-               }
-               if( ok ) {
-                  val inSpan  = Span( secsToFrames( piStart ), secsToFrames( piStop ))
-                  require( inSpan.length > 0, "Punch in span is empty" )
-                  val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.toFloat )
-                  val minFrames  = secsToFrames( pMin )
-                  require( minFrames > 0, "Minimum duration is zero" )
-                  val maxFrames  = secsToFrames( pMax )
-                  require( maxFrames >= minFrames, "Maximum duration is smaller than minimum duration" )
+            val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
+               case (Some( poStart ), Some( poStop )) =>
+                  val outSpan = Span( secsToFrames( poStart ), secsToFrames( poStop ))
+                  require( outSpan.length > 0, "Punch out span is empty" )
+                  true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.toFloat ))
 
-                  FeatureCorrelation.verbose = verbose
-                  val set              = new FeatureCorrelation.SettingsBuilder
-                  set.databaseFolder   = new File( dir )
-                  set.punchIn          = punchIn
-                  set.punchOut         = punchOutO
-                  set.metaInput        = inFile
-                  set.minPunch         = minFrames
-                  set.maxPunch         = maxFrames
-                  set.normalize        = normalize
-                  set.maxBoost         = maxBoost.toFloat
-                  set.numMatches       = numMatches
-                  set.numPerFile       = numPerFile
-                  set.minSpacing       = secsToFrames( minSpacing )
+               case (None, None) => true -> None
+               case _ => false -> None
+            }
+            if( ok ) {
+               val inSpan  = Span( secsToFrames( piStart ), secsToFrames( piStop ))
+               require( inSpan.length > 0, "Punch in span is empty" )
+               val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.toFloat )
+               val minFrames  = secsToFrames( pMin )
+               require( minFrames > 0, "Minimum duration is zero" )
+               val maxFrames  = secsToFrames( pMax )
+               require( maxFrames >= minFrames, "Maximum duration is smaller than minimum duration" )
 
-                  def ampToDB( amp: Double ) = 20 * math.log10( amp )
-                  def toPercentStr( d: Double ) = percentFormat.format( d )
-                  def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
+               FeatureCorrelation.verbose = verbose
+               val set              = new FeatureCorrelation.SettingsBuilder
+               set.databaseFolder   = new File( dir )
+               set.punchIn          = punchIn
+               set.punchOut         = punchOutO
+               set.metaInput        = inFile
+               set.minPunch         = minFrames
+               set.maxPunch         = maxFrames
+               set.normalize        = normalize
+               set.maxBoost         = maxBoost.toFloat
+               set.numMatches       = numMatches
+               set.numPerFile       = numPerFile
+               set.minSpacing       = secsToFrames( minSpacing )
 
-                  import FeatureCorrelation._
-                  var lastProg = 0
-                  val fc = FeatureCorrelation( set ) {
-                     case Success( res ) if( res.nonEmpty ) =>
-                        println( "  Success." )
+               def ampToDB( amp: Double ) = 20 * math.log10( amp )
+               def toPercentStr( d: Double ) = percentFormat.format( d )
+               def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
 
-                        res.foreach { m =>
-                           println(  "\nFile      : " + m.file.getAbsolutePath +
-                                     "\nSimilarity: " + toPercentStr( m.sim ) +
-                                     "\nSpan start: " + m.punch.start +
-                                     "\nBoost in  : " + toDBStr( m.boostIn ))
-                           if( punchOutO.isDefined ) {
-                              println( "Span stop : " + m.punch.stop +
-                                     "\nBoost out : " + toDBStr( m.boostOut ))
-                           }
+               import FeatureCorrelation._
+               var lastProg = 0
+               val fc = FeatureCorrelation( set ) {
+                  case Success( res ) if( res.nonEmpty ) =>
+                     println( "  Success." )
+
+                     res.foreach { m =>
+                        println(  "\nFile      : " + m.file.getAbsolutePath +
+                                  "\nSimilarity: " + toPercentStr( m.sim ) +
+                                  "\nSpan start: " + m.punch.start +
+                                  "\nBoost in  : " + toDBStr( m.boostIn ))
+                        if( punchOutO.isDefined ) {
+                           println( "Span stop : " + m.punch.stop +
+                                  "\nBoost out : " + toDBStr( m.boostOut ))
                         }
-                        println()
+                     }
+                     println()
 
-                     case Success( _ ) =>
-                        println( "  No matches found." )
-                     case Failure( e ) =>
-                        println( "  Failed: " )
-                        e.printStackTrace()
-                     case Aborted =>
-                        println( "  Aborted" )
-                     case Progress( perc ) =>
-                        val i = perc >> 2
-                        while( lastProg < i ) {
-                           print( "#" )
-                        lastProg += 1 }
-                  }
-                  fc.start()
+                  case Success( _ ) =>
+                     println( "  No matches found." )
+                  case Failure( e ) =>
+                     println( "  Failed: " )
+                     e.printStackTrace()
+                  case Aborted =>
+                     println( "  Aborted" )
+                  case Progress( perc ) =>
+                     val i = perc >> 2
+                     while( lastProg < i ) {
+                        print( "#" )
+                     lastProg += 1 }
+               }
+               fc.start()
 
-               } else parser.showUsage
+            } else exit1()
 
-            case _ => parser.showUsage
-         }
-      } else parser.showUsage
+         case _ => exit1()
+      }
    }
 
    def featureStats( args: Array[ String ]) {
       var dirOption = Option.empty[ String ]
       var verbose = false
 
-      val parser  = new OptionParser( name + " -f" ) {
+      implicit val parser  = new OptionParser( name + " -f" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
       }
-      if( parser.parse( args )) dirOption match {
-         case Some( dir ) =>
-            println( "Starting stats... " )
-            val paths: IndexedSeq[ File ] = new File( dir ).listFiles( new FilenameFilter {
-               def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
-            })
-            import FeatureStats._
-            var lastProg = 0
-            val fs = FeatureStats( paths ) {
-               case Success( spans ) =>
-                  println( "  Success." )
-                  val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
-                     AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
-                  val b = afNorm.frameBuffer( 2 )
-                  spans.zipWithIndex.foreach { case ((min, max), i) =>
-                     b( i )( 0 ) = min.toFloat
-                     b( i )( 1 ) = max.toFloat
-                  }
-                  afNorm.writeFrames( b )
-                  afNorm.close
-                  println( "Done." )
-               case Failure( e ) =>
-                  println( "  Failed: " )
-                  e.printStackTrace()
-               case Aborted =>
-                  println( "  Aborted" )
-               case Progress( perc ) =>
-                  val i = perc >> 2
-                  while( lastProg < i ) {
-                     print( "#" )
-                  lastProg += 1 }
-            }
-            fs.start()
+      if( !parser.parse( args )) sys.exit( 1 )
 
-         case _ => parser.showUsage
-       } else parser.showUsage
+      val dir = dirOption match {
+         case Some( d ) => d
+         case None => exit1()
+      }
+
+      println( "Starting stats... " )
+      val paths: IndexedSeq[ File ] = new File( dir ).listFiles( new FilenameFilter {
+         def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
+      })
+      import FeatureStats._
+      var lastProg = 0
+      val fs = FeatureStats( paths ) {
+         case Success( spans ) =>
+            println( "  Success." )
+            val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
+               AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
+            val b = afNorm.frameBuffer( 2 )
+            spans.zipWithIndex.foreach { case ((min, max), i) =>
+               b( i )( 0 ) = min.toFloat
+               b( i )( 1 ) = max.toFloat
+            }
+            afNorm.writeFrames( b )
+            afNorm.close
+            println( "Done." )
+         case Failure( e ) =>
+            println( "  Failed: " )
+            e.printStackTrace()
+         case Aborted =>
+            println( "  Aborted" )
+         case Progress( perc ) =>
+            val i = perc >> 2
+            while( lastProg < i ) {
+               print( "#" )
+            lastProg += 1 }
+      }
+      fs.start()
+   }
+
+   private def exit1()( implicit p: OptionParser ) : Nothing = {
+      p.showUsage
+      sys.exit( 1 )
    }
 
    def featurePre( args: Array[ String ]) {
       var inputs     = IndexedSeq.empty[ String ]
       var dirOption  = Option.empty[ String ]
       var verbose    = false
+      var chanString = "mix"
 
-      val parser  = new OptionParser( name + " -f" ) {
+      implicit val parser  = new OptionParser( name + " -f" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
          opt( "d", "dir", "<directory>", "Target directory", (s: String) => dirOption = Some( s ))
+         opt( "c", "channels", "(mix|first|last)", "Channel mode (defaults to 'mix')", (s: String) => chanString = s )
       }
-      if( parser.parse( args )) dirOption match {
-         case Some( dir ) =>
-            FeatureExtraction.verbose = verbose
-            if( inputs.isEmpty ) {
-               parser.showUsage
-            }
-            val inFiles: List[ File ] = inputs.flatMap( p => {
-               val f = new File( p )
-               if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
-                  def accept( f: File ) = try {
-                     AudioFile.identify( f ).isDefined
-                  } catch { case _ => false }
-               }).toList
-            })( breakOut )
-            val targetDir = new File( dir )
-            def iter( list: List[ File ]) {
-               list match {
-                  case head :: tail => feature( head, targetDir )( if( _ ) iter( tail ))
-                  case _ =>
-               }
-            }
-            iter( inFiles )
+      if( !parser.parse( args )) sys.exit( 1 )
+      val dir = dirOption match {
+         case Some( d ) => d
+         case None => exit1()
+      }
+      if( inputs.isEmpty ) exit1()
 
-         case _ => parser.showUsage
-      } else {
-         parser.showUsage
+      import FeatureExtraction.ChannelsBehavior
+      val chanMode: ChannelsBehavior = chanString.toLowerCase match {
+         case "mix"     => ChannelsBehavior.Mix
+         case "first"   => ChannelsBehavior.First
+         case "last"    => ChannelsBehavior.Last
+         case _         => exit1()
       }
+
+      FeatureExtraction.verbose = verbose
+      val inFiles: List[ File ] = inputs.flatMap( p => {
+         val f = new File( p )
+         if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
+            def accept( f: File ) = try {
+               AudioFile.identify( f ).isDefined
+            } catch { case _ => false }
+         }).toList
+      })( breakOut )
+
+      val targetDir        = new File( dir )
+      val sb               = new ESettingsBuilder
+      sb.channelsBehavior  = chanMode
+
+      def iter( list: List[ File ]) {
+         list match {
+            case head :: tail =>
+               val name1         = {
+                  val n = head.getName
+                  val i = n.lastIndexOf( '.' )
+                  if( i >= 0 ) n.substring( 0, i ) else n
+               }
+               sb.audioInput     = head
+               sb.featureOutput  = new File( targetDir, name1 + "_feat.aif" )
+               sb.metaOutput     = Some( new File( targetDir, name1 + "_feat.xml" ))
+               feature( sb )( if( _ ) iter( tail ))
+            case _ =>
+         }
+      }
+      iter( inFiles )
    }
 
-   def feature( inputFile: File, outDir: File )( whenDone: Boolean => Unit ) {
+   def feature( set: ESettings )( whenDone: Boolean => Unit ) {
       import FeatureExtraction._
-
-//      val inDir   = "/Users/hhrutz/Desktop/new_projects/Utopia/audio_work"
-//      val outDir  = "/Users/hhrutz/Desktop/new_projects/Utopia/feature" // audio_work"
-//      val name    = "Raspad_30'58"
-//      val name    = "Klangbeispiel7"
-//      val name    = "NuclearBoy"
-      val set     = new SettingsBuilder
-      set.audioInput = inputFile
-//      set.audioInput    = n match {
-//         case Some( path ) => new File( path )
-//         case None         => new File( inDir, name + ".aif" )
-//      }
-      val name1         = {
-         val n = set.audioInput.getName
-         val i = n.lastIndexOf( '.' )
-         if( i >= 0 ) n.substring( 0, i ) else n
-      }
-      set.featureOutput = new File( outDir, name1 + "_feat.aif" )
-      set.metaOutput    = Some( new File( outDir, name1 + "_feat.xml" ))
-
       println( "Starting extraction... " + set.audioInput.getName )
       var lastProg = 0
       val f = FeatureExtraction( set ) {
@@ -345,7 +353,6 @@ object Strugatzki {
             println( "  Aborted" )
             whenDone( false )
          case Progress( perc ) =>
-//            println( (f * 100).toInt )
             val i = perc >> 2
             while( lastProg < i ) {
                print( "#" )
