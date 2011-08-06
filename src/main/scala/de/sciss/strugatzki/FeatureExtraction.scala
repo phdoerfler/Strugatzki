@@ -74,7 +74,14 @@ object FeatureExtraction {
       def channelsBehavior : ChannelsBehavior
    }
 
-//   object SettingsBuilder { def apply() = new SettingsBuilder }
+   object SettingsBuilder {
+      def apply() : SettingsBuilder = new SettingsBuilder
+      def apply( settings: Settings ) : SettingsBuilder = {
+         val sb = new SettingsBuilder
+         sb.read( settings )
+         sb
+      }
+   }
    final class SettingsBuilder extends SettingsLike {
       var audioInput : File         = new File( "input.aif" )
       var featureOutput : File      = new File( tmpDir, "features.aif" )
@@ -85,6 +92,16 @@ object FeatureExtraction {
       var channelsBehavior : ChannelsBehavior = ChannelsBehavior.Mix
 
       def build = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior )
+
+      def read( settings: Settings ) {
+         audioInput        = settings.audioInput
+         featureOutput     = settings.featureOutput
+         metaOutput        = settings.metaOutput
+         numCoeffs         = settings.numCoeffs
+         fftSize           = settings.fftSize
+         fftOverlap        = settings.fftOverlap
+         channelsBehavior  = settings.channelsBehavior
+      }
    }
 
    object Settings {
