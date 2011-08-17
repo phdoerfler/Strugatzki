@@ -490,8 +490,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                   }
                } else {
                   if( entryHasSpace || sim > worstSim ) {
-                     val start = featToFull( logicalOff )
-                     val m = Match( sim, extrDB.audioInput, Span( start, start ), boost, 1f )
+                     val start   = featToFull( logicalOff )
+                     val stop    = featToFull( logicalOff + punchInLen )
+                     val m       = Match( sim, extrDB.audioInput, Span( start, stop ), boost, 1f )
                      addMatch( m )
                   }
                }
