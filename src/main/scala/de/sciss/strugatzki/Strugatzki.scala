@@ -41,7 +41,7 @@ object Strugatzki {
 //   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
 
    val name          = "Strugatzki"
-   val version       = 0.12
+   val version       = 0.13
    val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
    val isSnapshot    = true
 
@@ -251,13 +251,13 @@ object Strugatzki {
             println( "  Success." )
             val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
                AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
-            val b = afNorm.frameBuffer( 2 )
+            val b = afNorm.buffer( 2 )
             spans.zipWithIndex.foreach { case ((min, max), i) =>
                b( i )( 0 ) = min.toFloat
                b( i )( 1 ) = max.toFloat
             }
-            afNorm.writeFrames( b )
-            afNorm.close
+            afNorm.write( b )
+            afNorm.close()
             println( "Done." )
          case Failure( e ) =>
             println( "  Failed: " )

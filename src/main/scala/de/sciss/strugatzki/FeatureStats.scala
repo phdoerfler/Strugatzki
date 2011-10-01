@@ -119,12 +119,12 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
          val skews   = new Array[ Double ]( numCh )
          val p01     = new Array[ Double ]( numCh )
          val p99     = new Array[ Double ]( numCh )
-         val b       = af.frameBuffer( bufSz )
+         val b       = af.buffer( bufSz )
          var left    = af.numFrames
          val chans   = 0 until numCh
          while( left > 0 ) {
             val chunkLen = math.min( left, bufSz ).toInt
-            af.readFrames( b, 0, chunkLen )
+            af.read( b, 0, chunkLen )
             for( ch <- chans ) {
                val cb = b( ch )
                for( i <- 0 until chunkLen ) {
@@ -145,11 +145,11 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
 
          // second pass
          val pctils  = Array.ofDim[ Int ]( numCh, 2048 )
-         af.seekFrame( 0L )
+         af.seek( 0L )
          left = af.numFrames
          while( left > 0 ) {
             val chunkLen = math.min( left, bufSz ).toInt
-            af.readFrames( b, 0, chunkLen )
+            af.read( b, 0, chunkLen )
             for( ch <- chans ) {
                val cb   = b( ch )
                val cp   = pctils( ch )
@@ -164,7 +164,7 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
             }
             left -= chunkLen
          }
-         af.close
+         af.close()
 
          for( ch <- chans ) {
             val cp = pctils( ch )

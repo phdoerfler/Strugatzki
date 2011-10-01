@@ -29,11 +29,11 @@
 package de.sciss.strugatzki
 
 import collection.breakOut
-import java.io.{RandomAccessFile, FilenameFilter, File}
+import java.io.{FilenameFilter, File}
 import actors.Actor
 import collection.immutable.{SortedSet => ISortedSet}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
-import xml.{NodeSeq, Node, Elem, XML}
+import xml.{NodeSeq, XML}
 
 /**
  * A processor which searches through the database and matches
@@ -267,8 +267,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val normBuf = if( settings.normalize ) {
          val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
          require( (afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L )
-         val b = afNorm.frameBuffer( 2 )
-         afNorm.readFrames( b )
+         val b = afNorm.buffer( 2 )
+         afNorm.read( b )
 //         Some( b )
          b
       } else null // None
@@ -312,9 +312,9 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val start      = fullToFeat( punch.span.start )
                val stop       = fullToFeat( punch.span.stop )
                val frameNum   = stop - start
-               val b          = afIn.frameBuffer( frameNum )
-               afIn.seekFrame( start )
-               afIn.readFrames( b )
+               val b          = afIn.buffer( frameNum )
+               afIn.seek( start )
+               afIn.read( b )
                normalize( b, 0, frameNum )
 
                def feat( mat: Array[ Array[ Float ]]) = {
@@ -330,7 +330,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
             // - optionally normalize
             (readInBuffer( settings.punchIn ), settings.punchOut.map( readInBuffer( _ )))
          } finally {
-            afIn.close
+            afIn.close()
          }
       }
 
@@ -441,7 +441,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                if( checkAborted ) return Aborted
 
                val chunkLen   = math.min( left, readSz ).toInt
-               afExtr.readFrames( eInBuf, readOff, chunkLen )
+               afExtr.read( eInBuf, readOff, chunkLen )
                val eInBufOff = logicalOff % punchInLen
                normalize( eInBuf, readOff, chunkLen )
                val boost = calcBoost( matrixIn, eInBuf( 0 ))
@@ -474,7 +474,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         if( tIn == null ) {
                            tIn = createTempAudioFile( "in", 2 )
                         } else {
-                           tIn.seekFrame( 0L )
+                           tIn.seek( 0L )
                         }
                         tInOff = logicalOff
                         tInOpen= true
@@ -484,7 +484,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                      tInBufOff += 1
                      // flush
                      if( tInBufOff == 1024 ) {
-                        tIn.writeFrames( tInBuf, 0, tInBufOff )
+                        tIn.write( tInBuf, 0, tInBufOff )
                         tInBufOff = 0
                      }
                   }
@@ -509,14 +509,14 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                case (Some( matrixOut ), Some( punchOut ), true) =>
                   // flush
                   if( tInBufOff > 0 ) {
-                     tIn.writeFrames( tInBuf, 0, tInBufOff )
+                     tIn.write( tInBuf, 0, tInBufOff )
                      tInBufOff = 0
                   }
 
 //var ySUM = 0.0
 //var yCNT = 0
 
-                  tIn.seekFrame( 0L )
+                  tIn.seek( 0L )
 
 //                  val piOff0  = tIn.readInt()
 //                  val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
@@ -527,11 +527,11 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                      if( tOut == null ) {
                         tOut = createTempAudioFile( "out", 2 )
                      } else {
-                        tOut.seekFrame( 0L )
+                        tOut.seek( 0L )
                      }
 
                      val outTempWeight = punchOut.temporalWeight
-                     afExtr.seekFrame( poOff0 )
+                     afExtr.seek( poOff0 )
                      readSz            = punchOutLen   // read full buffer in first round
                      readOff           = 0
                      logicalOff        = 0
@@ -544,7 +544,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         if( checkAborted ) return Aborted
 
                         val chunkLen   = math.min( left, readSz ).toInt
-                        afExtr.readFrames( eOutBuf, readOff, chunkLen )
+                        afExtr.read( eOutBuf, readOff, chunkLen )
                         normalize( eOutBuf, readOff, chunkLen )
                         val extraBufOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, eOutBuf( 0 ))
@@ -571,7 +571,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         tOutBuf( 1 )( tOutBufOff ) = boost
                         tOutBufOff += 1
                         if( tOutBufOff == 1024 ) { // flush
-                           tOut.writeFrames( tOutBuf, 0, tOutBufOff )
+                           tOut.write( tOutBuf, 0, tOutBufOff )
                            tOutBufOff = 0
                         }
 
@@ -584,7 +584,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                      }
                      // flush
                      if( tOutBufOff > 0 ) {
-                        tOut.writeFrames( tOutBuf, 0, tOutBufOff )
+                        tOut.write( tOutBuf, 0, tOutBufOff )
                         tOutBufOff = 0
                      }
 
@@ -600,7 +600,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                         if( checkAborted ) return Aborted
 
                         if( tInBufOff == 1024 ) {
-                           tIn.readFrames( tInBuf, 0, math.min( 1024, left ).toInt )
+                           tIn.read( tInBuf, 0, math.min( 1024, left ).toInt )
                            tInBufOff = 0
                         }
 
@@ -623,7 +623,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                            // best sim is too bad -- we can just skip over
                            // the whole previous search span!
                            val tOutSeek = piOff - tInOff // = numRead from tIn !
-                           tOut.seekFrame( tOutSeek )
+                           tOut.seek( tOutSeek )
 
 //                           tOut.seek( (poOff0 + (piOff - piOff0)) * 8 )
 //                           var left2   = math.min( (tOut.length - tOut.getFilePointer) / 8, maxPunch - minPunch + 1 ) // float <sim>, float <boost>
@@ -634,7 +634,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                               if( checkAborted ) return Aborted
 
                               val chunkLen = math.min( left2, 1024 ).toInt
-                              tOut.readFrames( tOutBuf, 0, chunkLen )
+                              tOut.read( tOutBuf, 0, chunkLen )
 
                               var chunkOff = 0; while( chunkOff < chunkLen ) {
    //                              val outSim  = tOut.readFloat()
@@ -685,7 +685,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                case _ =>
             }
          } finally {
-            afExtr.close
+            afExtr.close()
          }
 
          // - add iter-prio to total-prio, and truncate after num-matches elements
@@ -695,8 +695,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          progress( (extrIdx + 1).toFloat / extrDBs.size )
       }
 
-      if( tIn != null ) tIn.close
-      if( tOut != null ) tOut.close
+      if( tIn != null ) tIn.close()
+      if( tOut != null ) tOut.close()
 
       val pay = allPrio.toIndexedSeq
       Success( pay )
@@ -811,5 +811,5 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
    }
 
    protected def checkAborted = ProcT.synchronized { ProcT.aborted }
-   protected def progress( f: Float ) = ProcT.progress( (f * 100 + 0.5f).toInt )
+   protected def progress( f: Float ) { ProcT.progress( (f * 100 + 0.5f).toInt )}
 }

@@ -28,9 +28,8 @@
 
 package de.sciss.strugatzki
 
-import sys.error
 import de.sciss.synth
-import de.sciss.osc.{OSCPacketCodec, OSCBundle}
+import de.sciss.osc.{PacketCodec, Bundle}
 import java.io.{RandomAccessFile, File}
 import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
@@ -197,23 +196,26 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          val coeffBufID       = 1
          val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
          val df = SynthDef( "nrt" ) {
-            val in0        = In.ar( NumOutputBuses.ir, spec.numChannels )
+//            val in0        = In.ar( NumOutputBuses.ir, spec.numChannels )
+//            val in         = settings.channelsBehavior match {
+//               case ChannelsBehavior.Mix     => Mix( in0 )
+//               case ChannelsBehavior.First   => in0.outputs.head
+//               case ChannelsBehavior.Last    => in0.outputs.last
+//            }
+            val chanOff    = NumOutputBuses.ir
             val in         = settings.channelsBehavior match {
-               case ChannelsBehavior.Mix     => Mix( in0 )
-               case ChannelsBehavior.First   => in0.outputs.head
-               case ChannelsBehavior.Last    => in0.outputs.last
+               case ChannelsBehavior.Mix     => Mix( In.ar( chanOff, spec.numChannels ))
+               case ChannelsBehavior.First   => In.ar( chanOff, 1 )
+               case ChannelsBehavior.Last    => In.ar( chanOff + spec.numChannels - 1, 1 )
             }
             val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
             val coeffs     = MFCC.kr( chain, settings.numCoeffs )
             val loud       = Loudness.kr( chain ) / 32
-//            val rmax       = RunningMax.kr( coeffs, 0 )
-//            val rmin       = RunningMin.kr( coeffs, 0 )
             val trig       = Impulse.kr( coeffRate ) // - Impulse.kr( 0 )
             val phaseHi    = coeffBufSize - 1
-//            val phase      = Stepper.kr( trig, lo = 0, hi = phaseHi, resetVal = phaseHi )
             val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
-//            phase.poll(trig)
-            BufWr.kr( loud +: coeffs.outputs, coeffBufID, phase )
+//            BufWr.kr( loud +: coeffs.outputs, coeffBufID, phase )
+            BufWr.kr( Flatten( Seq( loud, coeffs )), coeffBufID, phase )
          }
 
          val syn        = Synth( s )
@@ -237,10 +239,10 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
             // but that causes trouble. so just write it exactly at the Stepper boundaries
             // and hope it scales up to long durations :-(
             val time       = (stopFrame - 0.0) / coeffRate
-            OSCBundle.secs( time, msg )
+            Bundle.secs( time, msg )
          }
 
-         val initBndl = OSCBundle.secs( 0.0,
+         val initBndl = Bundle.secs( 0.0,
             fftBuf.allocMsg( settings.fftSize ),
             coeffBuf.allocMsg( coeffBufSize, numCh ),
             df.recvMsg,
@@ -249,7 +251,7 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
 
          val bndls   = initBndl +: bufBndls  // don't bother about n_free and b_free
 
-         val c    = OSCPacketCodec.default
+         val c    = PacketCodec.default
          val sz   = bndls.map( _.getEncodedSize( c )).max
          val raf  = new RandomAccessFile( oscF, "rw" )
          val bb   = ByteBuffer.allocate( sz )
@@ -263,7 +265,8 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          }
          raf.close()
 
-         val dur = OSCBundle.timetagToSecs( bufBndls.last.timetag )
+//         val dur = Bundle.timetagToSecs( bufBndls.last.timetag )
+         val dur = bufBndls.last.timetag.toSecs
 
          if( verbose ) println( "dur: " + dur.round(0.01) + "s ; numFFTs: " + numFFTs +
             "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )
@@ -310,10 +313,10 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
          for( i <- 0 until numWrites ) {
             if( shouldAbort ) return false
             val afIn    = AudioFile.openRead( tmpName( i ))
-            val b       = afIn.frameBuffer( afIn.numFrames.toInt )
+            val b       = afIn.buffer( afIn.numFrames.toInt )
             val lasts   = new Array[ Float ]( afIn.numChannels )
-            afIn.readFrames( b )
-            afIn.close
+            afIn.read( b )
+            afIn.close()
             // deal with NaNs
             for( ch <- 0 until afIn.numChannels ) {
                val cb = b( ch )
@@ -325,12 +328,12 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
                lasts( ch ) = last
             }
 
-            afOut.writeFrames( b )
+            afOut.write( b )
             afIn.file.foreach( _.delete() )
             val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
             Act ! Progress( prog )
          }
-         afOut.close
+         afOut.close()
 
          settings.metaOutput.foreach { metaFile =>
             val xml = settings.toXML
