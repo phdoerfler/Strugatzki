@@ -3,8 +3,11 @@ package aux
 
 import java.io.File
 import de.sciss.synth.io.{AudioFileSpec, SampleFormat, AudioFileType, AudioFile}
+import actors.Actor
 
 trait Processor {
+   protected val companion : ProcessorCompanion
+
    protected final def createTempAudioFile( id: String, numChannels: Int ) : AudioFile = {
       val file = File.createTempFile( "corr_" + id, ".aif" )
       file.deleteOnExit()
@@ -43,4 +46,59 @@ trait Processor {
       val stddev = math.sqrt( sum / matSize )
       (mean, stddev)
    }
+
+   protected def aborted() : Unit
+
+   final def abort() { Act ! Abort }
+   final def start() { Act.start() }
+
+   private object Abort
+
+   protected def observer: companion.Observer
+
+   protected object Act extends Actor {
+      def act() {
+         ProcT.start()
+         var result : /* companion. */ companion.Result = null
+         loopWhile( result == null ) {
+            react {
+               case Abort =>
+                  ProcT.aborted = true
+                  aborted()
+               case res: /* companion. */ companion.Progress =>
+                  observer( res )
+               case res @ /* companion. */ companion.Aborted =>
+                  result = res
+               case res: /* companion. */ companion.Failure =>
+                  result = res
+               case res: /* companion. */ companion.Success =>
+                  result = res
+            }
+         } andThen { observer( result )}
+      }
+   }
+
+   private object ProcT extends Thread {
+      var aborted: Boolean = false
+      private var lastProg = -1
+      override def run() {
+         Act ! (try {
+            body()
+         } catch {
+            case e => /* companion. */ companion.Failure( e )
+         })
+      }
+
+      def progress( i: Int ) {
+         if( i > lastProg ) {
+            lastProg = i
+            Act ! companion.Progress( i )
+         }
+      }
+   }
+
+   protected def body() : companion.Result
+
+   protected final def checkAborted = ProcT.synchronized { ProcT.aborted }
+   protected final def progress( f: Float ) { ProcT.progress( (f * 100 + 0.5f).toInt )}
 }

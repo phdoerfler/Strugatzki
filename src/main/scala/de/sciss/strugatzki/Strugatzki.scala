@@ -342,7 +342,7 @@ object Strugatzki {
       println( "Starting extraction... " + set.audioInput.getName )
       var lastProg = 0
       val f = FeatureExtraction( set ) {
-         case Success =>
+         case Success( _ ) =>
             println( "  Success." )
             whenDone( true )
          case Failure( e ) =>

@@ -37,11 +37,7 @@ import sys.process.{ProcessLogger, Process}
 import actors.Actor
 import xml.{NodeSeq, XML}
 
-object FeatureExtraction {
-   var verbose = false
-
-   private lazy val tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
-
+object FeatureExtraction extends aux.ProcessorCompanion {
    def apply( settings: Settings )( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureExtraction = {
       new FeatureExtraction( settings, observer )
    }
@@ -139,235 +135,205 @@ object FeatureExtraction {
 </feature>
    }
 
-   sealed trait ProgressOrResult
-   final case class Progress( percent: Int ) extends ProgressOrResult
-   sealed trait Result extends ProgressOrResult
-   case object Success extends Result
-   final case class Failure( t: Throwable ) extends Result
-   case object Aborted extends Result
+   type PayLoad = Unit
 }
 final class FeatureExtraction private ( val settings: FeatureExtraction.Settings,
-                                        observer: PartialFunction[ FeatureExtraction.ProgressOrResult, Unit ]) {
+                                        protected val observer: PartialFunction[ FeatureExtraction.ProgressOrResult, Unit ])
+extends aux.Processor {
    import FeatureExtraction._
 
-//   Act.start()
-
-   def abort() { Act ! Abort }
-   def start() { Act.start() }
-
-   private object Abort
+   protected val companion = FeatureExtraction
 
    private object ProcT extends Thread {
       var aborted: Boolean = false
-      var p: Process = null
 
       override def run() {
          Act ! (try {
-            if( procBody() ) Success else Aborted
+            body()
          } catch {
             case e => Failure( e )
          })
       }
+   }
 
-      private def procBody() : Boolean = {
-         import synth._
-         import ugen._
+   private var p: Process = null
 
-         val spec             = AudioFile.readSpec( settings.audioInput )
-         val stepSize         = settings.fftSize / settings.fftOverlap
-         val coeffRate        = spec.sampleRate / stepSize
+   protected def body() : Result = {
+      import synth._
+      import ugen._
 
-         val so               = new ServerOptionsBuilder
-         val oscF             = File.createTempFile( "tmp", ".osc" )
-         val dummyOutput      = File.createTempFile( "tmp", ".aif" )
-         so.inputBusChannels  = spec.numChannels
-         so.sampleRate        = spec.sampleRate.toInt // coeffRate.toInt
-         so.outputBusChannels = 1
-         so.nrtCommandPath    = oscF.getAbsolutePath
-         so.nrtInputPath      = Some( settings.audioInput.getAbsolutePath )
-         so.nrtOutputPath     = dummyOutput.getAbsolutePath
-         so.nrtHeaderFormat   = AudioFileType.AIFF
-         so.nrtSampleFormat   = SampleFormat.Int16
+      val spec             = AudioFile.readSpec( settings.audioInput )
+      val stepSize         = settings.fftSize / settings.fftOverlap
+      val coeffRate        = spec.sampleRate / stepSize
 
-         val s                = Server.dummy( "nrt", so.build )
-         val coeffBufSize     = 888 // 1024
-         val numCh            = settings.numCoeffs + 1
-         val fftBufID         = 0
-         val coeffBufID       = 1
-         val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
-         val df = SynthDef( "nrt" ) {
+      val so               = new ServerOptionsBuilder
+      val oscF             = File.createTempFile( "tmp", ".osc" )
+      val dummyOutput      = File.createTempFile( "tmp", ".aif" )
+      so.inputBusChannels  = spec.numChannels
+      so.sampleRate        = spec.sampleRate.toInt // coeffRate.toInt
+      so.outputBusChannels = 1
+      so.nrtCommandPath    = oscF.getAbsolutePath
+      so.nrtInputPath      = Some( settings.audioInput.getAbsolutePath )
+      so.nrtOutputPath     = dummyOutput.getAbsolutePath
+      so.nrtHeaderFormat   = AudioFileType.AIFF
+      so.nrtSampleFormat   = SampleFormat.Int16
+
+      val s                = Server.dummy( "nrt", so.build )
+      val coeffBufSize     = 888 // 1024
+      val numCh            = settings.numCoeffs + 1
+      val fftBufID         = 0
+      val coeffBufID       = 1
+      val fftWinType       = 1   // -1 rect, 0 sine, 1 hann
+      val df = SynthDef( "nrt" ) {
 //            val in0        = In.ar( NumOutputBuses.ir, spec.numChannels )
 //            val in         = settings.channelsBehavior match {
 //               case ChannelsBehavior.Mix     => Mix( in0 )
 //               case ChannelsBehavior.First   => in0.outputs.head
 //               case ChannelsBehavior.Last    => in0.outputs.last
 //            }
-            val chanOff    = NumOutputBuses.ir
-            val in         = settings.channelsBehavior match {
-               case ChannelsBehavior.Mix     => Mix( In.ar( chanOff, spec.numChannels ))
-               case ChannelsBehavior.First   => In.ar( chanOff, 1 )
-               case ChannelsBehavior.Last    => In.ar( chanOff + spec.numChannels - 1, 1 )
-            }
-            val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
-            val coeffs     = MFCC.kr( chain, settings.numCoeffs )
-            val loud       = Loudness.kr( chain ) / 32
-            val trig       = Impulse.kr( coeffRate ) // - Impulse.kr( 0 )
-            val phaseHi    = coeffBufSize - 1
-            val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
-//            BufWr.kr( loud +: coeffs.outputs, coeffBufID, phase )
-            BufWr.kr( Flatten( Seq( loud, coeffs )), coeffBufID, phase )
+         val chanOff    = NumOutputBuses.ir
+         val in         = settings.channelsBehavior match {
+            case ChannelsBehavior.Mix     => Mix( In.ar( chanOff, spec.numChannels ))
+            case ChannelsBehavior.First   => In.ar( chanOff, 1 )
+            case ChannelsBehavior.Last    => In.ar( chanOff + spec.numChannels - 1, 1 )
          }
+         val chain      = FFT( fftBufID, in, 1.0 / settings.fftOverlap, fftWinType )
+         val coeffs     = MFCC.kr( chain, settings.numCoeffs )
+         val loud       = Loudness.kr( chain ) / 32
+         val trig       = Impulse.kr( coeffRate ) // - Impulse.kr( 0 )
+         val phaseHi    = coeffBufSize - 1
+         val phase      = Stepper.kr( trig, 0, 0, phaseHi, 1, phaseHi )
+//            BufWr.kr( loud +: coeffs.outputs, coeffBufID, phase )
+         BufWr.kr( Flatten( Seq( loud, coeffs )), coeffBufID, phase )
+      }
 
-         val syn        = Synth( s )
-         val fftBuf     = new Buffer( s, fftBufID )
-         val coeffBuf   = new Buffer( s, coeffBufID )
-         val numFFTs    = ((spec.numFrames + stepSize - 1) / stepSize).toInt // + 1
-         val numWrites  = (numFFTs + coeffBufSize - 1) / coeffBufSize
+      val syn        = Synth( s )
+      val fftBuf     = new Buffer( s, fftBufID )
+      val coeffBuf   = new Buffer( s, coeffBufID )
+      val numFFTs    = ((spec.numFrames + stepSize - 1) / stepSize).toInt // + 1
+      val numWrites  = (numFFTs + coeffBufSize - 1) / coeffBufSize
 
-         def tmpName( i: Int ) = new File( tmpDir, "feat" + i + ".aif" )
+      def tmpName( i: Int ) = new File( tmpDir, "feat" + i + ".aif" )
 
-         val bufBndls = IndexedSeq.tabulate( numWrites ) { i =>
-            val startFrame = i * coeffBufSize
-            val stopFrame  = math.min( numFFTs, startFrame + coeffBufSize )
-            val numFrames  = stopFrame - startFrame
-            val msg        = coeffBuf.writeMsg( tmpName( i ).getAbsolutePath,
-               AudioFileType.AIFF, SampleFormat.Float,
-               if( i == 0 ) numFrames - 1 else numFrames, if( i == 0 ) 1 else 0, false )
+      val bufBndls = IndexedSeq.tabulate( numWrites ) { i =>
+         val startFrame = i * coeffBufSize
+         val stopFrame  = math.min( numFFTs, startFrame + coeffBufSize )
+         val numFrames  = stopFrame - startFrame
+         val msg        = coeffBuf.writeMsg( tmpName( i ).getAbsolutePath,
+            AudioFileType.AIFF, SampleFormat.Float,
+            if( i == 0 ) numFrames - 1 else numFrames, if( i == 0 ) 1 else 0, false )
 //            val time       = (i + 1.5) * stepSize / coeffRate // spec.sampleRate
 
-            // i don't know... in theory i should be writing the half a frame before or after,
-            // but that causes trouble. so just write it exactly at the Stepper boundaries
-            // and hope it scales up to long durations :-(
-            val time       = (stopFrame - 0.0) / coeffRate
-            Bundle.secs( time, msg )
-         }
+         // i don't know... in theory i should be writing the half a frame before or after,
+         // but that causes trouble. so just write it exactly at the Stepper boundaries
+         // and hope it scales up to long durations :-(
+         val time       = (stopFrame - 0.0) / coeffRate
+         Bundle.secs( time, msg )
+      }
 
-         val initBndl = Bundle.secs( 0.0,
-            fftBuf.allocMsg( settings.fftSize ),
-            coeffBuf.allocMsg( coeffBufSize, numCh ),
-            df.recvMsg,
-            syn.newMsg( df.name, s.rootNode )
-         )
+      val initBndl = Bundle.secs( 0.0,
+         fftBuf.allocMsg( settings.fftSize ),
+         coeffBuf.allocMsg( coeffBufSize, numCh ),
+         df.recvMsg,
+         syn.newMsg( df.name, s.rootNode )
+      )
 
-         val bndls   = initBndl +: bufBndls  // don't bother about n_free and b_free
+      val bndls   = initBndl +: bufBndls  // don't bother about n_free and b_free
 
-         val c    = PacketCodec.default
-         val sz   = bndls.map( _.getEncodedSize( c )).max
-         val raf  = new RandomAccessFile( oscF, "rw" )
-         val bb   = ByteBuffer.allocate( sz )
-         val fch  = raf.getChannel
-         bndls.foreach { bndl =>
-            bndl.encode( c, bb )
-            bb.flip
-            raf.writeInt( bb.limit )
-            fch.write( bb )
-            bb.clear
-         }
-         raf.close()
+      val c    = PacketCodec.default
+      val sz   = bndls.map( _.getEncodedSize( c )).max
+      val raf  = new RandomAccessFile( oscF, "rw" )
+      val bb   = ByteBuffer.allocate( sz )
+      val fch  = raf.getChannel
+      bndls.foreach { bndl =>
+         bndl.encode( c, bb )
+         bb.flip
+         raf.writeInt( bb.limit )
+         fch.write( bb )
+         bb.clear
+      }
+      raf.close()
 
 //         val dur = Bundle.timetagToSecs( bufBndls.last.timetag )
-         val dur = bufBndls.last.timetag.toSecs
+      val dur = bufBndls.last.timetag.toSecs
 
-         if( verbose ) println( "dur: " + dur.round(0.01) + "s ; numFFTs: " + numFFTs +
-            "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )
+      if( verbose ) println( "dur: " + dur.round(0.01) + "s ; numFFTs: " + numFFTs +
+         "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )
 
-         val log = new ProcessLogger {
-            var lastProg = -1
-            def buffer[ T ]( f: => T ) : T = f  // ???
-            def out( line: => String ) {
-               if( line.startsWith( "nextOSCPacket" )) {
-                  val time = line.substring( 14 ).toFloat
-                  val prog = (time / dur * 80).toInt
-                  if( prog != lastProg ) {
-                     Act ! Progress( prog )  // up to 80%
-                     lastProg = prog
-                  }
-               } else if( line != "start time 0" ) {
-                  Console.out.println( line )
+      val log = new ProcessLogger {
+         var lastProg = -1
+         def buffer[ T ]( f: => T ) : T = f  // ???
+         def out( line: => String ) {
+            if( line.startsWith( "nextOSCPacket" )) {
+               val time = line.substring( 14 ).toFloat
+               val prog = (time / dur * 80).toInt
+               if( prog != lastProg ) {
+                  Act ! Progress( prog )  // up to 80%
+                  lastProg = prog
                }
+            } else if( line != "start time 0" ) {
+               Console.out.println( line )
             }
-            def err( line: => String ) {
-               Console.err.println( line )
-            }
          }
-
-         def shouldAbort : Boolean = this.synchronized { aborted }
-
-         val proc = this.synchronized {
-            if( shouldAbort ) return false
-            val args = so.toNonRealtimeArgs
-            if( verbose ) println( args.mkString( "cmd: ", " ", "" ))
-            val pb = Process( args, Some( new File( so.programPath ).getParentFile ))
-            p = pb.run( log )
-            p
+         def err( line: => String ) {
+            Console.err.println( line )
          }
-         val res = proc.exitValue() // blocks
-         this.synchronized {
-            p = null
-            if( shouldAbort ) return false
-         }
-         if( res != 0 ) throw new RuntimeException( "scsynth failed with exit code " + res )
-
-         val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, numCh, coeffRate )
-         val afOut      = AudioFile.openWrite( settings.featureOutput, afOutS )
-         for( i <- 0 until numWrites ) {
-            if( shouldAbort ) return false
-            val afIn    = AudioFile.openRead( tmpName( i ))
-            val b       = afIn.buffer( afIn.numFrames.toInt )
-            val lasts   = new Array[ Float ]( afIn.numChannels )
-            afIn.read( b )
-            afIn.close()
-            // deal with NaNs
-            for( ch <- 0 until afIn.numChannels ) {
-               val cb = b( ch )
-               var last = lasts( ch )
-               for( i <- 0 until cb.size ) {
-                  val f = cb( i )
-                  if( f.isNaN ) cb( i ) = last else last = f
-               }
-               lasts( ch ) = last
-            }
-
-            afOut.write( b )
-            afIn.file.foreach( _.delete() )
-            val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
-            Act ! Progress( prog )
-         }
-         afOut.close()
-
-         settings.metaOutput.foreach { metaFile =>
-            val xml = settings.toXML
-            XML.save( metaFile.getAbsolutePath, xml, "UTF-8", true, null )
-         }
-
-         true
       }
+
+      val proc = this.synchronized {
+         if( checkAborted ) return Aborted
+         val args = so.toNonRealtimeArgs
+         if( verbose ) println( args.mkString( "cmd: ", " ", "" ))
+         val pb = Process( args, Some( new File( so.programPath ).getParentFile ))
+         p = pb.run( log )
+         p
+      }
+      val res = proc.exitValue() // blocks
+      this.synchronized {
+         p = null
+         if( checkAborted ) return Aborted
+      }
+      if( res != 0 ) throw new RuntimeException( "scsynth failed with exit code " + res )
+
+      val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, numCh, coeffRate )
+      val afOut      = AudioFile.openWrite( settings.featureOutput, afOutS )
+      for( i <- 0 until numWrites ) {
+         if( checkAborted ) return Aborted
+         val afIn    = AudioFile.openRead( tmpName( i ))
+         val b       = afIn.buffer( afIn.numFrames.toInt )
+         val lasts   = new Array[ Float ]( afIn.numChannels )
+         afIn.read( b )
+         afIn.close()
+         // deal with NaNs
+         for( ch <- 0 until afIn.numChannels ) {
+            val cb = b( ch )
+            var last = lasts( ch )
+            for( i <- 0 until cb.size ) {
+               val f = cb( i )
+               if( f.isNaN ) cb( i ) = last else last = f
+            }
+            lasts( ch ) = last
+         }
+
+         afOut.write( b )
+         afIn.file.foreach( _.delete() )
+         val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
+         Act ! Progress( prog )
+      }
+      afOut.close()
+
+      settings.metaOutput.foreach { metaFile =>
+         val xml = settings.toXML
+         XML.save( metaFile.getAbsolutePath, xml, "UTF-8", true, null )
+      }
+
+      Success( () )
    }
 
-   protected def abortProc() {
-      ProcT.synchronized {
-         ProcT.aborted = true
-         if( ProcT.p != null ) ProcT.p.destroy()
-      }
-   }
-
-   private object Act extends Actor {
-      def act() {
-         ProcT.start()
-         var result : Result = null
-         loopWhile( result == null ) {
-            react {
-               case Abort => abortProc()
-               case res @ Progress( _ ) =>
-                  observer( res )
-               case res @ Aborted =>
-                  result = res
-               case res @ Failure( _ ) =>
-                  result = res
-               case res @ Success =>
-                  result = res
-            }
-         } andThen { observer( result )}
+   protected def aborted() {
+      if( p != null ) {
+         p.destroy()
+         p = null
       }
    }
 }

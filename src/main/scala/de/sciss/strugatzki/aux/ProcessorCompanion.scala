@@ -12,7 +12,7 @@ trait ProcessorCompanion {
 
    var verbose = false
 
-   protected lazy val tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
+   def tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
 
    type Observer = PartialFunction[ ProgressOrResult, Unit ]
 

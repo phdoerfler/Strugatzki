@@ -225,6 +225,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                                          protected val observer: FeatureCorrelation.Observer ) extends aux.Processor {
    import FeatureCorrelation._
 
+   protected val companion = FeatureCorrelation
+
    protected def body() : Result = {
       import FeatureExtraction.{ Settings => ExtrSettings }
 
@@ -701,56 +703,5 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
    // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
 
-   def abort() { Act ! Abort }
-   def start() { Act.start() }
-
-   private object Abort
-
-   protected def abortProc() {
-      ProcT.aborted = true
-   }
-
-   private object Act extends Actor {
-      def act() {
-         ProcT.start()
-         var result : /* companion. */ Result = null
-         loopWhile( result == null ) {
-            react {
-               case Abort => abortProc()
-               case res: /* companion. */ Progress =>
-                  observer( res )
-               case res @ /* companion. */ Aborted =>
-                  result = res
-               case res: /* companion. */ Failure =>
-                  result = res
-               case res: /* companion. */ Success =>
-                  result = res
-            }
-         } andThen { observer( result )}
-      }
-   }
-
-//   protected def body() : companion.Result
-
-   private object ProcT extends Thread {
-      var aborted: Boolean = false
-      private var lastProg = -1
-      override def run() {
-         Act ! (try {
-            body()
-         } catch {
-            case e => /* companion. */ Failure( e )
-         })
-      }
-
-      def progress( i: Int ) {
-         if( i > lastProg ) {
-            lastProg = i
-            Act ! Progress( i )
-         }
-      }
-   }
-
-   protected def checkAborted = ProcT.synchronized { ProcT.aborted }
-   protected def progress( f: Float ) { ProcT.progress( (f * 100 + 0.5f).toInt )}
+   protected def aborted() {}
 }
