@@ -333,7 +333,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          else 0f // Float.NegativeInfinity
       }
 
-      // adds a match to the entry's priority queue. if the queue grows beyong numPerFile,
+      // adds a match to the entry's priority queue. if the queue grows beyond numPerFile,
       // truncates the queue. if the match collides with a previous match that is closer
       // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
       // the previous match (if the similarity is greater).
