@@ -32,20 +32,14 @@ import de.sciss.synth.io.AudioFile
 import java.io.File
 import actors.Actor
 
-object FeatureStats {
-   var verbose = false
+object FeatureStats extends aux.ProcessorCompanion {
    private val log05 = math.log( 0.5 )
 
    def apply( paths: IndexedSeq[ File ])( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureStats = {
       new FeatureStats( paths, observer )
    }
 
-   sealed trait ProgressOrResult
-   final case class Progress( percent: Int ) extends ProgressOrResult
-   sealed trait Result extends ProgressOrResult
-   case class Success( spans: IndexedSeq[ (Double, Double) ]) extends Result
-   final case class Failure( t: Throwable ) extends Result
-   case object Aborted extends Result
+   type PayLoad = IndexedSeq[ (Double, Double) ]
 }
 final class FeatureStats private ( paths: IndexedSeq[ File ],
                                    observer: PartialFunction[ FeatureStats.ProgressOrResult, Unit ]) {

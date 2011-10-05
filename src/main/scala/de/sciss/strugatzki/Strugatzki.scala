@@ -41,7 +41,7 @@ object Strugatzki {
 //   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
 
    val name          = "Strugatzki"
-   val version       = 0.13
+   val version       = 0.14
    val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
    val isSnapshot    = true
 

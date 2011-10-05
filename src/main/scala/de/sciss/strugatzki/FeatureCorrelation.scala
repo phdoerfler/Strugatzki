@@ -40,21 +40,7 @@ import xml.{NodeSeq, XML}
  * entries against a given audio file input. Returns a given
  * number of best matches.
  */
-object FeatureCorrelation /* extends ProcessorCompanion */ {
-   var verbose = false
-
-   protected lazy val tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
-
-   type Observer = PartialFunction[ ProgressOrResult, Unit ]
-//   type PayLoad
-
-   sealed trait ProgressOrResult
-   final case class Progress( percent: Int ) extends ProgressOrResult
-   sealed trait Result extends ProgressOrResult
-   case class Success( result: PayLoad ) extends Result
-   final case class Failure( t: Throwable ) extends Result
-   case object Aborted extends Result
-
+object FeatureCorrelation extends aux.ProcessorCompanion {
    /**
     * The result is a sequence of matches, sorted
     * by descending similarity
@@ -236,12 +222,8 @@ object FeatureCorrelation /* extends ProcessorCompanion */ {
    }
 }
 final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
-                                         protected val observer: FeatureCorrelation.Observer ) /* extends Processor */ {
-//   protected val companion = FeatureCorrelation
-//   import companion._
+                                         protected val observer: FeatureCorrelation.Observer ) extends aux.Processor {
    import FeatureCorrelation._
-
-//   start()
 
    protected def body() : Result = {
       import FeatureExtraction.{ Settings => ExtrSettings }
@@ -272,14 +254,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 //         Some( b )
          b
       } else null // None
-
-      def avg( b: Array[ Float ], off: Int, len: Int ) = {
-         var sum = 0.0
-         var i = off; val stop = off + len; while( i < stop ) {
-            sum += b( i )
-         i += 1 }
-         (sum / len).toFloat
-      }
 
       def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( avg( b, bOff, bLen ))
 
@@ -332,18 +306,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          } finally {
             afIn.close()
          }
-      }
-
-//      def createTempFile( id: String ) : RandomAccessFile = {
-//         val file = File.createTempFile( "corr_" + id, ".bin" )
-//         file.deleteOnExit()
-//         new RandomAccessFile( file, "rw" )
-//      }
-
-      def createTempAudioFile( id: String, numChannels: Int ) : AudioFile = {
-         val file = File.createTempFile( "corr_" + id, ".aif" )
-         file.deleteOnExit()
-         AudioFile.openWrite( file, AudioFileSpec( AudioFileType.IRCAM, SampleFormat.Float, numChannels, 44100 ))
       }
 
       val punchInLen       = matrixIn.numFrames
@@ -702,30 +664,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       Success( pay )
    }
 
-   private def stat( mat: Array[ Array[ Float ]], frameOff: Int, frameLen: Int, chanOff: Int, chanLen: Int ) : (Double, Double) = {
-      val chanStop   = chanOff + chanLen
-      val frameStop  = frameOff + frameLen
-      var sum = 0.0
-      var ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            sum += cb( i )
-         i +=1 }
-      ch += 1 }
-      val matSize = frameLen * chanLen
-      val mean = sum / matSize
-      sum = 0.0
-      ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            val d = cb( i ) - mean
-            sum += d * d
-         i +=1 }
-      ch += 1 }
-      val stddev = math.sqrt( sum / matSize )
-      (mean, stddev)
-   }
-
    /*
     * Perform cross correlation between two matrices a and b. A is supposed to be static,
     * thus we expect to have its mean and standard deviation passed in. Both a and b
@@ -768,14 +706,17 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
    private object Abort
 
+   protected def abortProc() {
+      ProcT.aborted = true
+   }
+
    private object Act extends Actor {
       def act() {
          ProcT.start()
          var result : /* companion. */ Result = null
          loopWhile( result == null ) {
             react {
-               case Abort =>
-                  ProcT.aborted = true
+               case Abort => abortProc()
                case res: /* companion. */ Progress =>
                   observer( res )
                case res @ /* companion. */ Aborted =>

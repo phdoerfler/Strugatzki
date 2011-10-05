@@ -344,17 +344,20 @@ final class FeatureExtraction private ( val settings: FeatureExtraction.Settings
       }
    }
 
+   protected def abortProc() {
+      ProcT.synchronized {
+         ProcT.aborted = true
+         if( ProcT.p != null ) ProcT.p.destroy()
+      }
+   }
+
    private object Act extends Actor {
       def act() {
          ProcT.start()
          var result : Result = null
          loopWhile( result == null ) {
             react {
-               case Abort =>
-                  ProcT.synchronized {
-                     ProcT.aborted = true
-                     if( ProcT.p != null ) ProcT.p.destroy()
-                  }
+               case Abort => abortProc()
                case res @ Progress( _ ) =>
                   observer( res )
                case res @ Aborted =>

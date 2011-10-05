@@ -1,6 +1,6 @@
 name := "strugatzki"
 
-version := "0.13"
+version := "0.14-SNAPSHOT"
 
 organization := "de.sciss"
 
