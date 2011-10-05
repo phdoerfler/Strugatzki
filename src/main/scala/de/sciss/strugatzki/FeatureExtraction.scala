@@ -71,12 +71,12 @@ object FeatureExtraction extends aux.ProcessorCompanion {
    object SettingsBuilder {
       def apply() : SettingsBuilder = new SettingsBuilder
       def apply( settings: Settings ) : SettingsBuilder = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.read( settings )
          sb
       }
    }
-   final class SettingsBuilder extends SettingsLike {
+   final class SettingsBuilder private () extends SettingsLike {
       var audioInput : File         = new File( "input.aif" )
       var featureOutput : File      = new File( tmpDir, "features.aif" )
       var metaOutput                = Option.empty[ File ]
@@ -85,7 +85,7 @@ object FeatureExtraction extends aux.ProcessorCompanion {
       var fftOverlap : Int          = 2
       var channelsBehavior : ChannelsBehavior = ChannelsBehavior.Mix
 
-      def build = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior )
+      def build : Settings = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior )
 
       def read( settings: Settings ) {
          audioInput        = settings.audioInput
@@ -102,7 +102,7 @@ object FeatureExtraction extends aux.ProcessorCompanion {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
       def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
       def fromXML( xml: NodeSeq ) : Settings = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.audioInput     = new File( (xml \ "input").text )
          sb.featureOutput  = new File( (xml \ "output").text )
          sb.metaOutput     = {

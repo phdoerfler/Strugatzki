@@ -132,12 +132,12 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
    object SettingsBuilder {
       def apply() : SettingsBuilder = new SettingsBuilder
       def apply( settings: Settings ) : SettingsBuilder = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.read( settings )
          sb
       }
    }
-   final class SettingsBuilder extends SettingsLike {
+   final class SettingsBuilder private () extends SettingsLike {
       var databaseFolder      = new File( "database" ) // Strugatzki.defaultDir
       var metaInput           = new File( "input_feat.xml" )
       var punchIn             = Punch( Span( 0L, 44100L ), 0.5f )
@@ -172,7 +172,7 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
       def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
       def fromXML( xml: NodeSeq ) : Settings = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.databaseFolder = new File( (xml \ "database").text )
          sb.metaInput      = new File( (xml \ "input").text )
          sb.punchIn        = Punch.fromXML( xml \ "punchIn" )
@@ -308,7 +308,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          entryPrio.size < maxEntrySz
       }
 
-      def worstSim = {
+      def lowestSim = {
          if( entryPrio.nonEmpty ) entryPrio.last.sim
          else if( allPrio.nonEmpty ) allPrio.last.sim
          else 0f // Float.NegativeInfinity
@@ -413,7 +413,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 //}
 
                if( matrixOutO.isDefined ) {
-                  if( tInOpen || entryHasSpace || sim > worstSim ) {
+                  if( tInOpen || entryHasSpace || sim > lowestSim ) {
                      if( !tInOpen ) {
                         if( tIn == null ) {
                            tIn = createTempAudioFile( "in", 2 )
@@ -433,7 +433,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                      }
                   }
                } else {
-                  if( entryHasSpace || sim > worstSim ) {
+                  if( entryHasSpace || sim > lowestSim ) {
                      val start   = featToFull( logicalOff )
                      val stop    = featToFull( logicalOff + punchInLen )
                      val m       = Match( sim, extrDB.audioInput, Span( start, stop ), boost, 1f )
@@ -554,12 +554,12 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 //                        val piOff   = tIn.readInt()
 //                        val inSim   = tIn.readFloat()
 //                        val boostIn = tIn.readFloat()
-                        // worstSim is now
+                        // lowestSim is now
                         // defined as min( inSim, outSim )
-                        var ws = worstSim       // cache it here
-                        var hs = entryHasSpace  // cahce it here
+                        var low  = lowestSim      // cache it here
+                        var hs   = entryHasSpace  // cahce it here
 //                        if( hs || inSim > ws ) // for sim = min( inSim, outSim )
-                        if( inSim > (ws * ws) ) { // sqrt( inSim * 1 ) > ws
+                        if( inSim > (low * low) ) { // sqrt( inSim * 1 ) > ws
                            var poOff   = piOff + minPunch
                            // note: there is room for further optimization:
                            // we might track in this iteration the best sim
@@ -593,12 +593,12 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                                  // outSim! (which would be lost in the case of min( inSim, outSim )
                                  val sim = math.sqrt( inSim * outSim ).toFloat
 //if( sim > 1 ) println( "inSim = " + inSim + " outSim = " + outSim + " sim = " + sim )
-                                 if( hs || sim > ws ) {
+                                 if( hs || sim > low ) {
                                     val m = Match( sim, extrDB.audioInput,
                                        Span( featToFull( piOff ), featToFull( poOff )), boostIn, boostOut )
                                     addMatch( m )
                                     // clear cache
-                                    ws = worstSim
+                                    low = lowestSim
                                     hs = entryHasSpace
 
 //                                    // shortcut (with the definition of minSim):

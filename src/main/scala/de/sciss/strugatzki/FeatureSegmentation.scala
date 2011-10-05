@@ -28,11 +28,9 @@
 
 package de.sciss.strugatzki
 
-import collection.breakOut
-import java.io.{FilenameFilter, File}
-import actors.Actor
+import java.io.File
 import collection.immutable.{SortedSet => ISortedSet}
-import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+import de.sciss.synth.io.AudioFile
 import xml.{NodeSeq, XML}
 
 /**
@@ -56,10 +54,10 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
    }
    final case class Break( sim: Float, pos: Long ) {
       def toXML =
-<match>
+<break>
    <sim>{sim}</sim>
    <pos>{pos}</pos>
-</match>
+</break>
    }
 
    // sortedset orders ascending according to the ordering, and with this
@@ -90,30 +88,30 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
       /** Whether to apply normalization to the features (recommended) */
       def normalize : Boolean
       /** Maximum number of breaks to report */
-      def numMatches : Int
+      def numBreaks : Int
       /** Minimum spacing between breaks */
       def minSpacing : Long
    }
 
    object SettingsBuilder {
-      def apply() : SettingsBuilder = new SettingsBuilder
+      def apply() : SettingsBuilder = new SettingsBuilder()
       def apply( settings: Settings ) : SettingsBuilder = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.read( settings )
          sb
       }
    }
-   final class SettingsBuilder extends SettingsLike {
+   final class SettingsBuilder private () extends SettingsLike {
       var databaseFolder      = new File( "database" )
       var metaInput           = new File( "input_feat.xml" )
       var span                = Option.empty[ Span ]
       var punch               = 22050L
       var temporalWeight      = 0.5f
       var normalize           = true
-      var numMatches          = 1
+      var numBreaks          = 1
       var minSpacing          = 22050L
 
-      def build = Settings( databaseFolder, metaInput, span, punch, temporalWeight, normalize, numMatches, minSpacing )
+      def build = Settings( databaseFolder, metaInput, span, punch, temporalWeight, normalize, numBreaks, minSpacing )
 
       def read( settings: Settings ) {
          databaseFolder = settings.databaseFolder
@@ -122,7 +120,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
          punch          = settings.punch
          temporalWeight = settings.temporalWeight
          normalize      = settings.normalize
-         numMatches     = settings.numMatches
+         numBreaks     = settings.numBreaks
          minSpacing     = settings.minSpacing
       }
    }
@@ -138,7 +136,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
 
       def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
       def fromXML( xml: NodeSeq ) : Settings = {
-         val sb = new SettingsBuilder
+         val sb = SettingsBuilder()
          sb.databaseFolder = new File( (xml \ "database").text )
          sb.metaInput      = new File( (xml \ "input").text )
          sb.span           = {
@@ -148,13 +146,13 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
          sb.punch          = (xml \ "punch").text.toLong
          sb.temporalWeight = (xml \ "weight").text.toFloat
          sb.normalize      = (xml \ "normalize").text.toBoolean
-         sb.numMatches     = (xml \ "numMatches").text.toInt
+         sb.numBreaks     = (xml \ "numBreaks").text.toInt
          sb.minSpacing     = (xml \ "minSpacing").text.toLong
          sb.build
       }
    }
    final case class Settings( databaseFolder: File, metaInput: File, span: Option[ Span ], punch: Long,
-                              temporalWeight: Float, normalize: Boolean, numMatches: Int, minSpacing: Long )
+                              temporalWeight: Float, normalize: Boolean, numBreaks: Int, minSpacing: Long )
    extends SettingsLike {
       private def spanToXML( span: Span ) =
 <span>
@@ -170,7 +168,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
    <punch>{punch}</punch>
    <weight>{temporalWeight}</weight>
    <normalize>{normalize}</normalize>
-   <numMatches>{numMatches}</numMatches>
+   <numBreaks>{numBreaks}</numBreaks>
    <minSpacing>{minSpacing}</minSpacing>
 </segmentation>
    }
@@ -214,29 +212,29 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
       var lastBreak : Break = null
 
       def entryHasSpace = {
-         prio.size < settings.numMatches
+         prio.size < settings.numBreaks
       }
 
-      def worstSim = {
+      def highestSim = {
          if( prio.nonEmpty ) prio.last.sim
          else 0f // Float.NegativeInfinity
       }
 
-      // adds a match to the entry's priority queue. if the queue grows beyond numPerFile,
+      // adds a break to the entry's priority queue. if the queue grows beyond numBreaks,
       // truncates the queue. if the match collides with a previous match that is closer
       // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
       // the previous match (if the similarity is greater).
       def addBreak( b: Break ) {
          if( (lastBreak != null) && ((b.pos - lastBreak.pos) < settings.minSpacing) ) {
             // gotta collapse them
-            if( lastBreak.sim < b.sim ) {  // ok, replace previous match
+            if( lastBreak.sim > b.sim ) {  // ok, replace previous match
                prio     -= lastBreak
                prio     += b
                lastBreak = b
             } // otherwise ignore the new match
          } else {
             prio     += b
-            if( prio.size > settings.numMatches ) {
+            if( prio.size > settings.numBreaks ) {
                prio -= prio.last   // faster than dropRight( 1 ) ?
             }
             lastBreak = b
@@ -252,9 +250,9 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          var readSz     = winLen   // read full buffer in first round
          var readOff    = 0
          var logicalOff = 0
-         // - go through in-span file and calculate correlations
-         while( left > 0 ) {
+         var progBlock  = 0
 
+         while( left > 0 ) {
             if( checkAborted ) return Aborted
 
             val chunkLen   = math.min( left, readSz ).toInt
@@ -262,13 +260,13 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             val eInBufOff = logicalOff % winLen
             normalize( normBuf, eInBuf, readOff, chunkLen )
             val temporal = if( tempWeight > 0f ) {
-               correlate( eInBuf, eInBufOff, 0 )
+               correlate( 1, halfWinLen, eInBuf, eInBufOff, 0 )
             } else 0f
             val spectral = if( tempWeight < 1f ) {
-               correlate( eInBuf, eInBufOff, 1 )
+               correlate( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
             } else 0f
             val sim = temporal * tempWeight + spectral * (1f - tempWeight)
-            if( entryHasSpace || sim > worstSim ) {
+            if( entryHasSpace || sim < highestSim ) {
                val pos     = featToFull( logicalOff + halfWinLen )
                val b       = Break( sim, pos )
                addBreak( b )
@@ -277,244 +275,15 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             readOff = (readOff + chunkLen) % winLen
             logicalOff += 1
             readSz  = 1 // read single frames in successive round (and rotate buffer)
+
+            progBlock = (progBlock + 1) % 128
+            if( progBlock == 0 ) progress( left.toFloat / afExtr.numFrames )
          }
+         progress( 1f )
 
       } finally {
-         sys.error( "TODO" )
+         afExtr.close()
       }
-
-//      // - for each span:
-//      extrDBs.zipWithIndex foreach { case (extrDB, extrIdx) =>
-//
-//         if( checkAborted ) return Aborted
-//
-//         if( entryPrio.nonEmpty ) entryPrio = entryPrio.empty
-//         lastEntryMatch = null
-//
-//         val afExtr = AudioFile.openRead( extrDB.featureOutput )
-//         try {
-//            //   - create a temp file
-//            //   - write the sliding xcorr to that file
-//            // A simple optimization could be to not begin writing the
-//            // temp file unless a punch-in correlation is found which is better
-//            // than the previous best match. This could also trigger
-//            // the punch-out measurement which could thus offset at
-//            // first_punch_in + min_punch_len
-//            var tInOpen    = false
-//            var tInOff     = 0
-//            var tInBufOff  = 0
-//            var left       = afExtr.numFrames
-//            matrixOutO.foreach { mo => left -= minPunch /* + mo.numFrames */}
-//            var readSz     = punchInLen   // read full buffer in first round
-//            var readOff    = 0
-//            var logicalOff = 0
-//            // - go through in-span file and calculate correlations
-//            while( left > 0 ) {
-//
-//               if( checkAborted ) return Aborted
-//
-//               val chunkLen   = math.min( left, readSz ).toInt
-//               afExtr.read( eInBuf, readOff, chunkLen )
-//               val eInBufOff = logicalOff % punchInLen
-//               normalize( eInBuf, readOff, chunkLen )
-//               val boost = calcBoost( matrixIn, eInBuf( 0 ))
-//               val sim = if( boost <= settings.maxBoost ) {
-//                  val temporal = if( inTempWeight > 0f ) {
-//                     correlate( matrixIn.temporal, eInBuf, eInBufOff, 0 )
-//                  } else 0f
-//                  val spectral = if( inTempWeight < 1f ) {
-//                     correlate( matrixIn.spectral, eInBuf, eInBufOff, 1 )
-//                  } else 0f
-//                  temporal * inTempWeight + spectral * (1f - inTempWeight)
-//               } else {
-//                  0f // Float.NegativeInfinity
-//               }
-//
-//               if( matrixOutO.isDefined ) {
-//                  if( tInOpen || entryHasSpace || sim > worstSim ) {
-//                     if( !tInOpen ) {
-//                        if( tIn == null ) {
-//                           tIn = createTempAudioFile( "in", 2 )
-//                        } else {
-//                           tIn.seek( 0L )
-//                        }
-//                        tInOff = logicalOff
-//                        tInOpen= true
-//                     }
-//                     tInBuf( 0 )( tInBufOff ) = sim
-//                     tInBuf( 1 )( tInBufOff ) = boost
-//                     tInBufOff += 1
-//                     // flush
-//                     if( tInBufOff == 1024 ) {
-//                        tIn.write( tInBuf, 0, tInBufOff )
-//                        tInBufOff = 0
-//                     }
-//                  }
-//               } else {
-//                  if( entryHasSpace || sim > worstSim ) {
-//                     val start   = featToFull( logicalOff )
-//                     val stop    = featToFull( logicalOff + punchInLen )
-//                     val b       = Break( sim, extrDB.audioInput, Span( start, stop ), boost, 1f )
-//                     addMatch( b )
-//                  }
-//               }
-//
-//               left   -= chunkLen
-//               readOff = (readOff + chunkLen) % punchInLen
-//               logicalOff += 1
-//               readSz  = 1 // read single frames in successive round (and rotate buffer)
-//            }
-//
-//            // - if there is no punch-out, or if no minimally good correlations have been found,
-//            //   we're done, otherwise, calculate punch-out correlations
-//            (matrixOutO, settings.punchOut, tInOpen) match {
-//               case (Some( matrixOut ), Some( punchOut ), true) =>
-//                  // flush
-//                  if( tInBufOff > 0 ) {
-//                     tIn.write( tInBuf, 0, tInBufOff )
-//                     tInBufOff = 0
-//                  }
-//
-//                  tIn.seek( 0L )
-//
-//                  val poOff0  = tInOff + minPunch
-//
-//                  left        = afExtr.numFrames - (poOff0 /*+ matrixOut.numFrames */)
-//                  if( left >= matrixOut.numFrames ) {  // means we actually do at least one full correlation
-//                     if( tOut == null ) {
-//                        tOut = createTempAudioFile( "out", 2 )
-//                     } else {
-//                        tOut.seek( 0L )
-//                     }
-//
-//                     val outTempWeight = punchOut.temporalWeight
-//                     afExtr.seek( poOff0 )
-//                     readSz            = punchOutLen   // read full buffer in first round
-//                     readOff           = 0
-//                     logicalOff        = 0
-//                     // - go through out-span file and calculate correlations
-//
-//                     var tOutBufOff    = 0
-//                     val tOutSize      = left
-//                     while( left > 0 ) {
-//
-//                        if( checkAborted ) return Aborted
-//
-//                        val chunkLen   = math.min( left, readSz ).toInt
-//                        afExtr.read( eOutBuf, readOff, chunkLen )
-//                        normalize( eOutBuf, readOff, chunkLen )
-//                        val extraBufOff = logicalOff % punchOutLen
-//                        val boost = calcBoost( matrixOut, eOutBuf( 0 ))
-//                        val sim = if( boost <= settings.maxBoost ) {
-//                           val temporal = if( outTempWeight > 0f ) {
-//                              correlate( matrixOut.temporal, eOutBuf, extraBufOff, 0 )
-//                           } else 0f
-//                           val spectral = if( outTempWeight < 1f ) {
-//                              correlate( matrixOut.spectral, eOutBuf, extraBufOff, 1 )
-//                           } else 0f
-//                           temporal * outTempWeight + spectral * (1f - outTempWeight)
-//                        } else {
-//                           0f // Float.NegativeInfinity
-//                        }
-//
-//                        tOutBuf( 0 )( tOutBufOff ) = sim
-//                        tOutBuf( 1 )( tOutBufOff ) = boost
-//                        tOutBufOff += 1
-//                        if( tOutBufOff == 1024 ) { // flush
-//                           tOut.write( tOutBuf, 0, tOutBufOff )
-//                           tOutBufOff = 0
-//                        }
-//
-//                        left   -= chunkLen
-//                        readOff = (readOff + chunkLen) % punchOutLen
-//                        logicalOff += 1
-//                        readSz  = 1 // read single frames in successive round (and rotate buffer)
-//                     }
-//                     // flush
-//                     if( tOutBufOff > 0 ) {
-//                        tOut.write( tOutBuf, 0, tOutBufOff )
-//                        tOutBufOff = 0
-//                     }
-//
-//                     // - finally find the best match
-//                     left = afExtr.numFrames - poOff0
-//                     tInBufOff   = 1024
-//                     var piOff   = tInOff
-//                     while( left > 0 ) {
-//
-//                        if( checkAborted ) return Aborted
-//
-//                        if( tInBufOff == 1024 ) {
-//                           tIn.read( tInBuf, 0, math.min( 1024, left ).toInt )
-//                           tInBufOff = 0
-//                        }
-//
-//                        val inSim   = tInBuf( 0 )( tInBufOff )
-//                        val boostIn = tInBuf( 1 )( tInBufOff )
-//
-//                        // worstSim is now
-//                        // defined as min( inSim, outSim )
-//                        var ws = worstSim       // cache it here
-//                        var hs = entryHasSpace  // cahce it here
-//                        if( inSim > (ws * ws) ) { // sqrt( inSim * 1 ) > ws
-//                           var poOff   = piOff + minPunch
-//                           // note: there is room for further optimization:
-//                           // we might track in this iteration the best sim
-//                           // in tOut, and in the next iteration, if this
-//                           // best sim is too bad -- we can just skip over
-//                           // the whole previous search span!
-//                           val tOutSeek = piOff - tInOff // = numRead from tIn !
-//                           tOut.seek( tOutSeek )
-//
-//                           var left2   = math.min( tOutSize - tOutSeek, maxPunch - minPunch + 1 )
-//                           while( left2 > 0 ) {
-//
-//                              if( checkAborted ) return Aborted
-//
-//                              val chunkLen = math.min( left2, 1024 ).toInt
-//                              tOut.read( tOutBuf, 0, chunkLen )
-//
-//                              var chunkOff = 0; while( chunkOff < chunkLen ) {
-//                                 val outSim  = tOutBuf( 0 )( chunkOff )
-//                                 val boostOut= tOutBuf( 1 )( chunkOff )
-//
-//                                 // ok, let's try geometric mean, meaning that
-//                                 // in the case of inSim < outSim, the result
-//                                 // could still be differentiated among several
-//                                 // outSim! (which would be lost in the case of min( inSim, outSim )
-//                                 val sim = math.sqrt( inSim * outSim ).toFloat
-//                                 if( hs || sim > ws ) {
-//                                    val b = Break( sim, extrDB.audioInput,
-//                                       Span( featToFull( piOff ), featToFull( poOff )), boostIn, boostOut )
-//                                    addMatch( b )
-//                                    // clear cache
-//                                    ws = worstSim
-//                                    hs = entryHasSpace
-//                                 }
-//                                 chunkOff += 1
-//                                 poOff += 1
-//                              }
-//                              left2 -= chunkLen // 1
-//                           }
-//                        }
-//                        left -= 1
-//                        tInBufOff += 1
-//                        piOff += 1
-//                     }
-//                  }
-//
-//               case _ =>
-//            }
-//         } finally {
-//            afExtr.close()
-//         }
-//
-//         // - add iter-prio to total-prio, and truncate after num-matches elements
-//         allPrio ++= entryPrio
-//         if( allPrio.size > settings.numMatches ) allPrio = allPrio.take( settings.numMatches )
-//
-//         progress( (extrIdx + 1).toFloat / extrDBs.size )
-//      }
 
       val pay = prio.toIndexedSeq
       Success( pay )
@@ -530,24 +299,20 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
     * may exceed the number of frames in b. The algorithm automatically takes the modulus
     * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
     */
-   private def correlate( a: Array[ Array[ Float ]], bFrameOff: Int, bChanOff: Int ) : Float = {
-      sys.error( "TODO" )
-//      val numChannels   = a.numChannels
-//      val numFrames     = a.numFrames
-//      // note: stat does not wrap frame offset around b.numFrames.
-//      // we thus assume that b really has data from 0 to a.numFrames!
-//      val (bMean, bStdDev) = stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
-//      val aAdd = -a.mean
-//      val bAdd = -bMean
-//
-//      var sum           = 0.0
-//      var ch = 0; while( ch < numChannels ) {
-//         val ca = a.mat( ch )
-//         val cb = b( ch + bChanOff )
-//         var i = 0; while( i < numFrames ) {
-//            sum += (ca( i ) + aAdd) * (cb( (i + bFrameOff) % cb.length ) + bAdd)
-//         i += 1 }
-//      ch += 1 }
-//      (sum / (a.stdDev * bStdDev * a.matSize)).toFloat  // ensures correlate( a, a ) == 1.0
+   private def correlate( numChannels: Int, halfWinSize: Int, a: Array[ Array[ Float ]], frameOff: Int, chanOff: Int ) : Float = {
+      val numFrames        = halfWinSize << 1
+      val (mean, stdDev)   = stat( a, 0, numFrames, chanOff, numChannels )
+      val add              = -mean
+      val matSize          = numChannels * halfWinSize
+
+      var sum = 0.0
+      var ch = 0; while( ch < numChannels ) {
+         val ca = a( ch + chanOff )
+         var i = frameOff; val j = frameOff + halfWinSize
+         while( i < j ) {
+            sum += (ca( i % numFrames ) + add) * (ca( (i + halfWinSize) % numFrames ) + add)
+         i += 1 }
+      ch += 1 }
+      (sum / (stdDev * stdDev * matSize)).toFloat  // ensures correlate( a, a ) == 1.0
    }
 }

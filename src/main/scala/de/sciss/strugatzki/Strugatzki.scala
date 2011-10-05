@@ -169,7 +169,7 @@ object Strugatzki {
                require( maxFrames >= minFrames, "Maximum duration is smaller than minimum duration" )
 
                FeatureCorrelation.verbose = verbose
-               val set              = new FeatureCorrelation.SettingsBuilder
+               val set              = FeatureCorrelation.SettingsBuilder()
                set.databaseFolder   = new File( dir )
                set.punchIn          = punchIn
                set.punchOut         = punchOutO
@@ -316,7 +316,7 @@ object Strugatzki {
       })( breakOut )
 
       val targetDir        = new File( dir )
-      val sb               = new ESettingsBuilder
+      val sb               = ESettingsBuilder()
       sb.channelsBehavior  = chanMode
 
       def iter( list: List[ File ]) {
