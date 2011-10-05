@@ -99,40 +99,42 @@ trait Processor {
    final def abort() { Act ! Abort }
    final def start() { Act.start() }
 
-   private object Abort
+   protected /* private */ object Abort
 
    protected def observer: companion.Observer
 
-   private object Act extends Actor {
-      def act() {
-         ProcT.start()
-         var result : /* companion. */ companion.Result = null
-         loopWhile( result == null ) {
-            react {
-               case Abort =>
-                  ProcT.aborted = true
-                  aborted()
-               case res: /* companion. */ companion.Progress =>
-                  observer( res )
-               case res @ /* companion. */ companion.Aborted =>
-                  result = res
-               case res: /* companion. */ companion.Failure =>
-                  result = res
-               case res: /* companion. */ companion.Success =>
-                  result = res
-            }
-         } andThen { observer( result )}
-      }
-   }
+   protected def Act: Actor
 
-   private object ProcT extends Thread {
+//   private object Act extends Actor {
+//      def act() {
+//         ProcT.start()
+//         var result : companion.Result = null
+//         loopWhile( result == null ) {
+//            react {
+//               case Abort =>
+//                  ProcT.aborted = true
+//                  aborted()
+//               case res @ companion.Progress( _ ) =>
+//                  observer( res )
+//               case res @ companion.Aborted =>
+//                  result = res
+//               case res @ companion.Failure( _ ) =>
+//                  result = res
+//               case res @ companion.Success( _ ) =>
+//                  result = res
+//            }
+//         } andThen { observer( result )}
+//      }
+//   }
+
+   protected object ProcT extends Thread {
       var aborted: Boolean = false
       private var lastProg = -1
       override def run() {
          Act ! (try {
             body()
          } catch {
-            case e => /* companion. */ companion.Failure( e )
+            case e => companion.Failure( e )
          })
       }
 

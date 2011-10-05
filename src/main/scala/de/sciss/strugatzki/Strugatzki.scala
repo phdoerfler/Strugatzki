@@ -35,11 +35,8 @@ import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import FeatureExtraction.{Settings => ESettings, SettingsBuilder => ESettingsBuilder}
-//import swing.Swing
 
 object Strugatzki {
-//   val defaultDir       = "/Users/hhrutz/Desktop/new_projects/Utopia/feature"
-
    val name          = "Strugatzki"
    val version       = 0.14
    val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
@@ -84,23 +81,23 @@ object Strugatzki {
       var which   = ""
 
       val parser  = new OptionParser( name ) {
-//         opt( "prepare", "Preparatory stuff (ProcSehen)", which = "sehen" )
          opt( "f", "feature", "Feature extraction", which = "feat" )
          opt( "c", "correlate", "Find best correlation with database", which = "corr" )
+         opt( "s", "segmentation", "Find segmentation breaks with a file", which = "segm" )
          opt( "stats", "Statistics from feature database", which = "stats" )
-//         opt( "feature-gui", "User interface for feature database", which = "feat-gui" )
       }
       if( parser.parse( args.take( 1 ))) {
          val argsRem = args.drop( 1 )
          which match {
-//            case "sehen"      => ProcSehen.perform()
             case "feat"       => featurePre( argsRem )
             case "stats"      => featureStats( argsRem )
             case "corr"       => featureCorr( argsRem )
-//            case "feat-gui"   => Swing.onEDT( view.FeatureCorrelationPane.makeWindow() )
-            case _            => parser.showUsage
+            case "segm"       => featureSegm( argsRem )
+            case _            =>
+               parser.showUsage
+               sys.exit( 1 )
          }
-      } else parser.showUsage
+      } else sys.exit( 1 ) // parser.showUsage
    }
 
    def featureCorr( args: Array[ String ]) {
@@ -135,7 +132,7 @@ object Strugatzki {
          doubleOpt( "boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _ )
          intOpt( "m", "num-matches", "Maximum number of matches (default 1)", numMatches = _ )
          intOpt( "num-per-file", "Maximum matches per single file (default 1)", numPerFile = _ )
-         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.5)", minSpacing = _ )
+         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.0)", minSpacing = _ )
          arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
          opt( "no-norm", "Do not apply feature normalization", normalize = false )
       }
@@ -182,10 +179,6 @@ object Strugatzki {
                set.numPerFile       = numPerFile
                set.minSpacing       = secsToFrames( minSpacing )
 
-               def ampToDB( amp: Double ) = 20 * math.log10( amp )
-               def toPercentStr( d: Double ) = percentFormat.format( d )
-               def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
-
                import FeatureCorrelation._
                var lastProg = 0
                val fc = FeatureCorrelation( set ) {
@@ -220,6 +213,97 @@ object Strugatzki {
                fc.start()
 
             } else exit1()
+
+         case _ => exit1()
+      }
+   }
+
+   private def ampToDB( amp: Double ) = 20 * math.log10( amp )
+   private def toPercentStr( d: Double ) = percentFormat.format( d )
+   private def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
+
+   def featureSegm( args: Array[ String ]) {
+      var dirOption     = Option.empty[ String ]
+      var verbose       = false
+      var corrLen       = 0.5
+      var temp          = 0.5
+      var spanStart     = Option.empty[ Double ]
+      var spanStop      = Option.empty[ Double ]
+      var numBreaks     = 1
+      var minSpacing    = 0.2
+      var input         = Option.empty[ String ]
+      var normalize     = true
+
+      implicit val parser  = new OptionParser( name + " -c" ) {
+         opt( "v", "verbose", "Verbose output", verbose = true )
+         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
+         doubleOpt( "length", "Correlation length in secs (default: 0.5)", corrLen = _ )
+         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
+         doubleOpt( "span-start", "Search begin in file (secs)", (d: Double) => spanStart = Some( d ))
+         doubleOpt( "span-stop", "Search end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         intOpt( "m", "num-breaks", "Maximum number of breaks (default 1)", numBreaks = _ )
+         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.2)", minSpacing = _ )
+         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
+         opt( "no-norm", "Do not apply feature normalization", normalize = false )
+      }
+
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      (input, dirOption) match {
+         case (Some( in ), Some( dir )) =>
+            val inFile  = new File( in )
+            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+
+            val span    = (spanStart, spanStop) match {
+               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
+               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
+               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
+               case (None,          None)         => None
+            }
+            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            val corrFrames = secsToFrames( corrLen )
+            require( corrFrames > 0, "Correlation duration is zero" )
+
+            FeatureSegmentation.verbose = verbose
+            val set              = FeatureSegmentation.SettingsBuilder()
+            set.databaseFolder   = new File( dir )
+            set.metaInput        = inFile
+            set.span             = span
+            set.corrLen          = corrFrames
+            set.temporalWeight   = temp.toFloat
+            set.normalize        = normalize
+            set.numBreaks        = numBreaks
+            set.minSpacing       = secsToFrames( minSpacing )
+
+            import FeatureSegmentation._
+            var lastProg = 0
+            val fs = FeatureSegmentation( set ) {
+               case Success( res ) if( res.nonEmpty ) =>
+                  println( "  Success." )
+
+                  res.foreach { b =>
+                     println(  "\nSimilarity: " + toPercentStr( b.sim ) +
+                               "\nPosition:   " + b.pos )
+                  }
+                  println()
+
+               case Success( _ ) =>
+                  println( "  No breaks found." )
+               case Failure( e ) =>
+                  println( "  Failed: " )
+                  e.printStackTrace()
+               case Aborted =>
+                  println( "  Aborted" )
+               case Progress( perc ) =>
+                  val i = perc >> 2
+                  while( lastProg < i ) {
+                     print( "#" )
+                  lastProg += 1 }
+            }
+            fs.start()
 
          case _ => exit1()
       }

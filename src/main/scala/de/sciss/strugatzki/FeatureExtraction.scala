@@ -35,6 +35,7 @@ import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
 import xml.{NodeSeq, XML}
+import actors.Actor
 
 object FeatureExtraction extends aux.ProcessorCompanion {
    def apply( settings: Settings )( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureExtraction = {
@@ -317,6 +318,30 @@ extends aux.Processor {
       if( scsynth != null ) {
          scsynth.destroy()
          scsynth = null
+      }
+   }
+
+   // SCALAC FUCKING CHOKES ON companion.Result
+
+   val Act = new Actor {
+      def act() {
+         ProcT.start()
+         var result : Result = null
+         loopWhile( result == null ) {
+            react {
+               case Abort =>
+                  ProcT.aborted = true
+                  aborted()
+               case res: Progress =>
+                  observer( res )
+               case res @ Aborted =>
+                  result = res
+               case res: Failure =>
+                  result = res
+               case res: Success =>
+                  result = res
+            }
+         } andThen { observer( result )}
       }
    }
 }

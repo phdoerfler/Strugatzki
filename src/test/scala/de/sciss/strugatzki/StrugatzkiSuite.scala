@@ -71,7 +71,7 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
          fs.databaseFolder      = new File( "db" ).getCanonicalFile
          fs.metaInput           = new File( "rarara.xml" )
          fs.span                = Some( Span( 1, 2 ))
-         fs.punch              += 1
+         fs.corrLen            += 1
          fs.temporalWeight     += 0.1f
          fs.normalize           = !fs.normalize
          fs.numBreaks          += 1

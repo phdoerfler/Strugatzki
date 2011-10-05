@@ -33,6 +33,7 @@ import java.io.{FilenameFilter, File}
 import collection.immutable.{SortedSet => ISortedSet}
 import de.sciss.synth.io.AudioFile
 import xml.{NodeSeq, XML}
+import actors.Actor
 
 /**
  * A processor which searches through the database and matches
@@ -674,5 +675,29 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          i += 1 }
       ch += 1 }
       (sum / (a.stdDev * bStdDev * a.matSize)).toFloat  // ensures correlate( a, a ) == 1.0
+   }
+
+   // SCALAC FUCKING CHOKES ON companion.Result
+
+   val Act = new Actor {
+      def act() {
+         ProcT.start()
+         var result : Result = null
+         loopWhile( result == null ) {
+            react {
+               case Abort =>
+                  ProcT.aborted = true
+                  aborted()
+               case res: Progress =>
+                  observer( res )
+               case res @ Aborted =>
+                  result = res
+               case res: Failure =>
+                  result = res
+               case res: Success =>
+                  result = res
+            }
+         } andThen { observer( result )}
+      }
    }
 }

@@ -32,6 +32,7 @@ import java.io.File
 import collection.immutable.{SortedSet => ISortedSet}
 import de.sciss.synth.io.AudioFile
 import xml.{NodeSeq, XML}
+import actors.Actor
 
 /**
 * A processor which performs segmentation on a given file.
@@ -83,7 +84,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
       def databaseFolder : File
       def metaInput: File
       def span: Option[ Span ]
-      def punch: Long
+      def corrLen: Long
       def temporalWeight: Float
       /** Whether to apply normalization to the features (recommended) */
       def normalize : Boolean
@@ -105,22 +106,22 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
       var databaseFolder      = new File( "database" )
       var metaInput           = new File( "input_feat.xml" )
       var span                = Option.empty[ Span ]
-      var punch               = 22050L
+      var corrLen             = 22050L
       var temporalWeight      = 0.5f
       var normalize           = true
-      var numBreaks          = 1
+      var numBreaks           = 1
       var minSpacing          = 22050L
 
-      def build = Settings( databaseFolder, metaInput, span, punch, temporalWeight, normalize, numBreaks, minSpacing )
+      def build = Settings( databaseFolder, metaInput, span, corrLen, temporalWeight, normalize, numBreaks, minSpacing )
 
       def read( settings: Settings ) {
          databaseFolder = settings.databaseFolder
          metaInput      = settings.metaInput
          span           = settings.span
-         punch          = settings.punch
+         corrLen        = settings.corrLen
          temporalWeight = settings.temporalWeight
          normalize      = settings.normalize
-         numBreaks     = settings.numBreaks
+         numBreaks      = settings.numBreaks
          minSpacing     = settings.minSpacing
       }
    }
@@ -143,15 +144,15 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
             val e = xml \ "span"
             if( e.isEmpty ) None else Some( spanFromXML( e ))
          }
-         sb.punch          = (xml \ "punch").text.toLong
+         sb.corrLen        = (xml \ "corr").text.toLong
          sb.temporalWeight = (xml \ "weight").text.toFloat
          sb.normalize      = (xml \ "normalize").text.toBoolean
-         sb.numBreaks     = (xml \ "numBreaks").text.toInt
+         sb.numBreaks      = (xml \ "numBreaks").text.toInt
          sb.minSpacing     = (xml \ "minSpacing").text.toLong
          sb.build
       }
    }
-   final case class Settings( databaseFolder: File, metaInput: File, span: Option[ Span ], punch: Long,
+   final case class Settings( databaseFolder: File, metaInput: File, span: Option[ Span ], corrLen: Long,
                               temporalWeight: Float, normalize: Boolean, numBreaks: Int, minSpacing: Long )
    extends SettingsLike {
       private def spanToXML( span: Span ) =
@@ -165,7 +166,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
    <database>{databaseFolder.getPath}</database>
    <input>{metaInput.getPath}</input>
    {span match { case Some( s ) => <span>{spanToXML( s ).child}</span>; case _ => Nil }}
-   <punch>{punch}</punch>
+   <corr>{corrLen}</corr>
    <weight>{temporalWeight}</weight>
    <normalize>{normalize}</normalize>
    <numBreaks>{numBreaks}</numBreaks>
@@ -195,6 +196,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
       val extr       = ExtrSettings.fromXML( XML.loadFile( settings.metaInput ))
       val stepSize   = extr.fftSize / extr.fftOverlap
 
+      def fullToFeat( n: Long ) = ((n + (stepSize >> 1)) / stepSize).toInt
       def featToFull( i: Int )  = i.toLong * stepSize
 
       val normBuf = if( settings.normalize ) {
@@ -205,8 +207,8 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          b
       } else null // None
 
-      val halfWinLen: Int = sys.error( "TODO" )
-      val tempWeight     = settings.temporalWeight
+      val halfWinLen = fullToFeat( settings.corrLen )
+      val tempWeight = settings.temporalWeight
 
       var prio     = ISortedSet.empty[ Break ]( BreakMaxOrd )
       var lastBreak : Break = null
@@ -241,12 +243,21 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          }
       }
 
-      val eInBuf  = Array.ofDim[ Float ]( extr.numCoeffs + 1, halfWinLen )
-      val winLen = halfWinLen * 2
+      val winLen  = halfWinLen * 2
+      val eInBuf  = Array.ofDim[ Float ]( extr.numCoeffs + 1, winLen )
 
       val afExtr = AudioFile.openRead( extr.featureOutput )
+      val (afStart, afStop) = settings.span match {
+         case Some( span ) =>
+            (math.max( 0, fullToFeat( span.start )), math.min( afExtr.numFrames.toInt, fullToFeat( span.stop )))
+         case None =>
+            (0, afExtr.numFrames.toInt)
+      }
+      val afLen = afStop - afStart
+
+      if( afStart > 0 ) afExtr.seek( afStart )
       try {
-         var left       = afExtr.numFrames
+         var left       = afLen // afExtr.numFrames
          var readSz     = winLen   // read full buffer in first round
          var readOff    = 0
          var logicalOff = 0
@@ -267,7 +278,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             } else 0f
             val sim = temporal * tempWeight + spectral * (1f - tempWeight)
             if( entryHasSpace || sim < highestSim ) {
-               val pos     = featToFull( logicalOff + halfWinLen )
+               val pos     = featToFull( afStart + logicalOff + halfWinLen )
                val b       = Break( sim, pos )
                addBreak( b )
             }
@@ -277,7 +288,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             readSz  = 1 // read single frames in successive round (and rotate buffer)
 
             progBlock = (progBlock + 1) % 128
-            if( progBlock == 0 ) progress( left.toFloat / afExtr.numFrames )
+            if( progBlock == 0 ) progress( left.toFloat / afLen )
          }
          progress( 1f )
 
@@ -314,5 +325,29 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          i += 1 }
       ch += 1 }
       (sum / (stdDev * stdDev * matSize)).toFloat  // ensures correlate( a, a ) == 1.0
+   }
+
+   // SCALAC FUCKING CHOKES ON companion.Result
+
+   val Act = new Actor {
+      def act() {
+         ProcT.start()
+         var result : Result = null
+         loopWhile( result == null ) {
+            react {
+               case Abort =>
+                  ProcT.aborted = true
+                  aborted()
+               case res: Progress =>
+                  observer( res )
+               case res @ Aborted =>
+                  result = res
+               case res: Failure =>
+                  result = res
+               case res: Success =>
+                  result = res
+            }
+         } andThen { observer( result )}
+      }
    }
 }
