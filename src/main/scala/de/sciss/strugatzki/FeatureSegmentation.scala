@@ -62,11 +62,11 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
 </match>
    }
 
-   // reverse ordering. since sortedset orders ascending according to the ordering,
-   // this means we get a sortedset with high similarities at the head and low
-   // similarities at the tail, like a priority queue
-   private object MatchMinOrd extends Ordering[ Break ] {
-      def compare( a: Break, b: Break ) = b.sim compare a.sim
+   // sortedset orders ascending according to the ordering, and with this
+   // ordering we will have low similarities (high dissimilarities)
+   // at the head and high similarities at the tail
+   private object BreakMaxOrd extends Ordering[ Break ] {
+      def compare( a: Break, b: Break ) = a.sim compare b.sim
    }
 
    def apply( settings: Settings )( observer: Observer ) : FeatureSegmentation = {
@@ -197,7 +197,6 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
       val extr       = ExtrSettings.fromXML( XML.loadFile( settings.metaInput ))
       val stepSize   = extr.fftSize / extr.fftOverlap
 
-      def fullToFeat( n: Long ) = ((n + (stepSize >> 1)) / stepSize).toInt
       def featToFull( i: Int )  = i.toLong * stepSize
 
       val normBuf = if( settings.normalize ) {
@@ -208,26 +207,10 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          b
       } else null // None
 
-      def normalize( /* n: Array[ Array[ Float ]], */ b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
-         if( normBuf == null ) return
-         var ch = 0; val numCh = b.length; while( ch < numCh ) {
-            val cb   = b( ch )
-            val cn   = normBuf( ch )
-            val min  = cn( 0 )
-            val max  = cn( 1 )
-            val d    = max - min
-            var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
-               val f    = cb( i )
-               // XXX should values be clipped to [0...1] or not?
-               cb( i )  = (f - min) / d
-            i += 1 }
-         ch += 1 }
-      }
-
       val halfWinLen: Int = sys.error( "TODO" )
       val tempWeight     = settings.temporalWeight
 
-      var prio     = ISortedSet.empty[ Break ]( MatchMinOrd )
+      var prio     = ISortedSet.empty[ Break ]( BreakMaxOrd )
       var lastBreak : Break = null
 
       def entryHasSpace = {
@@ -277,7 +260,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             val chunkLen   = math.min( left, readSz ).toInt
             afExtr.read( eInBuf, readOff, chunkLen )
             val eInBufOff = logicalOff % winLen
-            normalize( eInBuf, readOff, chunkLen )
+            normalize( normBuf, eInBuf, readOff, chunkLen )
             val temporal = if( tempWeight > 0f ) {
                correlate( eInBuf, eInBufOff, 0 )
             } else 0f

@@ -263,23 +263,6 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          math.exp( (in.lnAvgLoudness - lnAvgB) / 0.6 ).toFloat
       }
 
-      def normalize( /* n: Array[ Array[ Float ]], */ b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
-         if( normBuf == null ) return
-         var ch = 0; val numCh = b.length; while( ch < numCh ) {
-            val cb   = b( ch )
-//            val cn   = n( ch )
-            val cn   = normBuf( ch )
-            val min  = cn( 0 )
-            val max  = cn( 1 )
-            val d    = max - min
-            var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
-               val f    = cb( i )
-               // XXX should values be clipped to [0...1] or not?
-               cb( i )  = (f - min) / d
-            i += 1 }
-         ch += 1 }
-      }
-
       val (matrixIn, matrixOutO) = {
          val afIn = AudioFile.openRead( extrIn.featureOutput )
          try {
@@ -290,7 +273,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val b          = afIn.buffer( frameNum )
                afIn.seek( start )
                afIn.read( b )
-               normalize( b, 0, frameNum )
+               normalize( normBuf, b, 0, frameNum )
 
                def feat( mat: Array[ Array[ Float ]]) = {
                   val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
@@ -319,14 +302,12 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       val minPunch   = fullToFeat( settings.minPunch )
       val maxPunch   = fullToFeat( settings.maxPunch )
-//      val minSpacing = fullToFeat( settings.minSpacing )
-//println( "minSpacing = " + settings.minSpacing + " (" + minSpacing + " frames)" )
 
       def entryHasSpace = {
          val maxEntrySz = math.min( settings.numMatches - allPrio.size, settings.numPerFile )
          entryPrio.size < maxEntrySz
       }
-//      def worstSim = entryPrio.lastOption.getOrElse( allPrio.last ).sim
+
       def worstSim = {
          if( entryPrio.nonEmpty ) entryPrio.last.sim
          else if( allPrio.nonEmpty ) allPrio.last.sim
@@ -406,7 +387,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.read( eInBuf, readOff, chunkLen )
                val eInBufOff = logicalOff % punchInLen
-               normalize( eInBuf, readOff, chunkLen )
+               normalize( normBuf, eInBuf, readOff, chunkLen )
                val boost = calcBoost( matrixIn, eInBuf( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
@@ -508,7 +489,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.read( eOutBuf, readOff, chunkLen )
-                        normalize( eOutBuf, readOff, chunkLen )
+                        normalize( normBuf, eOutBuf, readOff, chunkLen )
                         val extraBufOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, eOutBuf( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {

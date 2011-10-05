@@ -75,6 +75,22 @@ trait Processor {
       (mean, stddev)
    }
 
+   protected final def normalize( normBuf: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
+      if( normBuf == null ) return
+      var ch = 0; val numCh = b.length; while( ch < numCh ) {
+         val cb   = b( ch )
+         val cn   = normBuf( ch )
+         val min  = cn( 0 )
+         val max  = cn( 1 )
+         val d    = max - min
+         var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
+            val f    = cb( i )
+            // XXX should values be clipped to [0...1] or not?
+            cb( i )  = (f - min) / d
+         i += 1 }
+      ch += 1 }
+   }
+
    /**
     * Subclasses may override this to perform further cleanup when the process is aborted.
     */
