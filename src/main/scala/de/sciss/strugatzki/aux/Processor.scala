@@ -75,7 +75,10 @@ trait Processor {
       (mean, stddev)
    }
 
-   protected def aborted() : Unit
+   /**
+    * Subclasses may override this to perform further cleanup when the process is aborted.
+    */
+   protected def aborted() {}
 
    final def abort() { Act ! Abort }
    final def start() { Act.start() }
@@ -84,7 +87,7 @@ trait Processor {
 
    protected def observer: companion.Observer
 
-   protected object Act extends Actor {
+   private object Act extends Actor {
       def act() {
          ProcT.start()
          var result : /* companion. */ companion.Result = null

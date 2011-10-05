@@ -248,16 +248,12 @@ extends aux.Processor {
          "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )
 
       val log = new ProcessLogger {
-         var lastProg = -1
          def buffer[ T ]( f: => T ) : T = f  // ???
          def out( line: => String ) {
             if( line.startsWith( "nextOSCPacket" )) {
                val time = line.substring( 14 ).toFloat
-               val prog = (time / dur * 80).toInt
-               if( prog != lastProg ) {
-                  Act ! Progress( prog )  // up to 80%
-                  lastProg = prog
-               }
+               val prog = time / dur * 0.8  // up to 80%
+               progress( prog.toFloat )
             } else if( line != "start time 0" ) {
                Console.out.println( line )
             }
@@ -304,8 +300,8 @@ extends aux.Processor {
 
          afOut.write( b )
          afIn.file.foreach( _.delete() )
-         val prog = ((i + 1).toFloat / numWrites * 20).toInt + 80
-         Act ! Progress( prog )
+         val prog = ((i + 1).toFloat / numWrites * 0.2f) + 0.8f
+         progress( prog )
       }
       afOut.close()
 
@@ -317,7 +313,7 @@ extends aux.Processor {
       Success( () )
    }
 
-   protected def aborted() {
+   override protected def aborted() {
       if( scsynth != null ) {
          scsynth.destroy()
          scsynth = null

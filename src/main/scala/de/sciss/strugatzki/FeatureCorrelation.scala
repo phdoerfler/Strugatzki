@@ -682,25 +682,16 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       // we thus assume that b really has data from 0 to a.numFrames!
       val (bMean, bStdDev) = stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
       val aAdd = -a.mean
-//      val aMul = 1.0 / a.stdDev
       val bAdd = -bMean
-//      val bMul = 1.0 / bStdDev
 
       var sum           = 0.0
       var ch = 0; while( ch < numChannels ) {
          val ca = a.mat( ch )
          val cb = b( ch + bChanOff )
          var i = 0; while( i < numFrames ) {
-//            sum += ((ca( i ) + aAdd) * aMul)  * ((cb( (i + bFrameOff) % cb.length ) + bAdd) * bMul)
             sum += (ca( i ) + aAdd) * (cb( (i + bFrameOff) % cb.length ) + bAdd)
          i += 1 }
       ch += 1 }
-//      (sum / (a.matSize - 1)).toFloat
-//      (sum / a.matSize).toFloat  // ensures correlate( a, a ) == 1.0
       (sum / (a.stdDev * bStdDev * a.matSize)).toFloat  // ensures correlate( a, a ) == 1.0
    }
-
-   // CRAPPY SCALAC CHOKES ON MIXING IN PROCESSOR. FUCKING SHIT. COPYING WHOLE BODY HERE
-
-   protected def aborted() {}
 }
