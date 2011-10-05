@@ -30,9 +30,8 @@ package de.sciss.strugatzki
 
 import collection.breakOut
 import java.io.{FilenameFilter, File}
-import actors.Actor
 import collection.immutable.{SortedSet => ISortedSet}
-import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+import de.sciss.synth.io.AudioFile
 import xml.{NodeSeq, XML}
 
 /**

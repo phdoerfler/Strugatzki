@@ -34,7 +34,6 @@ import java.io.{RandomAccessFile, File}
 import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
-import actors.Actor
 import xml.{NodeSeq, XML}
 
 object FeatureExtraction extends aux.ProcessorCompanion {
@@ -144,19 +143,7 @@ extends aux.Processor {
 
    protected val companion = FeatureExtraction
 
-   private object ProcT extends Thread {
-      var aborted: Boolean = false
-
-      override def run() {
-         Act ! (try {
-            body()
-         } catch {
-            case e => Failure( e )
-         })
-      }
-   }
-
-   private var p: Process = null
+   private var scsynth: Process = null
 
    protected def body() : Result = {
       import synth._
@@ -285,12 +272,12 @@ extends aux.Processor {
          val args = so.toNonRealtimeArgs
          if( verbose ) println( args.mkString( "cmd: ", " ", "" ))
          val pb = Process( args, Some( new File( so.programPath ).getParentFile ))
-         p = pb.run( log )
-         p
+         scsynth = pb.run( log )
+         scsynth
       }
       val res = proc.exitValue() // blocks
       this.synchronized {
-         p = null
+         scsynth = null
          if( checkAborted ) return Aborted
       }
       if( res != 0 ) throw new RuntimeException( "scsynth failed with exit code " + res )
@@ -331,9 +318,9 @@ extends aux.Processor {
    }
 
    protected def aborted() {
-      if( p != null ) {
-         p.destroy()
-         p = null
+      if( scsynth != null ) {
+         scsynth.destroy()
+         scsynth = null
       }
    }
 }
