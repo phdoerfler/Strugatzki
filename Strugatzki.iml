@@ -42,15 +42,6 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib_managed/jars/de.sciss/scalaosc_2.9.1/scalaosc_2.9.1-0.30-SNAPSHOT.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
           <root url="jar://$MODULE_DIR$/lib_managed/jars/com.github.scopt/scopt_2.9.1/scopt_2.9.1-1.1.2.jar!/" />
         </CLASSES>
         <JAVADOC />
@@ -67,6 +58,15 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="scala-library-2.9.1" level="application" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib_managed/jars/de.sciss/scalaosc_2.9.1/scalaosc_2.9.1-0.30.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>
 

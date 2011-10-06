@@ -29,8 +29,6 @@
 package de.sciss.strugatzki
 package aux
 
-import java.io.File
-
 trait ProcessorCompanion {
    // --- abstract stuff ---
    type PayLoad
@@ -38,8 +36,6 @@ trait ProcessorCompanion {
    // --- concrete stuff ---
 
    var verbose = false
-
-   def tmpDir = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
 
    type Observer = PartialFunction[ ProgressOrResult, Unit ]
 

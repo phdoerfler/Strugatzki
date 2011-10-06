@@ -79,7 +79,7 @@ object FeatureExtraction extends aux.ProcessorCompanion {
    }
    final class SettingsBuilder private () extends SettingsLike {
       var audioInput : File         = new File( "input.aif" )
-      var featureOutput : File      = new File( tmpDir, "features.aif" )
+      var featureOutput : File      = File.createTempFile( "features", ".aif", Strugatzki.tmpDir )
       var metaOutput                = Option.empty[ File ]
       var numCoeffs : Int           = 13
       var fftSize : Int             = 1024
@@ -155,8 +155,8 @@ extends aux.Processor {
       val coeffRate        = spec.sampleRate / stepSize
 
       val so               = new ServerOptionsBuilder
-      val oscF             = File.createTempFile( "tmp", ".osc" )
-      val dummyOutput      = File.createTempFile( "tmp", ".aif" )
+      val oscF             = createTempFile( "tmp", ".osc" )
+      val dummyOutput      = createTempFile( "tmp", ".aif" )
       so.inputBusChannels  = spec.numChannels
       so.sampleRate        = spec.sampleRate.toInt // coeffRate.toInt
       so.outputBusChannels = 1
@@ -201,13 +201,15 @@ extends aux.Processor {
       val numFFTs    = ((spec.numFrames + stepSize - 1) / stepSize).toInt // + 1
       val numWrites  = (numFFTs + coeffBufSize - 1) / coeffBufSize
 
-      def tmpName( i: Int ) = new File( tmpDir, "feat" + i + ".aif" )
+//      def tmpName( i: Int ) = new File( Strugatzki.tmpDir, "feat" + i + ".aif" )
+
+      val tmpNames = IndexedSeq.fill( numWrites )( createTempFile( "feat_part", ".aif" ))
 
       val bufBndls = IndexedSeq.tabulate( numWrites ) { i =>
          val startFrame = i * coeffBufSize
          val stopFrame  = math.min( numFFTs, startFrame + coeffBufSize )
          val numFrames  = stopFrame - startFrame
-         val msg        = coeffBuf.writeMsg( tmpName( i ).getAbsolutePath,
+         val msg        = coeffBuf.writeMsg( tmpNames( i ).getAbsolutePath,
             AudioFileType.AIFF, SampleFormat.Float,
             if( i == 0 ) numFrames - 1 else numFrames, if( i == 0 ) 1 else 0, false )
 //            val time       = (i + 1.5) * stepSize / coeffRate // spec.sampleRate
@@ -278,12 +280,13 @@ extends aux.Processor {
          if( checkAborted ) return Aborted
       }
       if( res != 0 ) throw new RuntimeException( "scsynth failed with exit code " + res )
+      if( verbose ) println( "scsynth exited with code " + res )
 
       val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, numCh, coeffRate )
       val afOut      = AudioFile.openWrite( settings.featureOutput, afOutS )
       for( i <- 0 until numWrites ) {
          if( checkAborted ) return Aborted
-         val afIn    = AudioFile.openRead( tmpName( i ))
+         val afIn    = AudioFile.openRead( tmpNames( i ))
          val b       = afIn.buffer( afIn.numFrames.toInt )
          val lasts   = new Array[ Float ]( afIn.numChannels )
          afIn.read( b )

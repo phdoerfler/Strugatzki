@@ -48,6 +48,7 @@ object Strugatzki {
    }
 
    val NORMALIZE_NAME   = "feat_norms.aif"
+   var tmpDir           = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
 
    private lazy val decibelFormat = {
       val res = NumberFormat.getInstance( Locale.US )

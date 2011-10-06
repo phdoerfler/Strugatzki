@@ -37,8 +37,7 @@ trait Processor {
    protected val companion : ProcessorCompanion
 
    protected final def createTempAudioFile( id: String, numChannels: Int ) : AudioFile = {
-      val file = File.createTempFile( "corr_" + id, ".aif" )
-      file.deleteOnExit()
+      val file = createTempFile( "corr_" + id, ".aif" )
       AudioFile.openWrite( file, AudioFileSpec( AudioFileType.IRCAM, SampleFormat.Float, numChannels, 44100 ))
    }
 
@@ -150,4 +149,10 @@ trait Processor {
 
    protected final def checkAborted = ProcT.synchronized { ProcT.aborted }
    protected final def progress( f: Float ) { ProcT.progress( (f * 100 + 0.5f).toInt )}
+
+   protected final def createTempFile( prefix: String, suffix: String ) : File = {
+      val f = File.createTempFile( prefix, suffix, Strugatzki.tmpDir )
+      f.deleteOnExit()
+      f
+   }
 }
