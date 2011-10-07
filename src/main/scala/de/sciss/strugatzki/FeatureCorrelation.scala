@@ -104,6 +104,12 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
     * with respect to the sample rate of the audio input file.
     */
    sealed trait SettingsLike {
+      /**
+       * The folder which is scanned for extraction entries to be used in the search.
+       * This currently includes *only those files* ending in `_feat.xml` and which
+       * have the same number of coefficients and time resolution (step size) as the
+       * target file (`metaInput`).
+       */
       def databaseFolder : File
       def metaInput: File
       /** The span in the audio input serving for correlation to find the punch in material */
