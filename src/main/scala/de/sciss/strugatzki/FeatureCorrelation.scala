@@ -106,7 +106,7 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
    sealed trait SettingsLike {
       /**
        * The folder which is scanned for extraction entries to be used in the search.
-       * This currently includes *only those files* ending in `_feat.xml` and which
+       * This currently includes '''only those files''' ending in `_feat.xml` and which
        * have the same number of coefficients and time resolution (step size) as the
        * target file (`metaInput`).
        */
