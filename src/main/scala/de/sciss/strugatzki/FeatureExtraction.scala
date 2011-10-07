@@ -167,7 +167,7 @@ extends aux.Processor {
       so.nrtSampleFormat   = SampleFormat.Int16
 
       val s                = Server.dummy( "nrt", so.build )
-      val coeffBufSize     = 888 // 1024
+      val coeffBufSize     = 1024   // 888
       val numCh            = settings.numCoeffs + 1
       val fftBufID         = 0
       val coeffBufID       = 1
