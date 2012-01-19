@@ -2,7 +2,7 @@
  *  FeatureExtraction.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.strugatzki
@@ -154,7 +151,7 @@ extends aux.Processor {
       val stepSize         = settings.fftSize / settings.fftOverlap
       val coeffRate        = spec.sampleRate / stepSize
 
-      val so               = new ServerOptionsBuilder
+      val so               = Server.Config()
       val oscF             = createTempFile( "tmp", ".osc" )
       val dummyOutput      = createTempFile( "tmp", ".aif" )
       so.inputBusChannels  = spec.numChannels
@@ -231,7 +228,7 @@ extends aux.Processor {
       val bndls   = initBndl +: bufBndls  // don't bother about n_free and b_free
 
       val c    = PacketCodec.default
-      val sz   = bndls.map( _.getEncodedSize( c )).max
+      val sz   = bndls.map( _.encodedSize( c )).max
       val raf  = new RandomAccessFile( oscF, "rw" )
       val bb   = ByteBuffer.allocate( sz )
       val fch  = raf.getChannel
@@ -245,7 +242,8 @@ extends aux.Processor {
       raf.close()
 
 //         val dur = Bundle.timetagToSecs( bufBndls.last.timetag )
-      val dur = bufBndls.last.timetag.toSecs
+//      val dur = bufBndls.last.timetag.toSecs
+      val dur = bndls.last.timetag.toSecs
 
       if( verbose ) println( "dur: " + dur.round(0.01) + "s ; numFFTs: " + numFFTs +
          "; numWrites: " + numWrites + "; coeffRate " + coeffRate.round(0.01) + " Hz" )

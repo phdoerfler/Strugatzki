@@ -2,7 +2,7 @@
  *  Strugatzki.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.strugatzki
@@ -39,7 +36,7 @@ import FeatureExtraction.{Settings => ESettings, SettingsBuilder => ESettingsBui
 object Strugatzki {
    val name          = "Strugatzki"
    val version       = 0.14
-   val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
+   val copyright     = "(C)opyright 2011-2012 Hanns Holger Rutz"
    val isSnapshot    = true
 
    def versionString = {

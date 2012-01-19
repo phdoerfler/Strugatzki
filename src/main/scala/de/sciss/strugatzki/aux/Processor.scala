@@ -2,7 +2,7 @@
  *  Processor.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.strugatzki
@@ -34,6 +31,7 @@ import de.sciss.synth.io.{AudioFileSpec, SampleFormat, AudioFileType, AudioFile}
 import actors.Actor
 
 trait Processor {
+   // note: using a type arg with processor crashes scalac -- do not ask __WHY__ !
    protected val companion : ProcessorCompanion
 
    protected final def createTempAudioFile( id: String, numChannels: Int ) : AudioFile = {
@@ -100,7 +98,7 @@ trait Processor {
 
    protected /* private */ object Abort
 
-   protected def observer: companion.Observer
+   protected def observer: companion.Observer // ProcessorCompanion#Observer
 
    protected def Act: Actor
 
