@@ -55,6 +55,14 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
          Match( sim, file, Span( start, stop ), boostIn, boostOut )
       }
    }
+
+   /**
+    * @param   sim      the matched similarity (where 1.0 would be an identical match)
+    * @param   file     the audio file in the database associated with the match
+    * @param   punch    the best matched punch
+    * @param   boostIn  the estimated gain factor for the match at the punch's start
+    * @param   boostOut the estimated gain factor for the match at the punch's stop
+    */
    final case class Match( sim: Float, file: File, punch: Span, boostIn: Float, boostOut: Float ) {
       def toXML =
 <match>
