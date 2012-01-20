@@ -79,9 +79,37 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
        * given that `normalize` is `true`.
        */
       def databaseFolder : File
+
+      /**
+       * The XML file holding the extractor parameters corresponding to the
+       * audio input file. The audio input file's feature vector output file
+       * is determined from this meta file.
+       */
       def metaInput: File
+
+      /**
+       * An option which restricts segmentation to a given span within the
+       * input file. That is, only breaking points within this span are
+       * reported. If `None`, the whole file is considered.
+       */
       def span: Option[ Span ]
+
+      /**
+       * The size of the sliding window over which the features are correlated.
+       * That is, for a length of 1.0 second (given in sample frames, hence
+       * 44100 for a sample rate of 44100 Hz), at any given point in time,
+       * 0.5 seconds left of that point are correlated with 0.5 seconds right
+       * of that point. Breaking points are those where correlation is minimised.
+       */
       def corrLen: Long
+
+      /**
+       * The balance between the feature of loudness curve and spectral composition (MFCC).
+       * A value of 0.0 means the segmentation is only performed by considering the
+       * spectral features, and a value of 1.0 means the segmentation is taking only
+       * the loudness into consideration. Values in between give a measure that takes
+       * both features into account with the given priorities.
+       */
       def temporalWeight: Float
       /** Whether to apply normalization to the features (recommended) */
       def normalize : Boolean
@@ -100,13 +128,40 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
       }
    }
    final class SettingsBuilder private () extends SettingsLike {
+      /**
+       * The database folder defaults to `database` (relative path).
+       */
       var databaseFolder      = new File( "database" )
+      /**
+       * The input file's extractor meta data file defaults to
+       * `input_feat.xml` (relative path).
+       */
       var metaInput           = new File( "input_feat.xml" )
+      /**
+       * The optional span restriction defaults to `None`.
+       */
       var span                = Option.empty[ Span ]
+      /**
+       * The correlation length defaults to 22050 sample frames
+       * (or 0.5 seconds at 44.1 kHz sample rate).
+       */
       var corrLen             = 22050L
+      /**
+       * The temporal weight defaults to 0.5.
+       */
       var temporalWeight      = 0.5f
+      /**
+       * The feature vector normalization flag defaults to `true`.
+       */
       var normalize           = true
+      /**
+       * The number of breaking points reported defaults to 1.
+       */
       var numBreaks           = 1
+      /**
+       * The minimum spacing between breaking points defaults to 22050 sample frames
+       * (or 0.5 seconds at 44.1 kHz sample rate).
+       */
       var minSpacing          = 22050L
 
       def build = Settings( databaseFolder, metaInput, span, corrLen, temporalWeight, normalize, numBreaks, minSpacing )

@@ -57,12 +57,47 @@ object FeatureExtraction extends aux.ProcessorCompanion {
    sealed trait ChannelsBehavior { def id: Int }
 
    sealed trait SettingsLike {
+      /**
+       * The input audio file to extract the features from.
+       */
       def audioInput : File
+
+      /**
+       * The output "audio" file to write the feature vectors to
+       * (this will be in AIFF format).
+       */
       def featureOutput : File
+
+      /**
+       * An optional file to which the extraction settings are
+       * saved (in XML format).
+       */
       def metaOutput : Option[ File ]
+
+      /**
+       * The number of MFCC used for the spectral feature.
+       */
       def numCoeffs : Int
+
+      /**
+       * The FFT size used to calculate the feature vectors.
+       */
       def fftSize : Int
+
+      /**
+       * The FFT overlap factor used to step from vector to vector.
+       * This equals fftSize / stepSize, so a value of 2 means
+       * the window step is half of the fft size (windows are 50% overlapping).
+       */
       def fftOverlap : Int
+
+      /**
+       * The channel behaviour determines how to handle multichannel files.
+       * Currently the feature vectors are calculated on a mono signal only.
+       * This setting determines whether multiple channels in the input audio
+       * file are mixed together, or if just the first or just the last
+       * channel is used in the extraction process.
+       */
       def channelsBehavior : ChannelsBehavior
    }
 
@@ -75,12 +110,36 @@ object FeatureExtraction extends aux.ProcessorCompanion {
       }
    }
    final class SettingsBuilder private () extends SettingsLike {
+      /**
+       * The audio input defaults to `input.aif` (relative path)
+       */
       var audioInput : File         = new File( "input.aif" )
+      /**
+       * The feature vector output file defaults to a temporary file
+       * beginning with `features` and having suffix `.aif`.
+       *
+       * @see  Strugatzki#tmpDir
+       */
       var featureOutput : File      = File.createTempFile( "features", ".aif", Strugatzki.tmpDir )
+      /**
+       * The extraction meta data file option defaults to `None`
+       */
       var metaOutput                = Option.empty[ File ]
+      /**
+       * The number of MFCC defaults to 13.
+       */
       var numCoeffs : Int           = 13
+      /**
+       * The FFT size defaults to 1024
+       */
       var fftSize : Int             = 1024
+      /**
+       * The FFT overlap defaults to 2
+       */
       var fftOverlap : Int          = 2
+      /**
+       * The multichannel behaviour defaults to `Mix`.
+       */
       var channelsBehavior : ChannelsBehavior = ChannelsBehavior.Mix
 
       def build : Settings = Settings( audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior )

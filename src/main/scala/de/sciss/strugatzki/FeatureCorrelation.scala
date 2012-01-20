@@ -142,16 +142,52 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
       }
    }
    final class SettingsBuilder private () extends SettingsLike {
+      /**
+       * The database folder defaults to `database` (relative path)
+       */
       var databaseFolder      = new File( "database" ) // Strugatzki.defaultDir
+      /**
+       * The correlation input file's extractor meta data file defaults
+       * to `input_feat.xml` (relative path)
+       */
       var metaInput           = new File( "input_feat.xml" )
+      /**
+       * The punch in defaults to a `Span( 0L, 44100L )` and a temporal weight of 0.5.
+       */
       var punchIn             = Punch( Span( 0L, 44100L ), 0.5f )
+      /**
+       * The punch out option defaults to `None`.
+       */
       var punchOut            = Option.empty[ Punch ]
+      /**
+       * The minimum punch length defaults to 22050 sample frames
+       * (or 0.5 seconds at 44.1 kHz sample rate)
+       */
       var minPunch            = 22050L
+      /**
+       * The maximum punch length defaults to 88200 sample frames
+       * (or 2.0 seconds at 44.1 kHz sample rate)
+       */
       var maxPunch            = 88200L
+      /**
+       * The vector normalization flag defaults to `true`.
+       */
       var normalize           = true
+      /**
+       * The maximum boost factor defaults to 8.0.
+       */
       var maxBoost            = 8f
+      /**
+       * The number of matches defaults to 1.
+       */
       var numMatches          = 1
+      /**
+       * The maximum number of matches per file defaults to 1.
+       */
       var numPerFile          = 1
+      /**
+       * The minimum spacing between matches defaults to 0 sample frames.
+       */
       var minSpacing          = 0L // 22050L
 
       def build = Settings( databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
