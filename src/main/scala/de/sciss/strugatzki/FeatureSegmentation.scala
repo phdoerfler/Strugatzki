@@ -321,12 +321,12 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             val chunkLen   = math.min( left, readSz ).toInt
             afExtr.read( eInBuf, readOff, chunkLen )
             val eInBufOff = logicalOff % winLen
-            normalize( normBuf, eInBuf, readOff, chunkLen )
+            aux.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
             val temporal = if( tempWeight > 0f ) {
-               correlate( 1, halfWinLen, eInBuf, eInBufOff, 0 )
+               aux.Math.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
             } else 0f
             val spectral = if( tempWeight < 1f ) {
-               correlate( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
+               aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
             } else 0f
             val sim = temporal * tempWeight + spectral * (1f - tempWeight)
             if( entryHasSpace || sim < highestSim ) {
@@ -352,32 +352,32 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
       Success( pay )
    }
 
-   /*
-    * Perform cross correlation between two matrices a and b. A is supposed to be static,
-    * thus we expect to have its mean and standard deviation passed in. Both a and b
-    * can be larger than the actual matrix, by giving a frame offset and the number of frames,
-    * as well as a channel offset and number of channels to process.
-    *
-    * For efficiency reasons, b may be updated in a rotational manner, thus bFrame + frameLen
-    * may exceed the number of frames in b. The algorithm automatically takes the modulus
-    * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
-    */
-   private def correlate( numChannels: Int, halfWinSize: Int, a: Array[ Array[ Float ]], frameOff: Int, chanOff: Int ) : Float = {
-      val numFrames        = halfWinSize << 1
-      val (mean, stdDev)   = stat( a, 0, numFrames, chanOff, numChannels )
-      val add              = -mean
-      val matSize          = numChannels * halfWinSize
-
-      var sum = 0.0
-      var ch = 0; while( ch < numChannels ) {
-         val ca = a( ch + chanOff )
-         var i = frameOff; val j = frameOff + halfWinSize
-         while( i < j ) {
-            sum += (ca( i % numFrames ) + add) * (ca( (i + halfWinSize) % numFrames ) + add)
-         i += 1 }
-      ch += 1 }
-      (sum / (stdDev * stdDev * matSize)).toFloat  // ensures correlate( a, a ) == 1.0
-   }
+//   /*
+//    * Perform cross correlation between two matrices a and b. A is supposed to be static,
+//    * thus we expect to have its mean and standard deviation passed in. Both a and b
+//    * can be larger than the actual matrix, by giving a frame offset and the number of frames,
+//    * as well as a channel offset and number of channels to process.
+//    *
+//    * For efficiency reasons, b may be updated in a rotational manner, thus bFrame + frameLen
+//    * may exceed the number of frames in b. The algorithm automatically takes the modulus
+//    * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
+//    */
+//   private def correlate( numChannels: Int, halfWinSize: Int, a: Array[ Array[ Float ]], frameOff: Int, chanOff: Int ) : Float = {
+//      val numFrames        = halfWinSize << 1
+//      val (mean, stdDev)   = stat( a, 0, numFrames, chanOff, numChannels )
+//      val add              = -mean
+//      val matSize          = numChannels * halfWinSize
+//
+//      var sum = 0.0
+//      var ch = 0; while( ch < numChannels ) {
+//         val ca = a( ch + chanOff )
+//         var i = frameOff; val j = frameOff + halfWinSize
+//         while( i < j ) {
+//            sum += (ca( i % numFrames ) + add) * (ca( (i + halfWinSize) % numFrames ) + add)
+//         i += 1 }
+//      ch += 1 }
+//      (sum / (stdDev * stdDev * matSize)).toFloat  // ensures correlate( a, a ) == 1.0
+//   }
 
    // SCALAC FUCKING CHOKES ON companion.Result
 

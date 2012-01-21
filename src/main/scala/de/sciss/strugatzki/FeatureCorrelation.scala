@@ -304,7 +304,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          b
       } else null // None
 
-      def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( avg( b, bOff, bLen ))
+      def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( aux.Math.avg( b, bOff, bLen ))
 
       def calcBoost( in: InputMatrix, b: Array[ Float ]) : Float = {
          val lnAvgB = calcLnAvgLoud( b, 0, in.numFrames )
@@ -321,10 +321,10 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val b          = afIn.buffer( frameNum )
                afIn.seek( start )
                afIn.read( b )
-               normalize( normBuf, b, 0, frameNum )
+               aux.Math.normalize( normBuf, b, 0, frameNum )
 
                def feat( mat: Array[ Array[ Float ]]) = {
-                  val (mean, stdDev) = stat( mat, 0, frameNum, 0, mat.length )
+                  val (mean, stdDev) = aux.Math.stat( mat, 0, frameNum, 0, mat.length )
                   FeatureMatrix( mat, frameNum, mean, stdDev )
                }
 
@@ -435,7 +435,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.read( eInBuf, readOff, chunkLen )
                val eInBufOff = logicalOff % punchInLen
-               normalize( normBuf, eInBuf, readOff, chunkLen )
+               aux.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
                val boost = calcBoost( matrixIn, eInBuf( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
@@ -537,7 +537,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.read( eOutBuf, readOff, chunkLen )
-                        normalize( normBuf, eOutBuf, readOff, chunkLen )
+                        aux.Math.normalize( normBuf, eOutBuf, readOff, chunkLen )
                         val extraBufOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, eOutBuf( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {
@@ -694,34 +694,13 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       Success( pay )
    }
 
-   /*
-    * Perform cross correlation between two matrices a and b. A is supposed to be static,
-    * thus we expect to have its mean and standard deviation passed in. Both a and b
-    * can be larger than the actual matrix, by giving a frame offset and the number of frames,
-    * as well as a channel offset and number of channels to process.
-    *
-    * For efficiency reasons, b may be updated in a rotational manner, thus bFrame + frameLen
-    * may exceed the number of frames in b. The algorithm automatically takes the modulus
-    * `bFrame + frameLen % b.numFrames` as offset when doing the calculations.
-    */
    private def correlate( a: FeatureMatrix, b: Array[ Array[ Float ]], bFrameOff: Int, bChanOff: Int ) : Float = {
       val numChannels   = a.numChannels
       val numFrames     = a.numFrames
       // note: stat does not wrap frame offset around b.numFrames.
       // we thus assume that b really has data from 0 to a.numFrames!
-      val (bMean, bStdDev) = stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
-      val aAdd = -a.mean
-      val bAdd = -bMean
-
-      var sum           = 0.0
-      var ch = 0; while( ch < numChannels ) {
-         val ca = a.mat( ch )
-         val cb = b( ch + bChanOff )
-         var i = 0; while( i < numFrames ) {
-            sum += (ca( i ) + aAdd) * (cb( (i + bFrameOff) % cb.length ) + bAdd)
-         i += 1 }
-      ch += 1 }
-      (sum / (a.stdDev * bStdDev * a.matSize)).toFloat  // ensures correlate( a, a ) == 1.0
+      val (bMean, bStdDev) = aux.Math.stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
+      aux.Math.correlate( a.mat, a.mean, a.stdDev, numFrames, numChannels, b, bMean, bStdDev, bFrameOff, bChanOff )
    }
 
    // SCALAC FUCKING CHOKES ON companion.Result

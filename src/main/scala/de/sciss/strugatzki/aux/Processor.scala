@@ -39,55 +39,6 @@ trait Processor {
       AudioFile.openWrite( file, AudioFileSpec( AudioFileType.IRCAM, SampleFormat.Float, numChannels, 44100 ))
    }
 
-   protected final def avg( b: Array[ Float ], off: Int, len: Int ) = {
-      var sum = 0.0
-      var i = off; val stop = off + len; while( i < stop ) {
-         sum += b( i )
-      i += 1 }
-      (sum / len).toFloat
-   }
-
-   protected final def stat( mat: Array[ Array[ Float ]], frameOff: Int, frameLen: Int,
-                             chanOff: Int, chanLen: Int ) : (Double, Double) = {
-      val chanStop   = chanOff + chanLen
-      val frameStop  = frameOff + frameLen
-      var sum = 0.0
-      var ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            sum += cb( i )
-         i +=1 }
-      ch += 1 }
-      val matSize = frameLen * chanLen
-      val mean = sum / matSize
-      sum = 0.0
-      ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            val d = cb( i ) - mean
-            sum += d * d
-         i +=1 }
-      ch += 1 }
-      val stddev = math.sqrt( sum / matSize )
-      (mean, stddev)
-   }
-
-   protected final def normalize( normBuf: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
-      if( normBuf == null ) return
-      var ch = 0; val numCh = b.length; while( ch < numCh ) {
-         val cb   = b( ch )
-         val cn   = normBuf( ch )
-         val min  = cn( 0 )
-         val max  = cn( 1 )
-         val d    = max - min
-         var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
-            val f    = cb( i )
-            // XXX should values be clipped to [0...1] or not?
-            cb( i )  = (f - min) / d
-         i += 1 }
-      ch += 1 }
-   }
-
    /**
     * Subclasses may override this to perform further cleanup when the process is aborted.
     */
@@ -101,28 +52,6 @@ trait Processor {
    protected def observer: companion.Observer // ProcessorCompanion#Observer
 
    protected def Act: Actor
-
-//   private object Act extends Actor {
-//      def act() {
-//         ProcT.start()
-//         var result : companion.Result = null
-//         loopWhile( result == null ) {
-//            react {
-//               case Abort =>
-//                  ProcT.aborted = true
-//                  aborted()
-//               case res @ companion.Progress( _ ) =>
-//                  observer( res )
-//               case res @ companion.Aborted =>
-//                  result = res
-//               case res @ companion.Failure( _ ) =>
-//                  result = res
-//               case res @ companion.Success( _ ) =>
-//                  result = res
-//            }
-//         } andThen { observer( result )}
-//      }
-//   }
 
    protected object ProcT extends Thread {
       var aborted: Boolean = false
