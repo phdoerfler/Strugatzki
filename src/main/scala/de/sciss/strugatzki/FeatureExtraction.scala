@@ -286,7 +286,7 @@ extends aux.Processor {
 
       val bndls   = initBndl +: bufBndls  // don't bother about n_free and b_free
 
-      val c    = PacketCodec.default
+      val c    = PacketCodec().scsynth().build
       val sz   = bndls.map( _.encodedSize( c )).max
       val raf  = new RandomAccessFile( oscF, "rw" )
       val bb   = ByteBuffer.allocate( sz )
