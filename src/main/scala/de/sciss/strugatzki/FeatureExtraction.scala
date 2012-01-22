@@ -99,6 +99,15 @@ object FeatureExtraction extends aux.ProcessorCompanion {
        * channel is used in the extraction process.
        */
       def channelsBehavior : ChannelsBehavior
+
+      final def pretty: String = {
+         "Settings(\n   audioInput     = " + audioInput +
+                  "\n   featureOutput  = " + featureOutput +
+                  "\n   metaOutput     = " + metaOutput +
+                  "\n   numCoeffs      = " + numCoeffs +
+                  "\n   fftSize        = " + fftSize +
+                  "\n   fftOverlap     = " + fftOverlap + "\n)"
+      }
    }
 
    object SettingsBuilder {

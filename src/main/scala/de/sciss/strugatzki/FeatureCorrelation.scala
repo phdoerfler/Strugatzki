@@ -139,6 +139,20 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
       def numPerFile : Int
       /** Minimum spacing between matches within a single database entry */
       def minSpacing : Long
+
+      final def pretty: String = {
+         "Settings(\n   databaseFolder = " + databaseFolder +
+                  "\n   metaInput      = " + metaInput +
+                  "\n   punchIn        = " + punchIn +
+                  "\n   punchOut       = " + punchOut +
+                  "\n   minPunch       = " + minPunch +
+                  "\n   maxPunch       = " + maxPunch +
+                  "\n   normalize      = " + normalize +
+                  "\n   maxBoost       = " + maxBoost +
+                  "\n   numMatches     = " + numMatches +
+                  "\n   numPerFiles    = " + numPerFile +
+                  "\n   minSpacing     = " + minSpacing + "\n)"
+      }
    }
 
    object SettingsBuilder {

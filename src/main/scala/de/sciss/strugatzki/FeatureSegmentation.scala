@@ -117,6 +117,17 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
       def numBreaks : Int
       /** Minimum spacing between breaks */
       def minSpacing : Long
+
+      final def pretty: String = {
+         "Settings(\n   databaseFolder = " + databaseFolder +
+                  "\n   metaInput      = " + metaInput +
+                  "\n   span           = " + span +
+                  "\n   corrLen        = " + corrLen +
+                  "\n   temporalWeight = " + temporalWeight +
+                  "\n   normalize      = " + normalize +
+                  "\n   numBreaks      = " + numBreaks +
+                  "\n   minSpacing     = " + minSpacing + "\n)"
+      }
    }
 
    object SettingsBuilder {
