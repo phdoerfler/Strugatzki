@@ -73,6 +73,12 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
    <boostIn>{boostIn}</boostIn>
    <boostOut>{boostOut}</boostOut>
 </match>
+
+      def pretty : String = "Match(\n   sim      = " + sim +
+                                  "\n   file     = " + file +
+                                  "\n   punch    = " + punch +
+                                  "\n   boostIn  = " + boostIn +
+                                  "\n   boostOut = " + boostOut + "\n)"
    }
 
    // reverse ordering. since sortedset orders ascending according to the ordering,

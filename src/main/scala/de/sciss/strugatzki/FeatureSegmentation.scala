@@ -56,6 +56,8 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
    <sim>{sim}</sim>
    <pos>{pos}</pos>
 </break>
+
+      def pretty : String = "Break( sim = " + sim + ", pos = " + pos + ")"
    }
 
    // sortedset orders ascending according to the ordering, and with this

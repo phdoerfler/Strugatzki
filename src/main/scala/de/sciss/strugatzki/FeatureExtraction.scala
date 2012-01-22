@@ -101,12 +101,13 @@ object FeatureExtraction extends aux.ProcessorCompanion {
       def channelsBehavior : ChannelsBehavior
 
       final def pretty: String = {
-         "Settings(\n   audioInput     = " + audioInput +
-                  "\n   featureOutput  = " + featureOutput +
-                  "\n   metaOutput     = " + metaOutput +
-                  "\n   numCoeffs      = " + numCoeffs +
-                  "\n   fftSize        = " + fftSize +
-                  "\n   fftOverlap     = " + fftOverlap + "\n)"
+         "Settings(\n   audioInput       = " + audioInput +
+                  "\n   featureOutput    = " + featureOutput +
+                  "\n   metaOutput       = " + metaOutput +
+                  "\n   numCoeffs        = " + numCoeffs +
+                  "\n   fftSize          = " + fftSize +
+                  "\n   fftOverlap       = " + fftOverlap +
+                  "\n   channelsBehavior = " + channelsBehavior + "\n)"
       }
    }
 
