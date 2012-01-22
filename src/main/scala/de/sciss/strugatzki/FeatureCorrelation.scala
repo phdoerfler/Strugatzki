@@ -308,12 +308,20 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          def accept( dir: File, name: String ) = name.endsWith( "_feat.xml" )
       }).toSet - settings.metaInput
 
+      if( verbose ) {
+         println( "Number of files in database : " + punchMetas.size )
+      }
+
       // collect all database entries which match the input resolution
       // (for simplicity, we ignore the fact that the sample rates could differ)
       val extrDBs: IndexedSeq[ ExtrSettings ] = punchMetas.map( file => {
          val e = ExtrSettings.fromXMLFile( file )
          if( (e.numCoeffs == extrIn.numCoeffs) && (e.fftSize / e.fftOverlap == stepSize) ) Some( e ) else None
       })( breakOut ).collect { case Some( e ) => e }
+
+      if( verbose ) {
+         println( "Number of compatible files in database : " + extrDBs.size )
+      }
 
       val normBuf = if( settings.normalize ) {
          val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
