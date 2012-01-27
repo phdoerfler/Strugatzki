@@ -35,7 +35,7 @@ import FeatureExtraction.{Settings => ESettings, SettingsBuilder => ESettingsBui
 
 object Strugatzki {
    val name          = "Strugatzki"
-   val version       = 0.15
+   val version       = 0.16
    val copyright     = "(C)opyright 2011-2012 Hanns Holger Rutz"
    val isSnapshot    = false
 
