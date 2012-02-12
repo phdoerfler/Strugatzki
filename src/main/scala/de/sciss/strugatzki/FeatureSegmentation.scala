@@ -266,10 +266,14 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
 
       val normBuf = if( settings.normalize ) {
          val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
-         require( (afNorm.numChannels == extr.numCoeffs + 1) && afNorm.numFrames == 2L )
-         val b = afNorm.buffer( 2 )
-         afNorm.read( b )
-         b
+         try {
+            require( (afNorm.numChannels == extr.numCoeffs + 1) && afNorm.numFrames == 2L )
+            val b = afNorm.buffer( 2 )
+            afNorm.read( b )
+            b
+         } finally {
+            afNorm.cleanUp()
+         }
       } else null // None
 
       val halfWinLen = fullToFeat( settings.corrLen )
@@ -312,16 +316,16 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
       val eInBuf  = Array.ofDim[ Float ]( extr.numCoeffs + 1, winLen )
 
       val afExtr = AudioFile.openRead( extr.featureOutput )
-      val (afStart, afStop) = settings.span match {
-         case Some( span ) =>
-            (math.max( 0, fullToFeat( span.start )), math.min( afExtr.numFrames.toInt, fullToFeat( span.stop )))
-         case None =>
-            (0, afExtr.numFrames.toInt)
-      }
-      val afLen = afStop - afStart
-
-      if( afStart > 0 ) afExtr.seek( afStart )
       try {
+         val (afStart, afStop) = settings.span match {
+            case Some( span ) =>
+               (math.max( 0, fullToFeat( span.start )), math.min( afExtr.numFrames.toInt, fullToFeat( span.stop )))
+            case None =>
+               (0, afExtr.numFrames.toInt)
+         }
+         val afLen = afStop - afStart
+
+         if( afStart > 0 ) afExtr.seek( afStart )
          var left       = afLen // afExtr.numFrames
          var readSz     = winLen   // read full buffer in first round
          var readOff    = 0
@@ -358,7 +362,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          progress( 1f )
 
       } finally {
-         afExtr.close()
+         afExtr.cleanUp()
       }
 
       val pay = prio.toIndexedSeq
