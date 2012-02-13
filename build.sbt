@@ -45,13 +45,6 @@ publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
 pomExtra :=
-<licenses>
-  <license>
-    <name>GPL v2+</name>
-    <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
-    <distribution>repo</distribution>
-  </license>
-</licenses>
 <scm>
   <url>git@github.com:Sciss/Strugatzki.git</url>
   <connection>scm:git:git@github.com:Sciss/Strugatzki.git</connection>
