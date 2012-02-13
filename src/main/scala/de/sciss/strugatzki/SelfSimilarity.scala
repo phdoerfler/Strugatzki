@@ -1,11 +1,37 @@
+/*
+ *  SelfSimilarity.scala
+ *  (Strugatzki)
+ *
+ *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
+ *
+ *  This software is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either
+ *  version 2, june 1991 of the License, or (at your option) any later version.
+ *
+ *  This software is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *  General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public
+ *  License (gpl.txt) along with this software; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *
+ *  For further information, please contact Hanns Holger Rutz at
+ *  contact@sciss.de
+ */
+
 package de.sciss.strugatzki
 
 import java.io.File
 import aux.{ProcessorCompanion, Processor}
 import actors.Actor
 import de.sciss.synth.io.AudioFile
-import java.awt.image.BufferedImage
 import xml.{XML, NodeSeq}
+import java.awt.image.{DataBufferInt, BufferedImage}
+import javax.imageio.ImageIO
 
 object SelfSimilarity extends ProcessorCompanion {
    type PayLoad = Unit
@@ -49,6 +75,14 @@ object SelfSimilarity extends ProcessorCompanion {
       def corrLen: Long
 
       /**
+       * A decimation factor to produce smaller image size. A factor of 1 means
+       * each frame step is performed, a factor of 2 means every second frame
+       * is skipped, a factor of 3 means only one in three frames is considered,
+       * and so forth.
+       */
+      def decimation: Int
+
+      /**
        * The balance between the feature of loudness curve and spectral composition (MFCC).
        * A value of 0.0 means the segmentation is only performed by considering the
        * spectral features, and a value of 1.0 means the segmentation is taking only
@@ -65,6 +99,7 @@ object SelfSimilarity extends ProcessorCompanion {
                   "\n   imageOutput    = " + imageOutput +
                   "\n   span           = " + span +
                   "\n   corrLen        = " + corrLen +
+                  "\n   decimation     = " + decimation +
                   "\n   normalize      = " + normalize + "\n)"
       }
    }
@@ -101,6 +136,10 @@ object SelfSimilarity extends ProcessorCompanion {
        */
       var corrLen             = 44100L
       /**
+       * The default decimation factor is `1` (no decimation).
+       */
+      var decimation          = 1
+      /**
        * The temporal weight defaults to 0.5.
        */
       var temporalWeight      = 0.5f
@@ -109,7 +148,7 @@ object SelfSimilarity extends ProcessorCompanion {
        */
       var normalize           = true
 
-      def build = Settings( databaseFolder, metaInput, imageOutput, span, corrLen, temporalWeight, normalize )
+      def build = Settings( databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight, normalize )
 
       def read( settings: Settings ) {
          databaseFolder = settings.databaseFolder
@@ -117,6 +156,7 @@ object SelfSimilarity extends ProcessorCompanion {
          imageOutput    = settings.imageOutput
          span           = settings.span
          corrLen        = settings.corrLen
+         decimation     = settings.decimation
          temporalWeight = settings.temporalWeight
          normalize      = settings.normalize
       }
@@ -142,13 +182,14 @@ object SelfSimilarity extends ProcessorCompanion {
             if( e.isEmpty ) None else Some( spanFromXML( e ))
          }
          sb.corrLen        = (xml \ "corr").text.toLong
+         sb.decimation     = (xml \ "decimation").text.toInt
          sb.temporalWeight = (xml \ "weight").text.toFloat
          sb.normalize      = (xml \ "normalize").text.toBoolean
          sb.build
       }
    }
    final case class Settings( databaseFolder: File, metaInput: File, imageOutput: File, span: Option[ Span ],
-                              corrLen: Long, temporalWeight: Float, normalize: Boolean )
+                              corrLen: Long, decimation: Int, temporalWeight: Float, normalize: Boolean )
    extends SettingsLike {
       private def spanToXML( span: Span ) =
 <span>
@@ -163,6 +204,7 @@ object SelfSimilarity extends ProcessorCompanion {
    <output>{imageOutput.getPath}</output>
    {span match { case Some( s ) => <span>{spanToXML( s ).child}</span>; case _ => Nil }}
    <corr>{corrLen}</corr>
+   <decimation>{decimation}</decimation>
    <weight>{temporalWeight}</weight>
    <normalize>{normalize}</normalize>
 </selfsimilarity>
@@ -186,19 +228,12 @@ extends Processor {
 
    protected def body() : Result = {
       val extr          = FeatureExtraction.Settings.fromXMLFile( settings.metaInput )
-      val feat          = AudioFile.openRead( extr.featureOutput )
       val stepSize      = extr.fftSize / extr.fftOverlap
 
       def fullToFeat( n: Long ) = ((n + (stepSize >> 1)) / stepSize).toInt
 
-      val featFrames    = feat.numFrames
       val halfWinLen    = fullToFeat( settings.corrLen )
       val winLen        = halfWinLen * 2
-      val numCorrs      = {
-         val n = featFrames - winLen + 1
-         require( n <= 0x7FFFFFFF, "32-bit overflow" )
-         n.toInt
-      }
 
       val normBuf = if( settings.normalize ) {
          val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
@@ -212,8 +247,6 @@ extends Processor {
          }
       } else null // None
 
-      val img           = new BufferedImage( numCorrs, numCorrs, BufferedImage.TYPE_INT_ARGB )
-
       val tempWeight    = settings.temporalWeight
       val eInBuf        = Array.ofDim[ Float ]( extr.numCoeffs + 1, winLen )
 
@@ -225,40 +258,85 @@ extends Processor {
             case None =>
                (0, afExtr.numFrames.toInt)
          }
+
          val afLen = afStop - afStart
 
-         if( afStart > 0 ) afExtr.seek( afStart )
-         var left       = afLen // afExtr.numFrames
-         var readSz     = winLen   // read full buffer in first round
-         var readOff    = 0
-         var logicalOff = 0
-         var progBlock  = 0
-
-         while( left > 0 ) {
-            if( checkAborted ) return Aborted
-
-            val chunkLen   = math.min( left, readSz ).toInt
-            afExtr.read( eInBuf, readOff, chunkLen )
-            val eInBufOff = logicalOff % winLen
-            aux.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
-            val temporal = if( tempWeight > 0f ) {
-               aux.Math.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
-            } else 0f
-            val spectral = if( tempWeight < 1f ) {
-               aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
-            } else 0f
-            val sim = temporal * tempWeight + spectral * (1f - tempWeight)
-
-            left   -= chunkLen
-            readOff = (readOff + chunkLen) % winLen
-            logicalOff += 1
-            readSz  = 1 // read single frames in successive round (and rotate buffer)
-
-            progBlock = (progBlock + 1) % 128
-            if( progBlock == 0 ) progress( left.toFloat / afLen )
+         val numCorrs      = {
+            val n = math.max( 0L, afLen - winLen + 1 )
+//            require( n <= 0xB504, "32-bit overflow" )
+            require( n <= 0x7FFFFFFF, "32-bit overflow" )
+            n.toInt
          }
-         progress( 1f )
+         val (decim, imgExt)  = {
+            val d = settings.decimation
+            require( d >= 1, "Illegal decimation setting of " + d )
+            val i = numCorrs / d
+            if( i <= 0xB504 ) (d, i) else {
+               val d1 = (numCorrs + 0xB503) / 0xB504
+               println( "Warning: Decimation is too small to produce a reasonable image size. Automatically adjusting to " + d1 )
+               (d1, numCorrs / d1)
+            }
+         }
+//         require( imgExt < 0xB504, "Image size too large. Try a decimation of " + ((numCorrs + 0xB503) / 0xB504) )
+         val numPix  = imgExt.toLong * imgExt.toLong
 
+         if( verbose ) println( "Image extent is " + imgExt + " (yielding a matrix of " + numPix + " pixels)" )
+
+         val img     = new BufferedImage( imgExt, imgExt, BufferedImage.TYPE_INT_RGB )
+         val imgData = img.getRaster.getDataBuffer.asInstanceOf[ DataBufferInt ].getData()
+         val g       = img.createGraphics()
+         try {
+            
+            if( afStart > 0 ) afExtr.seek( afStart )
+            var leftOff    = 0
+            var progBlock  = 0
+            val stop       = numCorrs / decim * decim
+   
+            while( leftOff < stop ) {
+               if( checkAborted ) return Aborted
+
+               // XXX inefficient -- should just read the extra frame in successive iterations
+               afExtr.seek( leftOff + afStart )
+               afExtr.read( eInBuf, 0, halfWinLen )
+               aux.Math.normalize( normBuf, eInBuf, 0, halfWinLen )
+
+               var rightOff   = leftOff
+               while( rightOff < stop ) {
+
+                  // XXX inefficient -- should just read the extra frame in successive iterations
+                  afExtr.seek( rightOff + afStart )
+                  afExtr.read( eInBuf, halfWinLen, halfWinLen )
+                  aux.Math.normalize( normBuf, eInBuf, halfWinLen, halfWinLen )
+
+                  val temporal = if( tempWeight > 0f ) {
+                     aux.Math.correlateHalf( 1, halfWinLen, eInBuf, 0, 0 )
+                  } else 0f
+                  val spectral = if( tempWeight < 1f ) {
+                     aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
+                  } else 0f
+                  val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
+                  val colr = aux.IntensityColorScheme( sim )
+
+                  val off1 = (rightOff/decim) * imgExt + (leftOff/decim)
+                  val off2 = (leftOff/decim)  * imgExt + (rightOff/decim)
+                  imgData( off1 ) = colr
+                  imgData( off2 ) = colr
+
+                  progBlock = (progBlock + 1) % 128
+                  if( progBlock == 0 ) progress( off2.toFloat / numPix )
+
+                  rightOff += decim
+               }
+               leftOff += decim
+            }
+
+            ImageIO.write( img, "png", settings.imageOutput )
+            progress( 1f )
+            
+         } finally {
+            g.dispose()
+            img.flush()
+         }
       } finally {
          afExtr.cleanUp()
       }

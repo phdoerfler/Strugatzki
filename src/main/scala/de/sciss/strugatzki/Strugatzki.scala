@@ -82,6 +82,7 @@ object Strugatzki {
          opt( "f", "feature", "Feature extraction", which = "feat" )
          opt( "c", "correlate", "Find best correlation with database", which = "corr" )
          opt( "s", "segmentation", "Find segmentation breaks with a file", which = "segm" )
+         opt( "x", "selfsimilarity", "Create an image of the self similarity matrix", which = "self" )
          opt( "stats", "Statistics from feature database", which = "stats" )
       }
       if( parser.parse( args.take( 1 ))) {
@@ -91,6 +92,7 @@ object Strugatzki {
             case "stats"      => featureStats( argsRem )
             case "corr"       => featureCorr( argsRem )
             case "segm"       => featureSegm( argsRem )
+            case "self"       => featureSelf( argsRem )
             case _            =>
                parser.showUsage
                sys.exit( 1 )
@@ -232,7 +234,7 @@ object Strugatzki {
       var input         = Option.empty[ String ]
       var normalize     = true
 
-      implicit val parser  = new OptionParser( name + " -c" ) {
+      implicit val parser  = new OptionParser( name + " -s" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
          doubleOpt( "length", "Correlation length in secs (default: 0.5)", corrLen = _ )
@@ -247,8 +249,8 @@ object Strugatzki {
 
       if( !parser.parse( args )) sys.exit( 1 )
 
-      (input, dirOption) match {
-         case (Some( in ), Some( dir )) =>
+      input match {
+         case Some( in ) =>
             val inFile  = new File( in )
             val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
             val inSpec  = AudioFile.readSpec( metaIn.audioInput )
@@ -267,7 +269,6 @@ object Strugatzki {
 
             FeatureSegmentation.verbose = verbose
             val set              = FeatureSegmentation.SettingsBuilder()
-            set.databaseFolder   = new File( dir )
             set.metaInput        = inFile
             set.span             = span
             set.corrLen          = corrFrames
@@ -275,6 +276,12 @@ object Strugatzki {
             set.normalize        = normalize
             set.numBreaks        = numBreaks
             set.minSpacing       = secsToFrames( minSpacing )
+
+            if( normalize ) dirOption match {
+               case Some( dir )  =>
+                  set.databaseFolder   = new File( dir )
+               case _ => exit1()
+            }
 
             import FeatureSegmentation._
             var lastProg = 0
@@ -307,11 +314,96 @@ object Strugatzki {
       }
    }
 
+   def featureSelf( args: Array[ String ]) {
+      var dirOption     = Option.empty[ String ]
+      var verbose       = false
+      var corrLen       = 1.0
+      var decim         = 1
+      var temp          = 0.5
+      var spanStart     = Option.empty[ Double ]
+      var spanStop      = Option.empty[ Double ]
+      var input         = Option.empty[ String ]
+      var output        = Option.empty[ String ]
+      var normalize     = true
+
+      implicit val parser  = new OptionParser( name + " -x" ) {
+         opt( "v", "verbose", "Verbose output", verbose = true )
+         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
+         doubleOpt( "length", "Correlation length in secs (default: 1.0)", corrLen = _ )
+         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
+         doubleOpt( "span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some( d ))
+         doubleOpt( "span-stop", "Correlation end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         intOpt( "m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i )
+         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
+         arg( "output", "Image output file", (i: String) => output = Some( i ))
+         opt( "no-norm", "Do not apply feature normalization", normalize = false )
+      }
+
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      (input, output) match {
+         case (Some( in ), Some( out )) =>
+            val inFile  = new File( in )
+            val outFile = new File( out )
+            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+
+            val span    = (spanStart, spanStop) match {
+               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
+               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
+               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
+               case (None,          None)         => None
+            }
+            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            val corrFrames = secsToFrames( corrLen )
+            require( corrFrames > 0, "Correlation duration is zero" )
+
+            SelfSimilarity.verbose = verbose
+            val set              = SelfSimilarity.SettingsBuilder()
+            set.metaInput        = inFile
+            set.imageOutput      = outFile
+            set.span             = span
+            set.corrLen          = corrFrames
+            set.decimation       = decim
+            set.temporalWeight   = temp.toFloat
+            set.normalize        = normalize
+
+            if( normalize ) dirOption match {
+               case Some( dir )  =>
+                  set.databaseFolder   = new File( dir )
+               case _ => exit1()
+            }
+
+            import SelfSimilarity._
+            var lastProg = 0
+            val fs = SelfSimilarity( set ) {
+               case Success( _ )  =>
+                  println( "  Done." )
+                  println()
+               case Failure( e ) =>
+                  println( "  Failed: " )
+                  e.printStackTrace()
+               case Aborted =>
+                  println( "  Aborted" )
+               case Progress( perc ) =>
+                  val i = perc >> 2
+                  while( lastProg < i ) {
+                     print( "#" )
+                  lastProg += 1 }
+            }
+            fs.start()
+
+         case _ => exit1()
+      }
+   }
+
    def featureStats( args: Array[ String ]) {
       var dirOption = Option.empty[ String ]
       var verbose = false
 
-      implicit val parser  = new OptionParser( name + " -f" ) {
+      implicit val parser  = new OptionParser( name + " --stats" ) {
          opt( "v", "verbose", "Verbose output", verbose = true )
          opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
       }
