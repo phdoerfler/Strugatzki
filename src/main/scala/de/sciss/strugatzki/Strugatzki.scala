@@ -315,6 +315,7 @@ object Strugatzki {
    }
 
    def featureSelf( args: Array[ String ]) {
+      import SelfSimilarity.{ColorScheme, PsychoOptical, SettingsBuilder}
       var dirOption     = Option.empty[ String ]
       var verbose       = false
       var corrLen       = 1.0
@@ -324,6 +325,9 @@ object Strugatzki {
       var spanStop      = Option.empty[ Double ]
       var input         = Option.empty[ String ]
       var output        = Option.empty[ String ]
+      var colorWarp     = 1.0
+      var colorCeil     = 1.0
+      var colors        = PsychoOptical: ColorScheme
       var normalize     = true
 
       implicit val parser  = new OptionParser( name + " -x" ) {
@@ -333,6 +337,9 @@ object Strugatzki {
          doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
          doubleOpt( "span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some( d ))
          doubleOpt( "span-stop", "Correlation end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         doubleOpt( "color-warp", "Color scale warping factor (default: 1.0)", (d: Double) => colorWarp = d )
+         doubleOpt( "color-ceil", "Color scale input ceiling (default: 1.0)", (d: Double) => colorCeil = d )
+         opt( "c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme( s ))
          intOpt( "m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i )
          arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
          arg( "output", "Image output file", (i: String) => output = Some( i ))
@@ -361,13 +368,16 @@ object Strugatzki {
             require( corrFrames > 0, "Correlation duration is zero" )
 
             SelfSimilarity.verbose = verbose
-            val set              = SelfSimilarity.SettingsBuilder()
+            val set              = SettingsBuilder()
             set.metaInput        = inFile
             set.imageOutput      = outFile
             set.span             = span
             set.corrLen          = corrFrames
             set.decimation       = decim
             set.temporalWeight   = temp.toFloat
+            set.colors           = colors
+            set.colorWarp        = colorWarp.toFloat
+            set.colorCeil        = colorCeil.toFloat
             set.normalize        = normalize
 
             if( normalize ) dirOption match {

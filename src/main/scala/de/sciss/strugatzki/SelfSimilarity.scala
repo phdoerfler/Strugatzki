@@ -36,6 +36,36 @@ import javax.imageio.ImageIO
 object SelfSimilarity extends ProcessorCompanion {
    type PayLoad = Unit
 
+   object ColorScheme {
+      def apply( logicalName: String ) : ColorScheme = logicalName match {
+         case GrayScale.logicalName       => GrayScale
+         case PsychoOptical.logicalName   => PsychoOptical
+      }
+
+      def all : Seq[ ColorScheme ] = Seq( GrayScale, PsychoOptical )
+      def names : Seq[ String ] = all.map( _.logicalName )
+   }
+   sealed trait ColorScheme {
+      def logicalName: String
+   }
+
+   /**
+    * Plain gray scale.
+    */
+   case object GrayScale extends ColorScheme {
+      val logicalName = "gray"
+   }
+   /**
+    * Psycho-optically optimized scheme originally taken from
+    * Niklas Werner's Sonasound program. Uses a combination of
+    * hues and brightnesses that produces as perceptually very
+    * regular gradient. It goes from black over violet towards
+    * yellow and finally white.
+    */
+   case object PsychoOptical extends ColorScheme {
+      val logicalName = "psycho"
+   }
+
    /**
     * All durations, spans and spacings are given in sample frames
     * with respect to the sample rate of the audio input file.
@@ -90,7 +120,30 @@ object SelfSimilarity extends ProcessorCompanion {
        * both features into account with the given priorities.
        */
       def temporalWeight: Float
-      /** Whether to apply normalization to the features (recommended) */
+
+      /**
+       * The color scheme to use for the image. Either of `GrayScale` and `PsychoOptical`
+       */
+      def colors: ColorScheme
+
+      /**
+       * A warp factor (exponent) applied to the cross correlations before conversion to
+       * a color value. Somewhat like a gamma correction. Values smaller than 1 produce
+       * brighter images, values greater than 1 produce darker images.
+       */
+      def colorWarp: Float
+
+      /**
+       * The ceiling cross correlation value corresponding to the maximally bright color.
+       * Should be less than or equal to 1, and greater than zero. The smaller the value,
+       * the earlier clipping occurs, and the more the colors are 'dragged' towards
+       * brighter values.
+       */
+      def colorCeil: Float
+
+      /**
+       * Whether to apply normalization to the features (recommended)
+       * */
       def normalize : Boolean
 
       final def pretty: String = {
@@ -100,6 +153,10 @@ object SelfSimilarity extends ProcessorCompanion {
                   "\n   span           = " + span +
                   "\n   corrLen        = " + corrLen +
                   "\n   decimation     = " + decimation +
+                  "\n   temporalWeight = " + temporalWeight +
+                  "\n   colors         = " + colors +
+                  "\n   colorWarp      = " + colorWarp +
+                  "\n   colorCeil      = " + colorCeil +
                   "\n   normalize      = " + normalize + "\n)"
       }
    }
@@ -144,11 +201,24 @@ object SelfSimilarity extends ProcessorCompanion {
        */
       var temporalWeight      = 0.5f
       /**
+       * The default color scheme is psycho-optical.
+       */
+      var colors              = PsychoOptical: ColorScheme
+      /**
+       * The default color warp is `1.0`.
+       */
+      var colorWarp           = 1.0f
+      /**
+       * The default color ceiling is `1.0`.
+       */
+      var colorCeil           = 1.0f
+      /**
        * The feature vector normalization flag defaults to `true`.
        */
       var normalize           = true
 
-      def build = Settings( databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight, normalize )
+      def build = Settings( databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight,
+                            colors, colorWarp, colorCeil, normalize )
 
       def read( settings: Settings ) {
          databaseFolder = settings.databaseFolder
@@ -158,6 +228,9 @@ object SelfSimilarity extends ProcessorCompanion {
          corrLen        = settings.corrLen
          decimation     = settings.decimation
          temporalWeight = settings.temporalWeight
+         colors         = settings.colors
+         colorWarp      = settings.colorWarp
+         colorCeil      = settings.colorCeil
          normalize      = settings.normalize
       }
    }
@@ -184,12 +257,16 @@ object SelfSimilarity extends ProcessorCompanion {
          sb.corrLen        = (xml \ "corr").text.toLong
          sb.decimation     = (xml \ "decimation").text.toInt
          sb.temporalWeight = (xml \ "weight").text.toFloat
+         sb.colors         = ColorScheme( (xml \ "colors").text )
+         sb.colorWarp      = (xml \ "colorWarp").text.toFloat
+         sb.colorCeil      = (xml \ "colorCeil").text.toFloat
          sb.normalize      = (xml \ "normalize").text.toBoolean
          sb.build
       }
    }
    final case class Settings( databaseFolder: File, metaInput: File, imageOutput: File, span: Option[ Span ],
-                              corrLen: Long, decimation: Int, temporalWeight: Float, normalize: Boolean )
+                              corrLen: Long, decimation: Int, temporalWeight: Float,
+                              colors: ColorScheme, colorWarp: Float, colorCeil: Float, normalize: Boolean )
    extends SettingsLike {
       private def spanToXML( span: Span ) =
 <span>
@@ -206,6 +283,9 @@ object SelfSimilarity extends ProcessorCompanion {
    <corr>{corrLen}</corr>
    <decimation>{decimation}</decimation>
    <weight>{temporalWeight}</weight>
+   <colors>{colors.logicalName}</colors>
+   <colorWarp>{colorWarp}</colorWarp>
+   <colorCeil>{colorCeil}</colorCeil>
    <normalize>{normalize}</normalize>
 </selfsimilarity>
    }
@@ -278,9 +358,23 @@ extends Processor {
             }
          }
 //         require( imgExt < 0xB504, "Image size too large. Try a decimation of " + ((numCorrs + 0xB503) / 0xB504) )
-         val numPix  = imgExt.toLong * imgExt.toLong
+         val numPix     = imgExt.toLong * imgExt.toLong
+         val imgExtM1   = imgExt - 1
 
          if( verbose ) println( "Image extent is " + imgExt + " (yielding a matrix of " + numPix + " pixels)" )
+
+         val colorFun: Float => Int = settings.colors match {
+            case GrayScale => (sim: Float) => {
+               val i = math.max( 0, math.min( 255, (sim * 255 + 0.5).toInt ))
+               (i << 16) | (i << 8) | i
+            }
+
+            case PsychoOptical => aux.IntensityColorScheme.apply _
+         }
+         require( settings.colorWarp > 0, "Illegal color warp setting. Must be > 0, but is " + settings.colorWarp )
+         require( settings.colorCeil > 0, "Illegal color ceil setting. Must be > 0, but is " + settings.colorCeil )
+         val colorWarp  = settings.colorWarp
+         val colorScale = 1.0f / settings.colorCeil
 
          val img     = new BufferedImage( imgExt, imgExt, BufferedImage.TYPE_INT_RGB )
          val imgData = img.getRaster.getDataBuffer.asInstanceOf[ DataBufferInt ].getData()
@@ -315,16 +409,18 @@ extends Processor {
                      aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
                   } else 0f
                   val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
-                  val colr = aux.IntensityColorScheme( sim )
+                  val colr = colorFun( math.pow( math.max( 0f, sim ), colorWarp ).toFloat * colorScale )
 
-                  val off1 = (rightOff/decim) * imgExt + (leftOff/decim)
-                  val off2 = (leftOff/decim)  * imgExt + (rightOff/decim)
+                  val off1 = (imgExtM1 - rightOff/decim) * imgExt + (leftOff/decim)
+                  val off2 = (imgExtM1 - leftOff/decim)  * imgExt + (rightOff/decim)
                   imgData( off1 ) = colr
                   imgData( off2 ) = colr
 
                   progBlock = (progBlock + 1) % 128
-                  if( progBlock == 0 ) progress( off2.toFloat / numPix )
-
+                  if( progBlock == 0 ) {
+                     val off3 = (leftOff/decim) * imgExt + (rightOff/decim)
+                     progress( off3.toFloat / numPix )
+                  }
                   rightOff += decim
                }
                leftOff += decim
