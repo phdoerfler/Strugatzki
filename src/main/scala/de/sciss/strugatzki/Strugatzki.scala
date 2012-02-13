@@ -328,6 +328,7 @@ object Strugatzki {
       var colorWarp     = 1.0
       var colorCeil     = 1.0
       var colors        = PsychoOptical: ColorScheme
+      var colorInv      = false
       var normalize     = true
 
       implicit val parser  = new OptionParser( name + " -x" ) {
@@ -337,9 +338,10 @@ object Strugatzki {
          doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
          doubleOpt( "span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some( d ))
          doubleOpt( "span-stop", "Correlation end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         opt( "c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme( s ))
          doubleOpt( "color-warp", "Color scale warping factor (default: 1.0)", (d: Double) => colorWarp = d )
          doubleOpt( "color-ceil", "Color scale input ceiling (default: 1.0)", (d: Double) => colorCeil = d )
-         opt( "c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme( s ))
+         opt( "i", "color-inv", "Inverted color scale", colorInv = true )
          intOpt( "m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i )
          arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
          arg( "output", "Image output file", (i: String) => output = Some( i ))
@@ -378,6 +380,7 @@ object Strugatzki {
             set.colors           = colors
             set.colorWarp        = colorWarp.toFloat
             set.colorCeil        = colorCeil.toFloat
+            set.colorInv         = colorInv
             set.normalize        = normalize
 
             if( normalize ) dirOption match {

@@ -142,6 +142,11 @@ object SelfSimilarity extends ProcessorCompanion {
       def colorCeil: Float
 
       /**
+       * Whether the color scale should be inverted (`true`) or not (`false`).
+       */
+      def colorInv: Boolean
+
+      /**
        * Whether to apply normalization to the features (recommended)
        * */
       def normalize : Boolean
@@ -157,6 +162,7 @@ object SelfSimilarity extends ProcessorCompanion {
                   "\n   colors         = " + colors +
                   "\n   colorWarp      = " + colorWarp +
                   "\n   colorCeil      = " + colorCeil +
+                  "\n   colorInv       = " + colorInv +
                   "\n   normalize      = " + normalize + "\n)"
       }
    }
@@ -213,12 +219,16 @@ object SelfSimilarity extends ProcessorCompanion {
        */
       var colorCeil           = 1.0f
       /**
+       * The colors are not inverted by default.
+       */
+      var colorInv            = false
+      /**
        * The feature vector normalization flag defaults to `true`.
        */
       var normalize           = true
 
       def build = Settings( databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight,
-                            colors, colorWarp, colorCeil, normalize )
+                            colors, colorWarp, colorCeil, colorInv, normalize )
 
       def read( settings: Settings ) {
          databaseFolder = settings.databaseFolder
@@ -231,6 +241,7 @@ object SelfSimilarity extends ProcessorCompanion {
          colors         = settings.colors
          colorWarp      = settings.colorWarp
          colorCeil      = settings.colorCeil
+         colorInv       = settings.colorInv
          normalize      = settings.normalize
       }
    }
@@ -260,13 +271,15 @@ object SelfSimilarity extends ProcessorCompanion {
          sb.colors         = ColorScheme( (xml \ "colors").text )
          sb.colorWarp      = (xml \ "colorWarp").text.toFloat
          sb.colorCeil      = (xml \ "colorCeil").text.toFloat
+         sb.colorInv       = (xml \ "colorInv").text.toBoolean
          sb.normalize      = (xml \ "normalize").text.toBoolean
          sb.build
       }
    }
    final case class Settings( databaseFolder: File, metaInput: File, imageOutput: File, span: Option[ Span ],
                               corrLen: Long, decimation: Int, temporalWeight: Float,
-                              colors: ColorScheme, colorWarp: Float, colorCeil: Float, normalize: Boolean )
+                              colors: ColorScheme, colorWarp: Float, colorCeil: Float, colorInv: Boolean,
+                              normalize: Boolean )
    extends SettingsLike {
       private def spanToXML( span: Span ) =
 <span>
@@ -286,6 +299,7 @@ object SelfSimilarity extends ProcessorCompanion {
    <colors>{colors.logicalName}</colors>
    <colorWarp>{colorWarp}</colorWarp>
    <colorCeil>{colorCeil}</colorCeil>
+   <colorInv>{colorInv}</colorInv>
    <normalize>{normalize}</normalize>
 </selfsimilarity>
    }
@@ -363,13 +377,19 @@ extends Processor {
 
          if( verbose ) println( "Image extent is " + imgExt + " (yielding a matrix of " + numPix + " pixels)" )
 
-         val colorFun: Float => Int = settings.colors match {
-            case GrayScale => (sim: Float) => {
+         val colorFun: Float => Int = (settings.colors, settings.colorInv) match {
+            case (GrayScale, false) => (sim: Float) => {
                val i = math.max( 0, math.min( 255, (sim * 255 + 0.5).toInt ))
                (i << 16) | (i << 8) | i
             }
 
-            case PsychoOptical => aux.IntensityColorScheme.apply _
+            case (GrayScale, true) => (sim: Float) => {
+               val i = math.max( 0, math.min( 255, ((1f - sim) * 255 + 0.5).toInt ))
+               (i << 16) | (i << 8) | i
+            }
+
+            case (PsychoOptical, false) => aux.IntensityColorScheme.apply _
+            case (PsychoOptical, true)  => (sim: Float) => aux.IntensityColorScheme( 1f - sim )
          }
          require( settings.colorWarp > 0, "Illegal color warp setting. Must be > 0, but is " + settings.colorWarp )
          require( settings.colorCeil > 0, "Illegal color ceil setting. Must be > 0, but is " + settings.colorCeil )
