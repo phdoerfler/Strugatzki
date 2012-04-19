@@ -8,7 +8,7 @@ Strugatzki is a Scala library containing several algorithms for audio feature ex
 
 ### requirements / installation
 
-Builds with sbt 0.11 against Scala 2.9.1 Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
+Builds with sbt 0.11 against Scala 2.9.2 Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
 
 Strugatzki can be either used as a standalone command line tool, or embedded in your project as a library.
 
@@ -33,7 +33,7 @@ To find out the switches for the extraction module: `run -f`. This will print th
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
-    "de.sciss" %% "strugatzki" % "0.17"
+    "de.sciss" %% "strugatzki" % "0.18"
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 

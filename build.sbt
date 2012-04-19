@@ -1,10 +1,10 @@
 name := "strugatzki"
 
-version := "0.17"
+version := "0.18"
 
 organization := "de.sciss"
 
-scalaVersion := "2.9.1"
+scalaVersion := "2.9.2"
 
 description := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -13,9 +13,9 @@ homepage := Some( url( "https://github.com/Sciss/Strugatzki" ))
 licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalacollider" % "0.32",
-   "com.github.scopt" %% "scopt" % "1.1.3",
-   "org.scalatest" %% "scalatest" % "1.7.1" % "test"
+   "de.sciss" %% "scalacollider" % "0.34",
+   "com.github.scopt" % "scopt_2.9.1" % "2.0.1",    // no scala 2.9.2 version yet
+   "org.scalatest" %% "scalatest" % "1.7.2" % "test"
 )
 
 retrieveManaged := true
@@ -25,12 +25,6 @@ scalacOptions ++= Seq( "-deprecation", "-unchecked" )
 // ---- publishing ----
 
 publishMavenStyle := true
-
-// publishTo <<= version { (v: String) =>
-//    Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-//       if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-//    ))
-// }
 
 publishTo <<= version { (v: String) =>
    Some( if( v.endsWith( "-SNAPSHOT" ))
@@ -56,8 +50,6 @@ pomExtra :=
       <url>http://www.sciss.de</url>
    </developer>
 </developers>
-
-// credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
 
 // ---- ls.implicit.ly ----
 
