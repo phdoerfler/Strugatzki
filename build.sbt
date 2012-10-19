@@ -1,3 +1,5 @@
+import AssemblyKeys._
+
 name := "strugatzki"
 
 version := "0.18"
@@ -50,6 +52,12 @@ pomExtra :=
       <url>http://www.sciss.de</url>
    </developer>
 </developers>
+
+// ---- packaging ----
+
+seq( assemblySettings: _* )
+
+test in assembly := {}
 
 // ---- ls.implicit.ly ----
 
