@@ -36,7 +36,7 @@ import actors.Actor
 * Returns a given number of best matches (maximum change in
 * the feature vector).
 */
-object FeatureSegmentation extends aux.ProcessorCompanion {
+object FeatureSegmentation extends util.ProcessorCompanion {
    /**
     * The result is a sequence of matches, sorted
     * by descending dissimilarity
@@ -250,7 +250,7 @@ object FeatureSegmentation extends aux.ProcessorCompanion {
 //   }
 }
 final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings,
-                                         protected val observer: FeatureSegmentation.Observer ) extends aux.Processor {
+                                         protected val observer: FeatureSegmentation.Observer ) extends util.Processor {
    import FeatureSegmentation._
 
    protected val companion = FeatureSegmentation
@@ -338,12 +338,12 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             val chunkLen   = math.min( left, readSz ).toInt
             afExtr.read( eInBuf, readOff, chunkLen )
             val eInBufOff = logicalOff % winLen
-            aux.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
+            util.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
             val temporal = if( tempWeight > 0f ) {
-               aux.Math.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
+               util.Math.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
             } else 0f
             val spectral = if( tempWeight < 1f ) {
-               aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
+               util.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
             } else 0f
             val sim = temporal * tempWeight + spectral * (1f - tempWeight)
             if( entryHasSpace || sim < highestSim ) {

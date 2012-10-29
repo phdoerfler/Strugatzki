@@ -24,7 +24,7 @@
  */
 
 package de.sciss.strugatzki
-package aux
+package util
 
 import java.io.File
 import de.sciss.synth.io.{AudioFileSpec, SampleFormat, AudioFileType, AudioFile}

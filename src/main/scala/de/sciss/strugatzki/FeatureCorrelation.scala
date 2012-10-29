@@ -37,7 +37,7 @@ import actors.Actor
  * entries against a given audio file input. Returns a given
  * number of best matches.
  */
-object FeatureCorrelation extends aux.ProcessorCompanion {
+object FeatureCorrelation extends util.ProcessorCompanion {
    /**
     * The result is a sequence of matches, sorted
     * by descending similarity
@@ -289,7 +289,7 @@ object FeatureCorrelation extends aux.ProcessorCompanion {
    }
 }
 final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
-                                         protected val observer: FeatureCorrelation.Observer ) extends aux.Processor {
+                                         protected val observer: FeatureCorrelation.Observer ) extends util.Processor {
    import FeatureCorrelation._
 
    protected val companion = FeatureCorrelation
@@ -332,7 +332,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
          b
       } else null // None
 
-      def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( aux.Math.avg( b, bOff, bLen ))
+      def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( util.Math.avg( b, bOff, bLen ))
 
       def calcBoost( in: InputMatrix, b: Array[ Float ]) : Float = {
          val lnAvgB = calcLnAvgLoud( b, 0, in.numFrames )
@@ -349,10 +349,10 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val b          = afIn.buffer( frameNum )
                afIn.seek( start )
                afIn.read( b )
-               aux.Math.normalize( normBuf, b, 0, frameNum )
+               util.Math.normalize( normBuf, b, 0, frameNum )
 
                def feat( mat: Array[ Array[ Float ]]) = {
-                  val (mean, stdDev) = aux.Math.stat( mat, 0, frameNum, 0, mat.length )
+                  val (mean, stdDev) = util.Math.stat( mat, 0, frameNum, 0, mat.length )
                   FeatureMatrix( mat, frameNum, mean, stdDev )
                }
 
@@ -463,7 +463,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
                val chunkLen   = math.min( left, readSz ).toInt
                afExtr.read( eInBuf, readOff, chunkLen )
                val eInBufOff = logicalOff % punchInLen
-               aux.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
+               util.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
                val boost = calcBoost( matrixIn, eInBuf( 0 ))
                val sim = if( boost <= settings.maxBoost ) {
                   val temporal = if( inTempWeight > 0f ) {
@@ -565,7 +565,7 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
                         val chunkLen   = math.min( left, readSz ).toInt
                         afExtr.read( eOutBuf, readOff, chunkLen )
-                        aux.Math.normalize( normBuf, eOutBuf, readOff, chunkLen )
+                        util.Math.normalize( normBuf, eOutBuf, readOff, chunkLen )
                         val extraBufOff = logicalOff % punchOutLen
                         val boost = calcBoost( matrixOut, eOutBuf( 0 ))
                         val sim = if( boost <= settings.maxBoost ) {
@@ -727,8 +727,8 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
       val numFrames     = a.numFrames
       // note: stat does not wrap frame offset around b.numFrames.
       // we thus assume that b really has data from 0 to a.numFrames!
-      val (bMean, bStdDev) = aux.Math.stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
-      aux.Math.correlate( a.mat, a.mean, a.stdDev, numFrames, numChannels, b, bMean, bStdDev, bFrameOff, bChanOff )
+      val (bMean, bStdDev) = util.Math.stat( b, 0 /* FrameOff */, numFrames, bChanOff, numChannels )
+      util.Math.correlate( a.mat, a.mean, a.stdDev, numFrames, numChannels, b, bMean, bStdDev, bFrameOff, bChanOff )
    }
 
    // SCALAC FUCKING CHOKES ON companion.Result

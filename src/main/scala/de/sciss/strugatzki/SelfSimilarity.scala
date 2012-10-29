@@ -26,7 +26,7 @@
 package de.sciss.strugatzki
 
 import java.io.File
-import aux.{ProcessorCompanion, Processor}
+import util.{ProcessorCompanion, Processor}
 import actors.Actor
 import de.sciss.synth.io.AudioFile
 import xml.{XML, NodeSeq}
@@ -388,8 +388,8 @@ extends Processor {
                (i << 16) | (i << 8) | i
             }
 
-            case (PsychoOptical, false) => aux.IntensityColorScheme.apply _
-            case (PsychoOptical, true)  => (sim: Float) => aux.IntensityColorScheme( 1f - sim )
+            case (PsychoOptical, false) => util.IntensityColorScheme.apply _
+            case (PsychoOptical, true)  => (sim: Float) => util.IntensityColorScheme( 1f - sim )
          }
          require( settings.colorWarp > 0, "Illegal color warp setting. Must be > 0, but is " + settings.colorWarp )
          require( settings.colorCeil > 0, "Illegal color ceil setting. Must be > 0, but is " + settings.colorCeil )
@@ -412,7 +412,7 @@ extends Processor {
                // XXX inefficient -- should just read the extra frame in successive iterations
                afExtr.seek( leftOff + afStart )
                afExtr.read( eInBuf, 0, halfWinLen )
-               aux.Math.normalize( normBuf, eInBuf, 0, halfWinLen )
+               util.Math.normalize( normBuf, eInBuf, 0, halfWinLen )
 
                var rightOff   = leftOff
                while( rightOff < stop ) {
@@ -420,13 +420,13 @@ extends Processor {
                   // XXX inefficient -- should just read the extra frame in successive iterations
                   afExtr.seek( rightOff + afStart )
                   afExtr.read( eInBuf, halfWinLen, halfWinLen )
-                  aux.Math.normalize( normBuf, eInBuf, halfWinLen, halfWinLen )
+                  util.Math.normalize( normBuf, eInBuf, halfWinLen, halfWinLen )
 
                   val temporal = if( tempWeight > 0f ) {
-                     aux.Math.correlateHalf( 1, halfWinLen, eInBuf, 0, 0 )
+                     util.Math.correlateHalf( 1, halfWinLen, eInBuf, 0, 0 )
                   } else 0f
                   val spectral = if( tempWeight < 1f ) {
-                     aux.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
+                     util.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
                   } else 0f
                   val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
                   val colr = colorFun( math.pow( math.max( 0f, sim ), colorWarp ).toFloat * colorScale )

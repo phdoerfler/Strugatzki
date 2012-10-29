@@ -34,7 +34,7 @@ import sys.process.{ProcessLogger, Process}
 import xml.{NodeSeq, XML}
 import actors.Actor
 
-object FeatureExtraction extends aux.ProcessorCompanion {
+object FeatureExtraction extends util.ProcessorCompanion {
    def apply( settings: Settings )( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureExtraction = {
       new FeatureExtraction( settings, observer )
    }
@@ -205,7 +205,7 @@ object FeatureExtraction extends aux.ProcessorCompanion {
 }
 final class FeatureExtraction private ( val settings: FeatureExtraction.Settings,
                                         protected val observer: PartialFunction[ FeatureExtraction.ProgressOrResult, Unit ])
-extends aux.Processor {
+extends util.Processor {
    import FeatureExtraction._
 
    protected val companion = FeatureExtraction

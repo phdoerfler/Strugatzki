@@ -27,25 +27,16 @@ package de.sciss.strugatzki
 
 import scopt.OptionParser
 import collection.breakOut
-import java.io.{FilenameFilter, FileFilter, File}
+import java.io.{IOException, FilenameFilter, FileFilter, File}
 import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import FeatureExtraction.{Settings => ESettings, SettingsBuilder => ESettingsBuilder}
 
 object Strugatzki {
-   val name          = "Strugatzki"
-   val version       = 0.18
-   val copyright     = "(C)opyright 2011-2012 Hanns Holger Rutz"
-   val isSnapshot    = false
-
-   def versionString = {
-      val s = (version + 0.001).toString.substring( 0, 4 )
-      if( isSnapshot ) s + "-SNAPSHOT" else s
-   }
-
    val NORMALIZE_NAME   = "feat_norms.aif"
    var tmpDir           = new File( sys.props.getOrElse( "java.io.tmpdir", "/tmp" ))
+   val name             = "Strugatzki"
 
    private lazy val decibelFormat = {
       val res = NumberFormat.getInstance( Locale.US )
@@ -498,7 +489,7 @@ object Strugatzki {
          if( f.isFile ) List( f ) else f.listFiles( new FileFilter {
             def accept( f: File ) = try {
                AudioFile.identify( f ).isDefined
-            } catch { case _ => false }
+            } catch { case _: IOException => false }
          }).toList
       })( breakOut )
 

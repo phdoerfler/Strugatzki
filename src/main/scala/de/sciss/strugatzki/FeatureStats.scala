@@ -29,7 +29,7 @@ import de.sciss.synth.io.AudioFile
 import java.io.File
 import actors.Actor
 
-object FeatureStats extends aux.ProcessorCompanion {
+object FeatureStats extends util.ProcessorCompanion {
    private val log05 = math.log( 0.5 )
 
    def apply( paths: IndexedSeq[ File ])( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureStats = {

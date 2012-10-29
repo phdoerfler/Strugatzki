@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "strugatzki"
 
-version := "0.18"
+version := "1.0.0-SNAPSHOT"
 
 organization := "de.sciss"
 
@@ -15,7 +15,7 @@ homepage := Some( url( "https://github.com/Sciss/Strugatzki" ))
 licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalacollider" % "0.34",
+   "de.sciss" %% "scalacollider" % "1.1.0",
    "com.github.scopt" % "scopt_2.9.1" % "2.0.1",    // no scala 2.9.2 version yet
    "org.scalatest" %% "scalatest" % "1.7.2" % "test"
 )
@@ -23,6 +23,19 @@ libraryDependencies ++= Seq(
 retrieveManaged := true
 
 scalacOptions ++= Seq( "-deprecation", "-unchecked" )
+
+// ---- build info ----
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq( name, organization, version, scalaVersion, description,
+   BuildInfoKey.map( homepage ) { case (k, opt) => k -> opt.get },
+   BuildInfoKey.map( licenses ) { case (_, Seq( (lic, _) )) => "license" -> lic }
+)
+
+buildInfoPackage := "de.sciss.strugatzki"
 
 // ---- publishing ----
 

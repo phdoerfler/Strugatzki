@@ -23,7 +23,7 @@
  *  contact@sciss.de
  */
 
-package de.sciss.strugatzki.aux
+package de.sciss.strugatzki.util
 
 import java.awt.Color
 

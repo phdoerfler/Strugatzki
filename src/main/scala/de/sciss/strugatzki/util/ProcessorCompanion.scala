@@ -24,7 +24,7 @@
  */
 
 package de.sciss.strugatzki
-package aux
+package util
 
 trait ProcessorCompanion {
    // --- abstract stuff ---

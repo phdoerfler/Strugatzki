@@ -1,4 +1,4 @@
-package de.sciss.strugatzki.aux
+package de.sciss.strugatzki.util
 
 object Math {
    /**
