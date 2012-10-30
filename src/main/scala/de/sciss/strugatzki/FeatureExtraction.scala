@@ -27,7 +27,7 @@ package de.sciss.strugatzki
 
 import de.sciss.synth
 import de.sciss.osc.{PacketCodec, Bundle}
-import java.io.{RandomAccessFile, File}
+import java.io.{IOException, RandomAccessFile, File}
 import java.nio.ByteBuffer
 import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
@@ -167,7 +167,14 @@ object FeatureExtraction extends util.ProcessorCompanion {
 
    object Settings {
       implicit def fromBuilder( sb: SettingsBuilder ) : Settings = sb.build
-      def fromXMLFile( file: File ) : Settings = fromXML( XML.loadFile( file ))
+      def fromXMLFile( file: File ) : Settings = {
+         val xml = try {
+            XML.loadFile( file )
+         } catch {
+            case e: Throwable => throw new IOException( "In file: " + file.getPath, e )
+         }
+         fromXML( xml )
+      }
       def fromXML( xml: NodeSeq ) : Settings = {
          val sb = SettingsBuilder()
          sb.audioInput     = new File( (xml \ "input").text )
@@ -378,7 +385,7 @@ extends util.Processor {
 
       settings.metaOutput.foreach { metaFile =>
          val xml = settings.toXML
-         XML.save( metaFile.getAbsolutePath, xml, "UTF-8", true, null )
+         XML.save( metaFile.getAbsolutePath, xml, "UTF-8", xmlDecl = true, doctype = null )
       }
 
       Success( () )
