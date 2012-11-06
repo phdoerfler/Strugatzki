@@ -96,89 +96,94 @@ final class FeatureStats private ( paths: IndexedSeq[ File ],
             i += 1 }
             if( aborted ) Aborted else Success( allMins zip allMaxs )
          } catch {
-            case e => Failure( e )
+            case e: Throwable => Failure( e )
          })
       }
 
       def body( path: File ) : (Array[ Double], Array[ Double ]) = {
          val af      = AudioFile.openRead( path )
-         val bufSz   = math.min( 8192, af.numFrames ).toInt
-         val numCh   = af.numChannels
-         val maxs    = Array.fill( numCh )( Float.NegativeInfinity )
-         val mins    = Array.fill( numCh )( Float.PositiveInfinity )
-         val sums    = new Array[ Double ]( numCh )
-         val skews   = new Array[ Double ]( numCh )
-         val p01     = new Array[ Double ]( numCh )
-         val p99     = new Array[ Double ]( numCh )
-         val b       = af.buffer( bufSz )
-         var left    = af.numFrames
-         val chans   = 0 until numCh
-         while( left > 0 ) {
-            val chunkLen = math.min( left, bufSz ).toInt
-            af.read( b, 0, chunkLen )
-            for( ch <- chans ) {
-               val cb = b( ch )
-               for( i <- 0 until chunkLen ) {
-                  val f = cb( i )
-                  if( f < mins( ch )) mins( ch ) = f
-                  if( f > maxs( ch )) maxs( ch ) = f
-                  sums( ch ) += f
+         try {
+            val bufSz   = math.min( 8192, af.numFrames ).toInt
+            val numCh   = af.numChannels
+            val maxs    = Array.fill( numCh )( Float.NegativeInfinity )
+            val mins    = Array.fill( numCh )( Float.PositiveInfinity )
+            val sums    = new Array[ Double ]( numCh )
+            val skews   = new Array[ Double ]( numCh )
+            val p01     = new Array[ Double ]( numCh )
+            val p99     = new Array[ Double ]( numCh )
+            val b       = af.buffer( bufSz )
+            var left    = af.numFrames
+            val chans   = 0 until numCh
+            while( left > 0 ) {
+               val chunkLen = math.min( left, bufSz ).toInt
+               af.read( b, 0, chunkLen )
+               for( ch <- chans ) {
+                  val cb = b( ch )
+                  for( i <- 0 until chunkLen ) {
+                     val f = cb( i )
+                     if( f < mins( ch )) mins( ch ) = f
+                     if( f > maxs( ch )) maxs( ch ) = f
+                     sums( ch ) += f
+                  }
                }
+               left -= chunkLen
             }
-            left -= chunkLen
-         }
-         for( ch <- chans ) {
-            val mean    = sums( ch ) / af.numFrames
-            val d       = maxs( ch ) - mins( ch )
-            val mn      = (mean - mins( ch )) / d
-            skews( ch ) = log05 / math.log( mn )
-         }
-
-         // second pass
-         val pctils  = Array.ofDim[ Int ]( numCh, 2048 )
-         af.seek( 0L )
-         left = af.numFrames
-         while( left > 0 ) {
-            val chunkLen = math.min( left, bufSz ).toInt
-            af.read( b, 0, chunkLen )
             for( ch <- chans ) {
-               val cb   = b( ch )
-               val cp   = pctils( ch )
+               val mean    = sums( ch ) / af.numFrames
+               val d       = maxs( ch ) - mins( ch )
+               val mn      = (mean - mins( ch )) / d
+               skews( ch ) = log05 / math.log( mn )
+            }
+
+            // second pass
+            val pctils  = Array.ofDim[ Int ]( numCh, 2048 )
+            af.seek( 0L )
+            left = af.numFrames
+            while( left > 0 ) {
+               val chunkLen = math.min( left, bufSz ).toInt
+               af.read( b, 0, chunkLen )
+               for( ch <- chans ) {
+                  val cb   = b( ch )
+                  val cp   = pctils( ch )
+                  val min  = mins( ch )
+                  val d    = maxs( ch ) - min
+                  val skew = skews( ch )
+                  for( i <- 0 until chunkLen ) {
+                     val f    = cb( i )
+                     val norm = (math.pow( (f - min) / d, skew ) * 2047 + 0.5).toInt
+                     cp( norm ) += 1
+                  }
+               }
+               left -= chunkLen
+            }
+            af.close()
+
+            for( ch <- chans ) {
+               val cp = pctils( ch )
+               val p01n = (af.numFrames * 0.01).toInt
+               val p99n = (af.numFrames * 0.99).toInt
+               val skewr = 1.0 / skews( ch )
                val min  = mins( ch )
                val d    = maxs( ch ) - min
-               val skew = skews( ch )
-               for( i <- 0 until chunkLen ) {
-                  val f    = cb( i )
-                  val norm = (math.pow( (f - min) / d, skew ) * 2047 + 0.5).toInt
-                  cp( norm ) += 1
+               var cnt = 0; var i = 0; while( cnt < p01n ) {
+                  cnt += cp( i )
+                  i += 1
                }
+               p01( ch ) = math.pow( i.toDouble / 2048, skewr ) * d + min
+               while( cnt < p99n ) {
+                  cnt += cp( i )
+                  i += 1
+               }
+               p99( ch ) = math.pow( i.toDouble / 2048, skewr ) * d + min
+
+   //            println("i = "+i+"; min = " )
             }
-            left -= chunkLen
+
+            (p01, p99)
+
+         } finally {
+            if( af.isOpen ) af.close()
          }
-         af.close()
-
-         for( ch <- chans ) {
-            val cp = pctils( ch )
-            val p01n = (af.numFrames * 0.01).toInt
-            val p99n = (af.numFrames * 0.99).toInt
-            val skewr = 1.0 / skews( ch )
-            val min  = mins( ch )
-            val d    = maxs( ch ) - min
-            var cnt = 0; var i = 0; while( cnt < p01n ) {
-               cnt += cp( i )
-               i += 1
-            }
-            p01( ch ) = math.pow( i.toDouble / 2048, skewr ) * d + min
-            while( cnt < p99n ) {
-               cnt += cp( i )
-               i += 1
-            }
-            p99( ch ) = math.pow( i.toDouble / 2048, skewr ) * d + min
-
-//            println("i = "+i+"; min = " )
-         }
-
-         (p01, p99)
       }
    }
 }

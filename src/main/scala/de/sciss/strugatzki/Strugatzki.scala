@@ -429,13 +429,16 @@ object Strugatzki {
             println( "  Success." )
             val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
                AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
-            val b = afNorm.buffer( 2 )
-            spans.zipWithIndex.foreach { case ((min, max), i) =>
-               b( i )( 0 ) = min.toFloat
-               b( i )( 1 ) = max.toFloat
+            try {
+               val b = afNorm.buffer( 2 )
+               spans.zipWithIndex.foreach { case ((min, max), i) =>
+                  b( i )( 0 ) = min.toFloat
+                  b( i )( 1 ) = max.toFloat
+               }
+               afNorm.write( b )
+            } finally {
+               afNorm.close()
             }
-            afNorm.write( b )
-            afNorm.close()
             println( "Done." )
          case Failure( e ) =>
             println( "  Failed: " )

@@ -325,11 +325,15 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 
       val normBuf = if( settings.normalize ) {
          val afNorm = AudioFile.openRead( new File( settings.databaseFolder, Strugatzki.NORMALIZE_NAME ))
-         require( (afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L )
-         val b = afNorm.buffer( 2 )
-         afNorm.read( b )
-//         Some( b )
-         b
+         try {
+            require( (afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L )
+            val b = afNorm.buffer( 2 )
+            afNorm.read( b )
+   //         Some( b )
+            b
+         } finally {
+            afNorm.close()
+         }
       } else null // None
 
       def calcLnAvgLoud( b: Array[ Float ], bOff: Int, bLen: Int ) = math.log( util.Math.avg( b, bOff, bLen ))
@@ -425,298 +429,300 @@ final class FeatureCorrelation private ( settings: FeatureCorrelation.Settings,
 //println( matrixIn.temporal.mat(0).toIndexedSeq )
 //println( settings )
 //println( "punch in " + punchInLen )
+      try {
+         // - for each span:
+         extrDBs.zipWithIndex foreach { case (extrDB, extrIdx) =>
 
-      // - for each span:
-      extrDBs.zipWithIndex foreach { case (extrDB, extrIdx) =>
+            if( checkAborted ) return Aborted
 
-         if( checkAborted ) return Aborted
+            if( entryPrio.nonEmpty ) entryPrio = entryPrio.empty
+            lastEntryMatch = null
 
-         if( entryPrio.nonEmpty ) entryPrio = entryPrio.empty
-         lastEntryMatch = null
+   //var xSUM = 0.0
+   //var xCNT = 0
 
-//var xSUM = 0.0
-//var xCNT = 0
+            val afExtr = AudioFile.openRead( extrDB.featureOutput )
+            try {
+               //   - create a temp file
+               //   - write the sliding xcorr to that file
+               // A simple optimization could be to not begin writing the
+               // temp file unless a punch-in correlation is found which is better
+               // than the previous best match. This could also trigger
+               // the punch-out measurement which could thus offset at
+               // first_punch_in + min_punch_len
+               var tInOpen    = false
+               var tInOff     = 0
+               var tInBufOff  = 0
+   //            val b          = afExtr.frameBuffer( math.max( punchInLen, punchOutLen ))
+               var left       = afExtr.numFrames
+               matrixOutO.foreach { mo => left -= minPunch /* + mo.numFrames */}
+               var readSz     = punchInLen   // read full buffer in first round
+               var readOff    = 0
+               var logicalOff = 0
+               // - go through in-span file and calculate correlations
+               while( left > 0 ) {
 
-         val afExtr = AudioFile.openRead( extrDB.featureOutput )
-         try {
-            //   - create a temp file
-            //   - write the sliding xcorr to that file
-            // A simple optimization could be to not begin writing the
-            // temp file unless a punch-in correlation is found which is better
-            // than the previous best match. This could also trigger
-            // the punch-out measurement which could thus offset at
-            // first_punch_in + min_punch_len
-            var tInOpen    = false
-            var tInOff     = 0
-            var tInBufOff  = 0
-//            val b          = afExtr.frameBuffer( math.max( punchInLen, punchOutLen ))
-            var left       = afExtr.numFrames
-            matrixOutO.foreach { mo => left -= minPunch /* + mo.numFrames */}
-            var readSz     = punchInLen   // read full buffer in first round
-            var readOff    = 0
-            var logicalOff = 0
-            // - go through in-span file and calculate correlations
-            while( left > 0 ) {
+                  if( checkAborted ) return Aborted
 
-               if( checkAborted ) return Aborted
+                  val chunkLen   = math.min( left, readSz ).toInt
+                  afExtr.read( eInBuf, readOff, chunkLen )
+                  val eInBufOff = logicalOff % punchInLen
+                  util.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
+                  val boost = calcBoost( matrixIn, eInBuf( 0 ))
+                  val sim = if( boost <= settings.maxBoost ) {
+                     val temporal = if( inTempWeight > 0f ) {
+                        correlate( matrixIn.temporal, eInBuf, eInBufOff, 0 )
+   //if( res > 1 ) {
+   //   println( "temp : " + res + " " + logicalOff )
+   //   val res1 = correlate( matrixIn.temporal, eInBuf, bOff, 0 )
+   //}
+                     } else 0f
+                     val spectral = if( inTempWeight < 1f ) {
+                        correlate( matrixIn.spectral, eInBuf, eInBufOff, 1 )
+   //if( res > 1 ) println( "spec : " + res + " " + logicalOff )
+                     } else 0f
+                     temporal * inTempWeight + spectral * (1f - inTempWeight)
+                  } else {
+                     0f // Float.NegativeInfinity
+                  }
 
-               val chunkLen   = math.min( left, readSz ).toInt
-               afExtr.read( eInBuf, readOff, chunkLen )
-               val eInBufOff = logicalOff % punchInLen
-               util.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
-               val boost = calcBoost( matrixIn, eInBuf( 0 ))
-               val sim = if( boost <= settings.maxBoost ) {
-                  val temporal = if( inTempWeight > 0f ) {
-                     correlate( matrixIn.temporal, eInBuf, eInBufOff, 0 )
-//if( res > 1 ) {
-//   println( "temp : " + res + " " + logicalOff )
-//   val res1 = correlate( matrixIn.temporal, eInBuf, bOff, 0 )
-//}
-                  } else 0f
-                  val spectral = if( inTempWeight < 1f ) {
-                     correlate( matrixIn.spectral, eInBuf, eInBufOff, 1 )
-//if( res > 1 ) println( "spec : " + res + " " + logicalOff )
-                  } else 0f
-                  temporal * inTempWeight + spectral * (1f - inTempWeight)
-               } else {
-                  0f // Float.NegativeInfinity
+   //if( sim > 0f ) {
+   //if( xCNT < 30 ) println( "#" + xCNT + "  " + sim )
+   //   xSUM += sim * sim
+   //   xCNT += 1
+   //}
+
+                  if( matrixOutO.isDefined ) {
+                     if( tInOpen || entryHasSpace || sim > lowestSim ) {
+                        if( !tInOpen ) {
+                           if( tIn == null ) {
+                              tIn = createTempAudioFile( "in", 2 )
+                           } else {
+                              tIn.seek( 0L )
+                           }
+                           tInOff = logicalOff
+                           tInOpen= true
+                        }
+                        tInBuf( 0 )( tInBufOff ) = sim
+                        tInBuf( 1 )( tInBufOff ) = boost
+                        tInBufOff += 1
+                        // flush
+                        if( tInBufOff == 1024 ) {
+                           tIn.write( tInBuf, 0, tInBufOff )
+                           tInBufOff = 0
+                        }
+                     }
+                  } else {
+                     if( entryHasSpace || sim > lowestSim ) {
+                        val start   = featToFull( logicalOff )
+                        val stop    = featToFull( logicalOff + punchInLen )
+                        val m       = Match( sim, extrDB.audioInput, Span( start, stop ), boost, 1f )
+                        addMatch( m )
+                     }
+                  }
+
+                  left   -= chunkLen
+                  readOff = (readOff + chunkLen) % punchInLen
+                  logicalOff += 1
+                  readSz  = 1 // read single frames in successive round (and rotate buffer)
                }
 
-//if( sim > 0f ) {
-//if( xCNT < 30 ) println( "#" + xCNT + "  " + sim )
-//   xSUM += sim * sim
-//   xCNT += 1
-//}
-
-               if( matrixOutO.isDefined ) {
-                  if( tInOpen || entryHasSpace || sim > lowestSim ) {
-                     if( !tInOpen ) {
-                        if( tIn == null ) {
-                           tIn = createTempAudioFile( "in", 2 )
-                        } else {
-                           tIn.seek( 0L )
-                        }
-                        tInOff = logicalOff
-                        tInOpen= true
-                     }
-                     tInBuf( 0 )( tInBufOff ) = sim
-                     tInBuf( 1 )( tInBufOff ) = boost
-                     tInBufOff += 1
+               // - if there is no punch-out, or if no minimally good correlations have been found,
+               //   we're done, otherwise, calculate punch-out correlations
+               (matrixOutO, settings.punchOut, tInOpen) match {
+                  case (Some( matrixOut ), Some( punchOut ), true) =>
                      // flush
-                     if( tInBufOff == 1024 ) {
+                     if( tInBufOff > 0 ) {
                         tIn.write( tInBuf, 0, tInBufOff )
                         tInBufOff = 0
                      }
-                  }
-               } else {
-                  if( entryHasSpace || sim > lowestSim ) {
-                     val start   = featToFull( logicalOff )
-                     val stop    = featToFull( logicalOff + punchInLen )
-                     val m       = Match( sim, extrDB.audioInput, Span( start, stop ), boost, 1f )
-                     addMatch( m )
-                  }
-               }
 
-               left   -= chunkLen
-               readOff = (readOff + chunkLen) % punchInLen
-               logicalOff += 1
-               readSz  = 1 // read single frames in successive round (and rotate buffer)
-            }
+   //var ySUM = 0.0
+   //var yCNT = 0
 
-            // - if there is no punch-out, or if no minimally good correlations have been found,
-            //   we're done, otherwise, calculate punch-out correlations
-            (matrixOutO, settings.punchOut, tInOpen) match {
-               case (Some( matrixOut ), Some( punchOut ), true) =>
-                  // flush
-                  if( tInBufOff > 0 ) {
-                     tIn.write( tInBuf, 0, tInBufOff )
-                     tInBufOff = 0
-                  }
+                     tIn.seek( 0L )
 
-//var ySUM = 0.0
-//var yCNT = 0
+   //                  val piOff0  = tIn.readInt()
+   //                  val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
+                     val poOff0  = tInOff + minPunch
 
-                  tIn.seek( 0L )
-
-//                  val piOff0  = tIn.readInt()
-//                  val poOff0  = piOff0 + minPunch   // this is the minimum offset where we begin correlation for punch-out
-                  val poOff0  = tInOff + minPunch
-
-                  left        = afExtr.numFrames - (poOff0 /*+ matrixOut.numFrames */)
-                  if( left >= matrixOut.numFrames ) {  // means we actually do at least one full correlation
-                     if( tOut == null ) {
-                        tOut = createTempAudioFile( "out", 2 )
-                     } else {
-                        tOut.seek( 0L )
-                     }
-
-                     val outTempWeight = punchOut.temporalWeight
-                     afExtr.seek( poOff0 )
-                     readSz            = punchOutLen   // read full buffer in first round
-                     readOff           = 0
-                     logicalOff        = 0
-                     // - go through out-span file and calculate correlations
-
-                     var tOutBufOff    = 0
-                     val tOutSize      = left
-                     while( left > 0 ) {
-
-                        if( checkAborted ) return Aborted
-
-                        val chunkLen   = math.min( left, readSz ).toInt
-                        afExtr.read( eOutBuf, readOff, chunkLen )
-                        util.Math.normalize( normBuf, eOutBuf, readOff, chunkLen )
-                        val extraBufOff = logicalOff % punchOutLen
-                        val boost = calcBoost( matrixOut, eOutBuf( 0 ))
-                        val sim = if( boost <= settings.maxBoost ) {
-                           val temporal = if( outTempWeight > 0f ) {
-                              correlate( matrixOut.temporal, eOutBuf, extraBufOff, 0 )
-//if( res > 1 ) println( "temp : " + res + " " + tOutBufOff )
-                           } else 0f
-                           val spectral = if( outTempWeight < 1f ) {
-                              correlate( matrixOut.spectral, eOutBuf, extraBufOff, 1 )
-//if( res > 1 ) println( "spec : " + res + " " + tOutBufOff )
-                           } else 0f
-                           temporal * outTempWeight + spectral * (1f - outTempWeight)
+                     left        = afExtr.numFrames - (poOff0 /*+ matrixOut.numFrames */)
+                     if( left >= matrixOut.numFrames ) {  // means we actually do at least one full correlation
+                        if( tOut == null ) {
+                           tOut = createTempAudioFile( "out", 2 )
                         } else {
-                           0f // Float.NegativeInfinity
+                           tOut.seek( 0L )
                         }
 
-//if( sim > Float.NegativeInfinity ) {
-//   ySUM += sim * sim
-//   yCNT += 1
-//}
+                        val outTempWeight = punchOut.temporalWeight
+                        afExtr.seek( poOff0 )
+                        readSz            = punchOutLen   // read full buffer in first round
+                        readOff           = 0
+                        logicalOff        = 0
+                        // - go through out-span file and calculate correlations
 
-                        tOutBuf( 0 )( tOutBufOff ) = sim
-                        tOutBuf( 1 )( tOutBufOff ) = boost
-                        tOutBufOff += 1
-                        if( tOutBufOff == 1024 ) { // flush
+                        var tOutBufOff    = 0
+                        val tOutSize      = left
+                        while( left > 0 ) {
+
+                           if( checkAborted ) return Aborted
+
+                           val chunkLen   = math.min( left, readSz ).toInt
+                           afExtr.read( eOutBuf, readOff, chunkLen )
+                           util.Math.normalize( normBuf, eOutBuf, readOff, chunkLen )
+                           val extraBufOff = logicalOff % punchOutLen
+                           val boost = calcBoost( matrixOut, eOutBuf( 0 ))
+                           val sim = if( boost <= settings.maxBoost ) {
+                              val temporal = if( outTempWeight > 0f ) {
+                                 correlate( matrixOut.temporal, eOutBuf, extraBufOff, 0 )
+   //if( res > 1 ) println( "temp : " + res + " " + tOutBufOff )
+                              } else 0f
+                              val spectral = if( outTempWeight < 1f ) {
+                                 correlate( matrixOut.spectral, eOutBuf, extraBufOff, 1 )
+   //if( res > 1 ) println( "spec : " + res + " " + tOutBufOff )
+                              } else 0f
+                              temporal * outTempWeight + spectral * (1f - outTempWeight)
+                           } else {
+                              0f // Float.NegativeInfinity
+                           }
+
+   //if( sim > Float.NegativeInfinity ) {
+   //   ySUM += sim * sim
+   //   yCNT += 1
+   //}
+
+                           tOutBuf( 0 )( tOutBufOff ) = sim
+                           tOutBuf( 1 )( tOutBufOff ) = boost
+                           tOutBufOff += 1
+                           if( tOutBufOff == 1024 ) { // flush
+                              tOut.write( tOutBuf, 0, tOutBufOff )
+                              tOutBufOff = 0
+                           }
+
+   //                        tOut.writeFloat( sim )
+   //                        tOut.writeFloat( boost )
+                           left   -= chunkLen
+                           readOff = (readOff + chunkLen) % punchOutLen
+                           logicalOff += 1
+                           readSz  = 1 // read single frames in successive round (and rotate buffer)
+                        }
+                        // flush
+                        if( tOutBufOff > 0 ) {
                            tOut.write( tOutBuf, 0, tOutBufOff )
                            tOutBufOff = 0
                         }
 
-//                        tOut.writeFloat( sim )
-//                        tOut.writeFloat( boost )
-                        left   -= chunkLen
-                        readOff = (readOff + chunkLen) % punchOutLen
-                        logicalOff += 1
-                        readSz  = 1 // read single frames in successive round (and rotate buffer)
-                     }
-                     // flush
-                     if( tOutBufOff > 0 ) {
-                        tOut.write( tOutBuf, 0, tOutBufOff )
-                        tOutBufOff = 0
-                     }
+                        // - finally find the best match
+   //                     tIn.seek( 0L )
+   //                     left = tIn.length / 12 // int <off>, float <sim>, float <boost>
+   //println( "---1 (" + left + ")" )
+                        left = afExtr.numFrames - poOff0
+                        tInBufOff   = 1024
+                        var piOff   = tInOff
+                        while( left > 0 ) {
 
-                     // - finally find the best match
-//                     tIn.seek( 0L )
-//                     left = tIn.length / 12 // int <off>, float <sim>, float <boost>
-//println( "---1 (" + left + ")" )
-                     left = afExtr.numFrames - poOff0
-                     tInBufOff   = 1024
-                     var piOff   = tInOff
-                     while( left > 0 ) {
+                           if( checkAborted ) return Aborted
 
-                        if( checkAborted ) return Aborted
-
-                        if( tInBufOff == 1024 ) {
-                           tIn.read( tInBuf, 0, math.min( 1024, left ).toInt )
-                           tInBufOff = 0
-                        }
-
-                        val inSim   = tInBuf( 0 )( tInBufOff )
-                        val boostIn = tInBuf( 1 )( tInBufOff )
-
-//                        val piOff   = tIn.readInt()
-//                        val inSim   = tIn.readFloat()
-//                        val boostIn = tIn.readFloat()
-                        // lowestSim is now
-                        // defined as min( inSim, outSim )
-                        var low  = lowestSim      // cache it here
-                        var hs   = entryHasSpace  // cahce it here
-//                        if( hs || inSim > ws ) // for sim = min( inSim, outSim )
-                        if( inSim > (low * low) ) { // sqrt( inSim * 1 ) > ws
-                           var poOff   = piOff + minPunch
-                           // note: there is room for further optimization:
-                           // we might track in this iteration the best sim
-                           // in tOut, and in the next iteration, if this
-                           // best sim is too bad -- we can just skip over
-                           // the whole previous search span!
-                           val tOutSeek = piOff - tInOff // = numRead from tIn !
-                           tOut.seek( tOutSeek )
-
-//                           tOut.seek( (poOff0 + (piOff - piOff0)) * 8 )
-//                           var left2   = math.min( (tOut.length - tOut.getFilePointer) / 8, maxPunch - minPunch + 1 ) // float <sim>, float <boost>
-                           var left2   = math.min( tOutSize - tOutSeek, maxPunch - minPunch + 1 )
-//println( "---2 (" + left2 + ") " + hs + " | " + ws )
-                           while( left2 > 0 ) {
-
-                              if( checkAborted ) return Aborted
-
-                              val chunkLen = math.min( left2, 1024 ).toInt
-                              tOut.read( tOutBuf, 0, chunkLen )
-
-                              var chunkOff = 0; while( chunkOff < chunkLen ) {
-   //                              val outSim  = tOut.readFloat()
-   //                              val boostOut= tOut.readFloat()
-                                 val outSim  = tOutBuf( 0 )( chunkOff )
-                                 val boostOut= tOutBuf( 1 )( chunkOff )
-//                                 val sim     = math.min( inSim, outSim )
-
-                                 // ok, let's try geometric mean, meaning that
-                                 // in the case of inSim < outSim, the result
-                                 // could still be differentiated among several
-                                 // outSim! (which would be lost in the case of min( inSim, outSim )
-                                 val sim = math.sqrt( inSim * outSim ).toFloat
-//if( sim > 1 ) println( "inSim = " + inSim + " outSim = " + outSim + " sim = " + sim )
-                                 if( hs || sim > low ) {
-                                    val m = Match( sim, extrDB.audioInput,
-                                       Span( featToFull( piOff ), featToFull( poOff )), boostIn, boostOut )
-                                    addMatch( m )
-                                    // clear cache
-                                    low = lowestSim
-                                    hs = entryHasSpace
-
-//                                    // shortcut (with the definition of minSim):
-//                                    // if sim == inSim, the search is over for this round
-//                                    // (because no further sim can be better than inSim)
-//                                    if( outSim >= inSim && !hs ) {
-//                                       left2    = 0
-//                                       chunkOff = chunkLen
-//                                    }
-                                 }
-                                 chunkOff += 1
-                                 poOff += 1
-                              }
-                              left2 -= chunkLen // 1
-//                              poOff += chunkLen // 1
+                           if( tInBufOff == 1024 ) {
+                              tIn.read( tInBuf, 0, math.min( 1024, left ).toInt )
+                              tInBufOff = 0
                            }
-//println( "---3" )
-                        }
-                        left -= 1
-                        tInBufOff += 1
-                        piOff += 1
-                     }
-//println( "---4" )
-//                     tOut.close
-                  }
-//println( "rms punch in = " + (math.sqrt( xSUM ) / xCNT) ) // + " ; punch out = " + (math.sqrt( ySUM ) / yCNT)
 
-               case _ =>
+                           val inSim   = tInBuf( 0 )( tInBufOff )
+                           val boostIn = tInBuf( 1 )( tInBufOff )
+
+   //                        val piOff   = tIn.readInt()
+   //                        val inSim   = tIn.readFloat()
+   //                        val boostIn = tIn.readFloat()
+                           // lowestSim is now
+                           // defined as min( inSim, outSim )
+                           var low  = lowestSim      // cache it here
+                           var hs   = entryHasSpace  // cahce it here
+   //                        if( hs || inSim > ws ) // for sim = min( inSim, outSim )
+                           if( inSim > (low * low) ) { // sqrt( inSim * 1 ) > ws
+                              var poOff   = piOff + minPunch
+                              // note: there is room for further optimization:
+                              // we might track in this iteration the best sim
+                              // in tOut, and in the next iteration, if this
+                              // best sim is too bad -- we can just skip over
+                              // the whole previous search span!
+                              val tOutSeek = piOff - tInOff // = numRead from tIn !
+                              tOut.seek( tOutSeek )
+
+   //                           tOut.seek( (poOff0 + (piOff - piOff0)) * 8 )
+   //                           var left2   = math.min( (tOut.length - tOut.getFilePointer) / 8, maxPunch - minPunch + 1 ) // float <sim>, float <boost>
+                              var left2   = math.min( tOutSize - tOutSeek, maxPunch - minPunch + 1 )
+   //println( "---2 (" + left2 + ") " + hs + " | " + ws )
+                              while( left2 > 0 ) {
+
+                                 if( checkAborted ) return Aborted
+
+                                 val chunkLen = math.min( left2, 1024 ).toInt
+                                 tOut.read( tOutBuf, 0, chunkLen )
+
+                                 var chunkOff = 0; while( chunkOff < chunkLen ) {
+      //                              val outSim  = tOut.readFloat()
+      //                              val boostOut= tOut.readFloat()
+                                    val outSim  = tOutBuf( 0 )( chunkOff )
+                                    val boostOut= tOutBuf( 1 )( chunkOff )
+   //                                 val sim     = math.min( inSim, outSim )
+
+                                    // ok, let's try geometric mean, meaning that
+                                    // in the case of inSim < outSim, the result
+                                    // could still be differentiated among several
+                                    // outSim! (which would be lost in the case of min( inSim, outSim )
+                                    val sim = math.sqrt( inSim * outSim ).toFloat
+   //if( sim > 1 ) println( "inSim = " + inSim + " outSim = " + outSim + " sim = " + sim )
+                                    if( hs || sim > low ) {
+                                       val m = Match( sim, extrDB.audioInput,
+                                          Span( featToFull( piOff ), featToFull( poOff )), boostIn, boostOut )
+                                       addMatch( m )
+                                       // clear cache
+                                       low = lowestSim
+                                       hs = entryHasSpace
+
+   //                                    // shortcut (with the definition of minSim):
+   //                                    // if sim == inSim, the search is over for this round
+   //                                    // (because no further sim can be better than inSim)
+   //                                    if( outSim >= inSim && !hs ) {
+   //                                       left2    = 0
+   //                                       chunkOff = chunkLen
+   //                                    }
+                                    }
+                                    chunkOff += 1
+                                    poOff += 1
+                                 }
+                                 left2 -= chunkLen // 1
+   //                              poOff += chunkLen // 1
+                              }
+   //println( "---3" )
+                           }
+                           left -= 1
+                           tInBufOff += 1
+                           piOff += 1
+                        }
+   //println( "---4" )
+   //                     tOut.close
+                     }
+   //println( "rms punch in = " + (math.sqrt( xSUM ) / xCNT) ) // + " ; punch out = " + (math.sqrt( ySUM ) / yCNT)
+
+                  case _ =>
+               }
+            } finally {
+               afExtr.close()
             }
-         } finally {
-            afExtr.close()
+
+            // - add iter-prio to total-prio, and truncate after num-matches elements
+            allPrio ++= entryPrio
+            if( allPrio.size > settings.numMatches ) allPrio = allPrio.take( settings.numMatches )
+
+            progress( (extrIdx + 1).toFloat / extrDBs.size )
          }
 
-         // - add iter-prio to total-prio, and truncate after num-matches elements
-         allPrio ++= entryPrio
-         if( allPrio.size > settings.numMatches ) allPrio = allPrio.take( settings.numMatches )
-
-         progress( (extrIdx + 1).toFloat / extrDBs.size )
+      } finally {
+         if( tIn  != null ) tIn.close()
+         if( tOut != null ) tOut.close()
       }
-
-      if( tIn != null ) tIn.close()
-      if( tOut != null ) tOut.close()
 
       val pay = allPrio.toIndexedSeq
       Success( pay )

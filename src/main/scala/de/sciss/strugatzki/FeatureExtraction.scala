@@ -358,30 +358,37 @@ extends util.Processor {
 
       val afOutS     = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, numCh, coeffRate )
       val afOut      = AudioFile.openWrite( settings.featureOutput, afOutS )
-      for( i <- 0 until numWrites ) {
-         if( checkAborted ) return Aborted
-         val afIn    = AudioFile.openRead( tmpNames( i ))
-         val b       = afIn.buffer( afIn.numFrames.toInt )
-         val lasts   = new Array[ Float ]( afIn.numChannels )
-         afIn.read( b )
-         afIn.close()
-         // deal with NaNs
-         for( ch <- 0 until afIn.numChannels ) {
-            val cb = b( ch )
-            var last = lasts( ch )
-            for( i <- 0 until cb.size ) {
-               val f = cb( i )
-               if( f.isNaN ) cb( i ) = last else last = f
+      try {
+         for( i <- 0 until numWrites ) {
+            if( checkAborted ) return Aborted
+            val afIn    = AudioFile.openRead( tmpNames( i ))
+            val b       = try {
+               val _b   = afIn.buffer( afIn.numFrames.toInt )
+               afIn.read( _b )
+               _b
+            } finally {
+               afIn.close()
             }
-            lasts( ch ) = last
-         }
+            val lasts   = new Array[ Float ]( afIn.numChannels )
+            // deal with NaNs
+            for( ch <- 0 until afIn.numChannels ) {
+               val cb = b( ch )
+               var last = lasts( ch )
+               for( i <- 0 until cb.size ) {
+                  val f = cb( i )
+                  if( f.isNaN ) cb( i ) = last else last = f
+               }
+               lasts( ch ) = last
+            }
 
-         afOut.write( b )
-         afIn.file.foreach( _.delete() )
-         val prog = ((i + 1).toFloat / numWrites * 0.2f) + 0.8f
-         progress( prog )
+            afOut.write( b )
+            afIn.file.foreach( _.delete() )
+            val prog = ((i + 1).toFloat / numWrites * 0.2f) + 0.8f
+            progress( prog )
+         }
+      } finally {
+         afOut.close()
       }
-      afOut.close()
 
       settings.metaOutput.foreach { metaFile =>
          val xml = settings.toXML

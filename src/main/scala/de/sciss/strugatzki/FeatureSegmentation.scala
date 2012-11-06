@@ -272,7 +272,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
             afNorm.read( b )
             b
          } finally {
-            afNorm.cleanUp()
+            afNorm.close()
          }
       } else null // None
 
@@ -362,7 +362,7 @@ final class FeatureSegmentation private ( settings: FeatureSegmentation.Settings
          progress( 1f )
 
       } finally {
-         afExtr.cleanUp()
+         afExtr.close()
       }
 
       val pay = prio.toIndexedSeq

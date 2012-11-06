@@ -337,7 +337,7 @@ extends Processor {
             afNorm.read( b )
             b
          } finally {
-            afNorm.cleanUp()
+            afNorm.close()
          }
       } else null // None
 
@@ -454,7 +454,7 @@ extends Processor {
             img.flush()
          }
       } finally {
-         afExtr.cleanUp()
+         afExtr.close()
       }
 
       Success( () )
