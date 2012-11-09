@@ -5,7 +5,7 @@ resolvers ++= Seq(
 
 addSbtPlugin( "me.lessis" % "ls-sbt" % "0.1.2" )
 
-addSbtPlugin( "com.eed3si9n" % "sbt-assembly" % "0.8.3" )
+addSbtPlugin( "com.eed3si9n" % "sbt-assembly" % "0.8.5" )
 
 addSbtPlugin( "com.eed3si9n" % "sbt-buildinfo" % "0.2.0" )  // provides version information to copy into main class
 
