@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "strugatzki"
 
-version := "1.0.0"
+version := "1.1.0"
 
 organization := "de.sciss"
 
@@ -16,17 +16,17 @@ licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 libraryDependencies ++= Seq(
    "de.sciss" %% "scalacollider" % "1.1.+",
-//   "com.github.scopt" %% "scopt" % "2.1.0",
+   "com.github.scopt" %% "scopt" % "2.1.0",
    "org.scalatest" %% "scalatest" % "1.8" % "test"
 )
 
-libraryDependencies <+= scalaVersion { sv =>
-   val scopt = sv match {
-      case "2.10.0-RC2" => "com.github.scopt" %  "scopt_2.10.0-RC1"
-      case _ =>            "com.github.scopt" %% "scopt"
-   }
-   scopt % "2.1.0"
-}
+// libraryDependencies <+= scalaVersion { sv =>
+//   val scopt = sv match {
+//      case "2.10.0-RC2" => "com.github.scopt" %  "scopt_2.10.0-RC1"
+//      case _ =>            "com.github.scopt" %% "scopt"
+//   }
+//   scopt % "2.1.0"
+// }
 
 retrieveManaged := true
 
