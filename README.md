@@ -33,7 +33,7 @@ To find out the switches for the extraction module: `run -f`. This will print th
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
-    "de.sciss" %% "strugatzki" % "1.0.+"
+    "de.sciss" %% "strugatzki" % "1.2.+"
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
