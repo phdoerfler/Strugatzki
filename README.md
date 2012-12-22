@@ -8,7 +8,7 @@ Strugatzki is a Scala library containing several algorithms for audio feature ex
 
 ### requirements / installation
 
-Builds with sbt 0.12 against Scala 2.9.2 Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
+Builds with sbt 0.12 against Scala 2.10 (default) and 2.9.2 Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
 
 Strugatzki can be either used as a standalone command line tool, or embedded in your project as a library.
 
@@ -33,7 +33,7 @@ To find out the switches for the extraction module: `run -f`. This will print th
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
-    "de.sciss" %% "strugatzki" % "1.2.+"
+    "de.sciss" %% "strugatzki" % "1.3.+"
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
@@ -84,11 +84,6 @@ For analysis and visualisation purposes, we have added a self similarity module 
 
 You can create a project if you wish to develop the source code of Strugatzki. If you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
-    resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
 
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
-
-Then to create the IDEA project, run the following two commands from the xsbt shell:
-
-    > set ideaProjectName := "Strugatzki"
-    > gen-idea
+Then to create the IDEA project, run `sbt gen-idea`.
