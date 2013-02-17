@@ -2,7 +2,7 @@
  *  FeatureExtraction.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ import synth.io.{AudioFileSpec, AudioFileType, SampleFormat, AudioFile}
 import sys.process.{ProcessLogger, Process}
 import xml.{NodeSeq, XML}
 import actors.Actor
+import language.implicitConversions
 
 object FeatureExtraction extends util.ProcessorCompanion {
    def apply( settings: Settings )( observer: PartialFunction[ ProgressOrResult, Unit ]) : FeatureExtraction = {

@@ -2,7 +2,7 @@
  *  SelfSimilarity.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -32,6 +32,8 @@ import de.sciss.synth.io.AudioFile
 import xml.{XML, NodeSeq}
 import java.awt.image.{DataBufferInt, BufferedImage}
 import javax.imageio.ImageIO
+import language.implicitConversions
+import de.sciss.intensitypalette.IntensityPalette
 
 object SelfSimilarity extends ProcessorCompanion {
    type PayLoad = Unit
@@ -388,8 +390,8 @@ extends Processor {
                (i << 16) | (i << 8) | i
             }
 
-            case (PsychoOptical, false) => util.IntensityColorScheme.apply _
-            case (PsychoOptical, true)  => (sim: Float) => util.IntensityColorScheme( 1f - sim )
+            case (PsychoOptical, false) => IntensityPalette.apply _
+            case (PsychoOptical, true)  => (sim: Float) => IntensityPalette.apply( 1f - sim )
          }
          require( settings.colorWarp > 0, "Illegal color warp setting. Must be > 0, but is " + settings.colorWarp )
          require( settings.colorCeil > 0, "Illegal color ceil setting. Must be > 0, but is " + settings.colorCeil )

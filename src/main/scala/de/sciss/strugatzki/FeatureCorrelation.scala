@@ -2,7 +2,7 @@
  *  FeatureCorrelation.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@ import collection.immutable.{SortedSet => ISortedSet}
 import de.sciss.synth.io.AudioFile
 import xml.{NodeSeq, XML}
 import actors.Actor
+import language.implicitConversions
 
 /**
  * A processor which searches through the database and matches
