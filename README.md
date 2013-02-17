@@ -4,11 +4,11 @@
 
 Strugatzki is a Scala library containing several algorithms for audio feature extraction, with the aim of similarity and dissimilarity measurements. They have been originally used in my live electronic piece ["Inter-Play/Re-Sound"](http://sciss.de/texts/liv_interplay.html), then successively in the tape piece ["Leere Null"](http://sciss.de/texts/tap_leerenull.html), the sound installation ["Writing Machine"](http://sciss.de/texts/ins_writingmachine.html), and the tape piece  ["Leere Null (2)"](http://sciss.de/texts/tap_leerenull2.html).
 
-(C)opyright 2011-2012 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
+(C)opyright 2011-2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ### requirements / installation
 
-Builds with sbt 0.12 against Scala 2.10 (default) and 2.9.2 Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
+Builds with sbt 0.12 against Scala 2.10. Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
 
 Strugatzki can be either used as a standalone command line tool, or embedded in your project as a library.
 
@@ -33,7 +33,9 @@ To find out the switches for the extraction module: `run -f`. This will print th
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
-    "de.sciss" %% "strugatzki" % "1.3.+"
+    "de.sciss" %% "strugatzki" % v
+
+The current version `v` is `"1.4.+"`
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 

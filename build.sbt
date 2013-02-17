@@ -2,29 +2,29 @@ import AssemblyKeys._
 
 name := "strugatzki"
 
-version := "1.3.0"
+version := "1.4.0"
 
 organization := "de.sciss"
 
 scalaVersion := "2.10.0"
 
-crossScalaVersions in ThisBuild := Seq( "2.10.0", "2.9.2" )
+// crossScalaVersions in ThisBuild := Seq( "2.10.0", "2.9.2" )
 
 description := "Algorithms for extracting audio features and matching audio file similarities"
 
-homepage := Some( url( "https://github.com/Sciss/Strugatzki" ))
+homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 
-licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
+licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalacollider" % "1.3.+",
+   "de.sciss" %% "scalacollider" % "1.4.+",
    "com.github.scopt" %% "scopt" % "2.1.0",
-   ("org.scalatest" % "scalatest" % "1.8" cross CrossVersion.full) % "test"
+   "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 )
 
 retrieveManaged := true
 
-scalacOptions ++= Seq( "-deprecation", "-unchecked" )
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
 // ---- build info ----
 
@@ -55,10 +55,10 @@ publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
-pomExtra :=
+pomExtra <<= name { n =>
 <scm>
-  <url>git@github.com:Sciss/Strugatzki.git</url>
-  <connection>scm:git:git@github.com:Sciss/Strugatzki.git</connection>
+  <url>git@github.com:Sciss/{n}.git</url>
+  <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
 </scm>
 <developers>
    <developer>
@@ -67,6 +67,7 @@ pomExtra :=
       <url>http://www.sciss.de</url>
    </developer>
 </developers>
+}
 
 // ---- packaging ----
 
@@ -82,8 +83,5 @@ seq( lsSettings :_* )
 
 (LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" )
 
-(LsKeys.ghRepo in LsKeys.lsync) := Some( "Strugatzki" )
-
-// bug in ls -- doesn't find the licenses from global scope
-(licenses in LsKeys.lsync) := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
+(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
 
