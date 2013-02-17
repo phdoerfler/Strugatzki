@@ -1,6 +1,6 @@
 import AssemblyKeys._
 
-name := "strugatzki"
+name := "Strugatzki"
 
 version := "1.4.0"
 
