@@ -133,9 +133,9 @@ object Strugatzki {
          opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
       }
 
-      if( !parser.parse( args )) sys.exit( 1 )
+    if (!parser.parse(args)) sys.exit(1)
 
-      (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
+    (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
          case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
             val inFile  = new File( in )
             val metaIn  = FeatureExtraction.Config.fromXMLFile( inFile )
@@ -177,7 +177,7 @@ object Strugatzki {
 
                import FeatureCorrelation._
                var lastProg = 0
-               val fc = FeatureCorrelation( set ) {
+               FeatureCorrelation(set) {
                   case Result(Success(res)) if (res.nonEmpty) =>
                      println( "  Success." )
 
@@ -310,101 +310,100 @@ object Strugatzki {
    }
 
    def featureSelf( args: Array[ String ]) {
-//      import SelfSimilarity.{ColorScheme, PsychoOptical, SettingsBuilder}
-//      var dirOption     = Option.empty[ String ]
-//      var verbose       = false
-//      var corrLen       = 1.0
-//      var decim         = 1
-//      var temp          = 0.5
-//      var spanStart     = Option.empty[ Double ]
-//      var spanStop      = Option.empty[ Double ]
-//      var input         = Option.empty[ String ]
-//      var output        = Option.empty[ String ]
-//      var colorWarp     = 1.0
-//      var colorCeil     = 1.0
-//      var colors        = PsychoOptical: ColorScheme
-//      var colorInv      = false
-//      var normalize     = true
-//
-//      implicit val parser  = new OptionParser( name + " -x" ) {
-//         opt( "v", "verbose", "Verbose output", action = { verbose = true })
-//         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
-//         doubleOpt( "length", "Correlation length in secs (default: 1.0)", corrLen = _ )
-//         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
-//         doubleOpt( "span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some( d ))
-//         doubleOpt( "span-stop", "Correlation end in file (secs)", (d: Double) => spanStop  = Some( d ))
-//         opt( "c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme( s ))
-//         doubleOpt( "color-warp", "Color scale warping factor (default: 1.0)", (d: Double) => colorWarp = d )
-//         doubleOpt( "color-ceil", "Color scale input ceiling (default: 1.0)", (d: Double) => colorCeil = d )
-//         opt( "i", "color-inv", "Inverted color scale", action = { colorInv = true })
-//         intOpt( "m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i )
-//         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
-//         arg( "output", "Image output file", (i: String) => output = Some( i ))
-//         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
-//      }
-//
-//      if( !parser.parse( args )) sys.exit( 1 )
-//
-//      (input, output) match {
-//         case (Some( in ), Some( out )) =>
-//            val inFile  = new File( in )
-//            val outFile = new File( out )
-//            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
-//            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
-//
-//            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
-//
-//            val span    = (spanStart, spanStop) match {
-//               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
-//               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
-//               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
-//               case (None,          None)         => None
-//            }
-//            span.foreach( s => require( s.length > 0, "Span is empty" ))
-//            val corrFrames = secsToFrames( corrLen )
-//            require( corrFrames > 0, "Correlation duration is zero" )
-//
-//            SelfSimilarity.verbose = verbose
-//            val set              = SettingsBuilder()
-//            set.metaInput        = inFile
-//            set.imageOutput      = outFile
-//            set.span             = span
-//            set.corrLen          = corrFrames
-//            set.decimation       = decim
-//            set.temporalWeight   = temp.toFloat
-//            set.colors           = colors
-//            set.colorWarp        = colorWarp.toFloat
-//            set.colorCeil        = colorCeil.toFloat
-//            set.colorInv         = colorInv
-//            set.normalize        = normalize
-//
-//            if( normalize ) dirOption match {
-//               case Some( dir )  =>
-//                  set.databaseFolder   = new File( dir )
-//               case _ => exit1()
-//            }
-//
-//            import SelfSimilarity._
-//            var lastProg = 0
-//            val fs = SelfSimilarity( set ) {
-//               case Success( _ )  =>
-//                  println( "  Done." )
-//                  println()
-//               case Failure( e ) =>
-//                  println( "  Failed: " )
-//                  e.printStackTrace()
-//               case Aborted =>
-//                  println( "  Aborted" )
-//               case Progress( perc ) =>
-//                  val i = perc >> 2
-//                  while( lastProg < i ) {
-//                     print( "#" )
-//                  lastProg += 1 }
-//            }
-//            fs.start()
-//
-//         case _ => exit1()
-//      }
+      import SelfSimilarity.{ColorScheme, PsychoOptical, Config}
+      var dirOption     = Option.empty[ String ]
+      var verbose       = false
+      var corrLen       = 1.0
+      var decim         = 1
+      var temp          = 0.5
+      var spanStart     = Option.empty[ Double ]
+      var spanStop      = Option.empty[ Double ]
+      var input         = Option.empty[ String ]
+      var output        = Option.empty[ String ]
+      var colorWarp     = 1.0
+      var colorCeil     = 1.0
+      var colors        = PsychoOptical: ColorScheme
+      var colorInv      = false
+      var normalize     = true
+
+      implicit val parser  = new OptionParser( name + " -x" ) {
+         opt( "v", "verbose", "Verbose output", action = { verbose = true })
+         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
+         doubleOpt( "length", "Correlation length in secs (default: 1.0)", corrLen = _ )
+         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
+         doubleOpt( "span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some( d ))
+         doubleOpt( "span-stop", "Correlation end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         opt( "c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme( s ))
+         doubleOpt( "color-warp", "Color scale warping factor (default: 1.0)", (d: Double) => colorWarp = d )
+         doubleOpt( "color-ceil", "Color scale input ceiling (default: 1.0)", (d: Double) => colorCeil = d )
+         opt( "i", "color-inv", "Inverted color scale", action = { colorInv = true })
+         intOpt( "m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i )
+         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
+         arg( "output", "Image output file", (i: String) => output = Some( i ))
+         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
+      }
+
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      (input, output) match {
+         case (Some( in ), Some( out )) =>
+            val inFile  = new File( in )
+            val outFile = new File( out )
+            val metaIn  = FeatureExtraction.Config.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+
+            val span    = (spanStart, spanStop) match {
+               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
+               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
+               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
+               case (None,          None)         => None
+            }
+            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            val corrFrames = secsToFrames( corrLen )
+            require( corrFrames > 0, "Correlation duration is zero" )
+
+            SelfSimilarity.verbose = verbose
+            val set              = Config()
+            set.metaInput        = inFile
+            set.imageOutput      = outFile
+            set.span             = span
+            set.corrLen          = corrFrames
+            set.decimation       = decim
+            set.temporalWeight   = temp.toFloat
+            set.colors           = colors
+            set.colorWarp        = colorWarp.toFloat
+            set.colorCeil        = colorCeil.toFloat
+            set.colorInv         = colorInv
+            set.normalize        = normalize
+
+            if( normalize ) dirOption match {
+               case Some( dir )  =>
+                  set.databaseFolder   = new File( dir )
+               case _ => exit1()
+            }
+
+            import SelfSimilarity._
+            var lastProg = 0
+            SelfSimilarity(set) {
+               case Result(Success(_)) =>
+                  println( "  Done." )
+                  println()
+               case Result(Failure(Aborted())) =>
+                  println( "  Aborted" )
+               case Result(Failure(e)) =>
+                  println( "  Failed: " )
+                  e.printStackTrace()
+               case Progress( perc ) =>
+                  val i = perc >> 2
+                  while( lastProg < i ) {
+                     print( "#" )
+                  lastProg += 1 }
+            }
+
+         case _ => exit1()
+      }
    }
 
    def featureStats( args: Array[ String ]) {
