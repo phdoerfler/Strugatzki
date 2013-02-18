@@ -218,95 +218,94 @@ object Strugatzki {
   private def toDBStr     (amp: Double) = decibelFormat.format(ampToDB(amp))
 
   def featureSegm( args: Array[ String ]) {
-//      var dirOption     = Option.empty[ String ]
-//      var verbose       = false
-//      var corrLen       = 0.5
-//      var temp          = 0.5
-//      var spanStart     = Option.empty[ Double ]
-//      var spanStop      = Option.empty[ Double ]
-//      var numBreaks     = 1
-//      var minSpacing    = 0.2
-//      var input         = Option.empty[ String ]
-//      var normalize     = true
-//
-//      implicit val parser  = new OptionParser( name + " -s" ) {
-//         opt( "v", "verbose", "Verbose output", action = { verbose = true })
-//         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
-//         doubleOpt( "length", "Correlation length in secs (default: 0.5)", corrLen = _ )
-//         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
-//         doubleOpt( "span-start", "Search begin in file (secs)", (d: Double) => spanStart = Some( d ))
-//         doubleOpt( "span-stop", "Search end in file (secs)", (d: Double) => spanStop  = Some( d ))
-//         intOpt( "m", "num-breaks", "Maximum number of breaks (default 1)", numBreaks = _ )
-//         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.2)", minSpacing = _ )
-//         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
-//         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
-//      }
-//
-//      if( !parser.parse( args )) sys.exit( 1 )
-//
-//      input match {
-//         case Some( in ) =>
-//            val inFile  = new File( in )
-//            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
-//            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
-//
-//            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
-//
-//            val span    = (spanStart, spanStop) match {
-//               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
-//               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
-//               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
-//               case (None,          None)         => None
-//            }
-//            span.foreach( s => require( s.length > 0, "Span is empty" ))
-//            val corrFrames = secsToFrames( corrLen )
-//            require( corrFrames > 0, "Correlation duration is zero" )
-//
-//            FeatureSegmentation.verbose = verbose
-//            val set              = FeatureSegmentation.SettingsBuilder()
-//            set.metaInput        = inFile
-//            set.span             = span
-//            set.corrLen          = corrFrames
-//            set.temporalWeight   = temp.toFloat
-//            set.normalize        = normalize
-//            set.numBreaks        = numBreaks
-//            set.minSpacing       = secsToFrames( minSpacing )
-//
-//            if( normalize ) dirOption match {
-//               case Some( dir )  =>
-//                  set.databaseFolder   = new File( dir )
-//               case _ => exit1()
-//            }
-//
-//            import FeatureSegmentation._
-//            var lastProg = 0
-//            val fs = FeatureSegmentation( set ) {
-//               case Success( res ) if( res.nonEmpty ) =>
-//                  println( "  Success." )
-//
-//                  res.foreach { b =>
-//                     println(  "\nSimilarity: " + toPercentStr( b.sim ) +
-//                               "\nPosition:   " + b.pos )
-//                  }
-//                  println()
-//
-//               case Success( _ ) =>
-//                  println( "  No breaks found." )
-//               case Failure( e ) =>
-//                  println( "  Failed: " )
-//                  e.printStackTrace()
-//               case Aborted =>
-//                  println( "  Aborted" )
-//               case Progress( perc ) =>
-//                  val i = perc >> 2
-//                  while( lastProg < i ) {
-//                     print( "#" )
-//                  lastProg += 1 }
-//            }
-//            fs.start()
-//
-//         case _ => exit1()
-//      }
+      var dirOption     = Option.empty[ String ]
+      var verbose       = false
+      var corrLen       = 0.5
+      var temp          = 0.5
+      var spanStart     = Option.empty[ Double ]
+      var spanStop      = Option.empty[ Double ]
+      var numBreaks     = 1
+      var minSpacing    = 0.2
+      var input         = Option.empty[ String ]
+      var normalize     = true
+
+      implicit val parser  = new OptionParser( name + " -s" ) {
+         opt( "v", "verbose", "Verbose output", action = { verbose = true })
+         opt( "d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some( s ))
+         doubleOpt( "length", "Correlation length in secs (default: 0.5)", corrLen = _ )
+         doubleOpt( "temp", "Temporal weight (0 to 1, default 0.5)", temp = _ )
+         doubleOpt( "span-start", "Search begin in file (secs)", (d: Double) => spanStart = Some( d ))
+         doubleOpt( "span-stop", "Search end in file (secs)", (d: Double) => spanStop  = Some( d ))
+         intOpt( "m", "num-breaks", "Maximum number of breaks (default 1)", numBreaks = _ )
+         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.2)", minSpacing = _ )
+         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
+         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
+      }
+
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      input match {
+         case Some( in ) =>
+            val inFile  = new File( in )
+            val metaIn  = FeatureExtraction.Config.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+
+            val span    = (spanStart, spanStop) match {
+               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
+               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
+               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
+               case (None,          None)         => None
+            }
+            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            val corrFrames = secsToFrames( corrLen )
+            require( corrFrames > 0, "Correlation duration is zero" )
+
+            FeatureSegmentation.verbose = verbose
+            val set              = FeatureSegmentation.Config()
+            set.metaInput        = inFile
+            set.span             = span
+            set.corrLen          = corrFrames
+            set.temporalWeight   = temp.toFloat
+            set.normalize        = normalize
+            set.numBreaks        = numBreaks
+            set.minSpacing       = secsToFrames( minSpacing )
+
+            if( normalize ) dirOption match {
+               case Some( dir )  =>
+                  set.databaseFolder   = new File( dir )
+               case _ => exit1()
+            }
+
+            import FeatureSegmentation._
+            var lastProg = 0
+            FeatureSegmentation( set ) {
+               case Result(Success(res)) if( res.nonEmpty ) =>
+                  println( "  Success." )
+
+                  res.foreach { b =>
+                     println(  "\nSimilarity: " + toPercentStr( b.sim ) +
+                               "\nPosition:   " + b.pos )
+                  }
+                  println()
+
+               case Result(Success(_)) =>
+                  println( "  No breaks found." )
+               case Result(Failure(Aborted())) =>
+                  println( "  Aborted" )
+               case Result(Failure(e)) =>
+                  println( "  Failed: " )
+                  e.printStackTrace()
+               case Progress( perc ) =>
+                  val i = perc >> 2
+                  while( lastProg < i ) {
+                     print( "#" )
+                  lastProg += 1 }
+            }
+
+         case _ => exit1()
+      }
    }
 
    def featureSelf( args: Array[ String ]) {

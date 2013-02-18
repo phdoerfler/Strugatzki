@@ -9,8 +9,8 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
       info( "and transformed forward and backward to XML" )
 
       scenario( "Creating arbitrary configurations" ) {
-         given( "A FeatureExtraction.Settings configuration" )
-         val fe = FeatureExtraction.SettingsBuilder()
+         Given( "A FeatureExtraction.Settings configuration" )
+         val fe = FeatureExtraction.Config()
          fe.audioInput     = new File( new File( "testing.aif" ).getAbsolutePath )
          fe.featureOutput  = new File( "relative.aif" )
          fe.metaOutput     = None
@@ -20,15 +20,15 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
          val fe1 = fe.build
          fe.metaOutput     = Some( fe.audioInput.getParentFile )
          val fe2 = fe.build
-         when( "it is transformed to XML and back to the settings object" )
-         val fe1t = FeatureExtraction.Settings.fromXML( fe1.toXML )
-         val fe2t = FeatureExtraction.Settings.fromXML( fe2.toXML )
-         then( "the result should equal the original settings object" )
+         When( "it is transformed to XML and back to the settings object" )
+         val fe1t = FeatureExtraction.Config.fromXML( fe1.toXML )
+         val fe2t = FeatureExtraction.Config.fromXML( fe2.toXML )
+         Then( "the result should equal the original settings object" )
          assert( fe1 == fe1t )
          assert( fe2 == fe2t )
 
-         given( "A FeatureCorrelation.Settings configuration" )
-         val fc = FeatureCorrelation.SettingsBuilder()
+         Given( "A FeatureCorrelation.Settings configuration" )
+         val fc = FeatureCorrelation.Config()
          fc.databaseFolder      = new File( "db" ).getCanonicalFile
          fc.metaInput           = new File( "rarara.xml" )
          fc.punchIn             = {
@@ -47,27 +47,27 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
          fc.punchOut    = None
          fc.normalize   = !fc.normalize
          val fc2 = fc.build
-         when( "it is transformed to XML and back to the settings object" )
+         When( "it is transformed to XML and back to the settings object" )
 //         println( fc1.toXML )
-         val fc1t = FeatureCorrelation.Settings.fromXML( fc1.toXML )
-         val fc2t = FeatureCorrelation.Settings.fromXML( fc2.toXML )
+         val fc1t = FeatureCorrelation.Config.fromXML( fc1.toXML )
+         val fc2t = FeatureCorrelation.Config.fromXML( fc2.toXML )
 //         println( fc1t.toXML )
-         then( "the result should equal the original settings object" )
+         Then( "the result should equal the original settings object" )
          assert( fc1 == fc1t )
          assert( fc2 == fc2t )
 
-         given( "A FeatureCorrelation.Match result" )
+         Given( "A FeatureCorrelation.Match result" )
          val fm1 = FeatureCorrelation.Match( 0.23f, new File( "gaga.aif" ), Span( 33, 44 ), -6f, -7f )
          val fm2 = FeatureCorrelation.Match( 0.46f, new File( "rara.wav" ).getAbsoluteFile, Span( 666, 777 ), 8f, 9f )
-         when( "it is transformed to XML and back to the match object" )
+         When( "it is transformed to XML and back to the match object" )
          val fm1t = FeatureCorrelation.Match.fromXML( fm1.toXML )
          val fm2t = FeatureCorrelation.Match.fromXML( fm2.toXML )
-         then( "the result should equal the original match object" )
+         Then( "the result should equal the original match object" )
          assert( fm1 == fm1t )
          assert( fm2 == fm2t )
 
-         given( "A FeatureSegmentation.Settings configuration" )
-         val fs = FeatureSegmentation.SettingsBuilder()
+         Given( "A FeatureSegmentation.Settings configuration" )
+         val fs = FeatureSegmentation.Config()
          fs.databaseFolder      = new File( "db" ).getCanonicalFile
          fs.metaInput           = new File( "rarara.xml" )
          fs.span                = Some( Span( 1, 2 ))
@@ -80,12 +80,12 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
          fs.span               = None
          fs.normalize          = !fs.normalize
          val fs2 = fs.build
-         when( "it is transformed to XML and back to the settings object" )
+         When( "it is transformed to XML and back to the settings object" )
 //         println( fs1.toXML )
-         val fs1t = FeatureSegmentation.Settings.fromXML( fs1.toXML )
-         val fs2t = FeatureSegmentation.Settings.fromXML( fs2.toXML )
+         val fs1t = FeatureSegmentation.Config.fromXML( fs1.toXML )
+         val fs2t = FeatureSegmentation.Config.fromXML( fs2.toXML )
 //         println( fs1t.toXML )
-         then( "the result should equal the original settings object" )
+         Then( "the result should equal the original settings object" )
          assert( fs1 == fs1t )
          assert( fs2 == fs2t )
       }
