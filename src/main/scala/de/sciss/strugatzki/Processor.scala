@@ -1,5 +1,5 @@
 /*
- *  ProcessorCompanion.scala
+ *  Processor.scala
  *  (Strugatzki)
  *
  *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
@@ -24,22 +24,14 @@
  */
 
 package de.sciss.strugatzki
-package util
 
-trait ProcessorCompanion {
-   // --- abstract stuff ---
-   type PayLoad
+import concurrent.Future
 
-   // --- concrete stuff ---
-
-   var verbose = false
-
-   type Observer = PartialFunction[ ProgressOrResult, Unit ]
-
-   sealed trait ProgressOrResult
-   final case class Progress( percent: Int ) extends ProgressOrResult
-   sealed trait Result extends ProgressOrResult
-   case class Success( result: PayLoad ) extends Result
-   final case class Failure( t: Throwable ) extends Result
-   case object Aborted extends Result
+object Processor {
+  final case class Aborted() extends RuntimeException
 }
+trait ProcessorLike[PayLoad] extends Future[PayLoad] {
+  def abort(): Unit
+}
+
+trait Processor[PayLoad, Config] extends ProcessorLike[PayLoad]
