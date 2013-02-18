@@ -71,11 +71,14 @@ private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.
     val fftBuf = BufferSpec("fft", numFrames = config.fftSize)
 
     val rCfg = RenderConfig(
-      inFile = config.audioInput, inSpec = inSpec,
-      numFeatures = numFeatures, stepSize = stepSize,
-      buffers = fftBuf :: Nil,
-      outFile = Some(config.featureOutput),
-      progress = progress(_), checkAborted = () => checkAborted()
+      inFile        = config.audioInput,
+      inSpec        = inSpec,
+      numFeatures   = numFeatures,
+      stepSize      = stepSize,
+      buffers       = fftBuf :: Nil,
+      outFile       = Some(config.featureOutput),
+      progress      = progress(_),
+      checkAborted  = () => checkAborted()
     )
 
     val r = render(rCfg)(extract)

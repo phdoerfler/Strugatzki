@@ -33,7 +33,7 @@ import scala.IndexedSeq
 import scala.Some
 import de.sciss.synth.io.AudioFile
 import collection.immutable.{SortedSet => ISortedSet}
-import concurrent.{ExecutionContext, Promise}
+import concurrent.{ExecutionContext, Promise, blocking}
 
 private[strugatzki] final class FeatureCorrelation(val config: FeatureCorrelation.Config,
                                                    protected val observer: FeatureCorrelation.Observer,
@@ -45,7 +45,7 @@ private[strugatzki] final class FeatureCorrelation(val config: FeatureCorrelatio
 
    protected val companion = FeatureCorrelation
 
-  protected def body(): PayLoad = {
+  protected def body(): PayLoad = blocking {
     import FeatureExtraction.{Config => ExtrSettings}
 
     val extrIn    = ExtrSettings.fromXML(XML.loadFile(config.metaInput))

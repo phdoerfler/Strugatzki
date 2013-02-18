@@ -28,7 +28,7 @@ package de.sciss.strugatzki
 import scopt.OptionParser
 import collection.breakOut
 import java.io.{IOException, File}
-import de.sciss.synth.io.AudioFile
+import de.sciss.synth.io.{AudioFileType, SampleFormat, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import FeatureExtraction.{Config => ExtrConfig}
@@ -407,52 +407,51 @@ object Strugatzki {
    }
 
    def featureStats( args: Array[ String ]) {
-//      var dirOption = Option.empty[ String ]
-//      var verbose = false
-//
-//      implicit val parser  = new OptionParser( name + " --stats" ) {
-//         opt( "v", "verbose", "Verbose output", action = { verbose = true })
-//         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
-//      }
-//      if( !parser.parse( args )) sys.exit( 1 )
-//
-//      val dir = dirOption match {
-//         case Some( d ) => d
-//         case None => exit1()
-//      }
-//
-//      println( "Starting stats... " )
-//      val paths: IndexedSeq[ File ] = file(dir).children(_.name.endsWith("_feat.aif"))
-//      import FeatureStats._
-//      var lastProg = 0
-//      val fs = FeatureStats( paths ) {
-//         case Success( spans ) =>
-//            println( "  Success." )
-//            val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
-//               AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
-//            try {
-//               val b = afNorm.buffer( 2 )
-//               spans.zipWithIndex.foreach { case ((min, max), i) =>
-//                  b( i )( 0 ) = min.toFloat
-//                  b( i )( 1 ) = max.toFloat
-//               }
-//               afNorm.write( b )
-//            } finally {
-//               afNorm.close()
-//            }
-//            println( "Done." )
-//         case Failure( e ) =>
-//            println( "  Failed: " )
-//            e.printStackTrace()
-//         case Aborted =>
-//            println( "  Aborted" )
-//         case Progress( perc ) =>
-//            val i = perc >> 2
-//            while( lastProg < i ) {
-//               print( "#" )
-//            lastProg += 1 }
-//      }
-//      fs.start()
+      var dirOption = Option.empty[ String ]
+      var verbose = false
+
+      implicit val parser  = new OptionParser( name + " --stats" ) {
+         opt( "v", "verbose", "Verbose output", action = { verbose = true })
+         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
+      }
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      val dir = dirOption match {
+         case Some( d ) => d
+         case None => exit1()
+      }
+
+      println( "Starting stats... " )
+      val paths = file(dir).children(_.name.endsWith("_feat.aif"))
+      import FeatureStats._
+      var lastProg = 0
+      FeatureStats( paths ) {
+         case Result(Success(spans)) =>
+            println( "  Success." )
+            val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
+               AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
+            try {
+               val b = afNorm.buffer( 2 )
+               spans.zipWithIndex.foreach { case ((min, max), i) =>
+                  b( i )( 0 ) = min.toFloat
+                  b( i )( 1 ) = max.toFloat
+               }
+               afNorm.write( b )
+            } finally {
+               afNorm.close()
+            }
+            println( "Done." )
+         case Result(Failure(Aborted())) =>
+            println( "  Aborted" )
+         case Result(Failure((e))) =>
+            println( "  Failed: " )
+            e.printStackTrace()
+         case Progress(perc) =>
+            val i = perc >> 2
+            while( lastProg < i ) {
+               print( "#" )
+            lastProg += 1 }
+      }
    }
 
    private def exit1()( implicit p: OptionParser ) : Nothing = {
