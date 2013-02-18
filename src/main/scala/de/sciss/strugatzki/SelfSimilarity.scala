@@ -414,7 +414,7 @@
 //               // XXX inefficient -- should just read the extra frame in successive iterations
 //               afExtr.seek( leftOff + afStart )
 //               afExtr.read( eInBuf, 0, halfWinLen )
-//               util.Math.normalize( normBuf, eInBuf, 0, halfWinLen )
+//               util.MathUtil.normalize( normBuf, eInBuf, 0, halfWinLen )
 //
 //               var rightOff   = leftOff
 //               while( rightOff < stop ) {
@@ -422,13 +422,13 @@
 //                  // XXX inefficient -- should just read the extra frame in successive iterations
 //                  afExtr.seek( rightOff + afStart )
 //                  afExtr.read( eInBuf, halfWinLen, halfWinLen )
-//                  util.Math.normalize( normBuf, eInBuf, halfWinLen, halfWinLen )
+//                  util.MathUtil.normalize( normBuf, eInBuf, halfWinLen, halfWinLen )
 //
 //                  val temporal = if( tempWeight > 0f ) {
-//                     util.Math.correlateHalf( 1, halfWinLen, eInBuf, 0, 0 )
+//                     util.MathUtil.correlateHalf( 1, halfWinLen, eInBuf, 0, 0 )
 //                  } else 0f
 //                  val spectral = if( tempWeight < 1f ) {
-//                     util.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
+//                     util.MathUtil.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, 0, 1 )
 //                  } else 0f
 //                  val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
 //                  val colr = colorFun( math.pow( math.max( 0f, sim ), colorWarp ).toFloat * colorScale )

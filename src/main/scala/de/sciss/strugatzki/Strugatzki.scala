@@ -27,11 +27,11 @@ package de.sciss.strugatzki
 
 import scopt.OptionParser
 import collection.breakOut
-import java.io.{IOException, FilenameFilter, FileFilter, File}
-import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+import java.io.{IOException, File}
+import de.sciss.synth.io.AudioFile
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
-import FeatureExtraction.{Config => ESettings, ConfigBuilder => ESettingsBuilder}
+import FeatureExtraction.{Config => ExtrConfig}
 import scala.util.{Failure, Success}
 import de.sciss.strugatzki.Processor.Aborted
 import concurrent.ExecutionContext
@@ -97,121 +97,120 @@ object Strugatzki {
   }
 
   def featureCorr( args: Array[ String ]) {
-//      var dirOption     = Option.empty[ String ]
-//      var verbose       = false
-//      var punchInStart  = Option.empty[ Double ]
-//      var punchInStop   = Option.empty[ Double ]
-//      var tempIn        = 0.5
-//      var punchOutStart = Option.empty[ Double ]
-//      var punchOutStop  = Option.empty[ Double ]
-//      var tempOut       = 0.5
-//      var minPunch      = Option.empty[ Double ]
-//      var maxPunch      = Option.empty[ Double ]
-//      var input         = Option.empty[ String ]
-//      var maxBoost      = 8.0
-//      var numMatches    = 1
-//      var numPerFile    = 1
-//      var minSpacing    = 0.0 // 0.5
-//      var normalize     = true
-//
-//      implicit val parser  = new OptionParser( name + " -c" ) {
-//         opt( "v", "verbose", "Verbose output", action = { verbose = true })
-//         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption    = Some( s ))
-//         doubleOpt( "in-start", "Punch in begin (secs)", (d: Double) => punchInStart  = Some( d ))
-//         doubleOpt( "in-stop", "Punch in end (secs)", (d: Double) => punchInStop   = Some( d ))
-//         doubleOpt( "in-temp", "Temporal weight for punch in (0 to 1, default 0.5)", tempIn = _ )
-//         doubleOpt( "out-start", "Punch out begin (secs)", (d: Double) => punchOutStart = Some( d ))
-//         doubleOpt( "out-stop", "Punch out end (secs)", (d: Double) => punchOutStop  = Some( d ))
-//         doubleOpt( "out-temp", "Temporal weight for punch out (0 to 1, default 0.5)", tempOut = _ )
-//         doubleOpt( "dur-min", "Minimum fill duration (secs)", (d: Double) => minPunch = Some( d ))
-//         doubleOpt( "dur-max", "Maximum fill duration (secs)", (d: Double) => maxPunch = Some( d ))
-//         doubleOpt( "boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _ )
-//         intOpt( "m", "num-matches", "Maximum number of matches (default 1)", numMatches = _ )
-//         intOpt( "num-per-file", "Maximum matches per single file (default 1)", numPerFile = _ )
-//         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.0)", minSpacing = _ )
-//         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
-//         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
-//      }
-//
-//      if( !parser.parse( args )) sys.exit( 1 )
-//
-//      (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
-//         case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
-//            val inFile  = new File( in )
-//            val metaIn  = FeatureExtraction.Settings.fromXMLFile( inFile )
-//            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
-//
-//            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
-//
-//            val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
-//               case (Some( poStart ), Some( poStop )) =>
-//                  val outSpan = Span( secsToFrames( poStart ), secsToFrames( poStop ))
-//                  require( outSpan.length > 0, "Punch out span is empty" )
-//                  true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.toFloat ))
-//
-//               case (None, None) => true -> None
-//               case _ => false -> None
-//            }
-//            if( ok ) {
-//               val inSpan  = Span( secsToFrames( piStart ), secsToFrames( piStop ))
-//               require( inSpan.length > 0, "Punch in span is empty" )
-//               val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.toFloat )
-//               val minFrames  = secsToFrames( pMin )
-//               require( minFrames > 0, "Minimum duration is zero" )
-//               val maxFrames  = secsToFrames( pMax )
-//               require( maxFrames >= minFrames, "Maximum duration is smaller than minimum duration" )
-//
-//               FeatureCorrelation.verbose = verbose
-//               val set              = FeatureCorrelation.SettingsBuilder()
-//               set.databaseFolder   = new File( dir )
-//               set.punchIn          = punchIn
-//               set.punchOut         = punchOutO
-//               set.metaInput        = inFile
-//               set.minPunch         = minFrames
-//               set.maxPunch         = maxFrames
-//               set.normalize        = normalize
-//               set.maxBoost         = maxBoost.toFloat
-//               set.numMatches       = numMatches
-//               set.numPerFile       = numPerFile
-//               set.minSpacing       = secsToFrames( minSpacing )
-//
-//               import FeatureCorrelation._
-//               var lastProg = 0
-//               val fc = FeatureCorrelation( set ) {
-//                  case Success( res ) if( res.nonEmpty ) =>
-//                     println( "  Success." )
-//
-//                     res.foreach { m =>
-//                        println(  "\nFile      : " + m.file.getAbsolutePath +
-//                                  "\nSimilarity: " + toPercentStr( m.sim ) +
-//                                  "\nSpan start: " + m.punch.start +
-//                                  "\nBoost in  : " + toDBStr( m.boostIn ))
-//                        if( punchOutO.isDefined ) {
-//                           println( "Span stop : " + m.punch.stop +
-//                                  "\nBoost out : " + toDBStr( m.boostOut ))
-//                        }
-//                     }
-//                     println()
-//
-//                  case Success( _ ) =>
-//                     println( "  No matches found." )
-//                  case Failure( e ) =>
-//                     println( "  Failed: " )
-//                     e.printStackTrace()
-//                  case Aborted =>
-//                     println( "  Aborted" )
-//                  case Progress( perc ) =>
-//                     val i = perc >> 2
-//                     while( lastProg < i ) {
-//                        print( "#" )
-//                     lastProg += 1 }
-//               }
-//               fc.start()
-//
-//            } else exit1()
-//
-//         case _ => exit1()
-//      }
+      var dirOption     = Option.empty[ String ]
+      var verbose       = false
+      var punchInStart  = Option.empty[ Double ]
+      var punchInStop   = Option.empty[ Double ]
+      var tempIn        = 0.5
+      var punchOutStart = Option.empty[ Double ]
+      var punchOutStop  = Option.empty[ Double ]
+      var tempOut       = 0.5
+      var minPunch      = Option.empty[ Double ]
+      var maxPunch      = Option.empty[ Double ]
+      var input         = Option.empty[ String ]
+      var maxBoost      = 8.0
+      var numMatches    = 1
+      var numPerFile    = 1
+      var minSpacing    = 0.0 // 0.5
+      var normalize     = true
+
+      implicit val parser  = new OptionParser( name + " -c" ) {
+         opt( "v", "verbose", "Verbose output", action = { verbose = true })
+         opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption    = Some( s ))
+         doubleOpt( "in-start", "Punch in begin (secs)", (d: Double) => punchInStart  = Some( d ))
+         doubleOpt( "in-stop", "Punch in end (secs)", (d: Double) => punchInStop   = Some( d ))
+         doubleOpt( "in-temp", "Temporal weight for punch in (0 to 1, default 0.5)", tempIn = _ )
+         doubleOpt( "out-start", "Punch out begin (secs)", (d: Double) => punchOutStart = Some( d ))
+         doubleOpt( "out-stop", "Punch out end (secs)", (d: Double) => punchOutStop  = Some( d ))
+         doubleOpt( "out-temp", "Temporal weight for punch out (0 to 1, default 0.5)", tempOut = _ )
+         doubleOpt( "dur-min", "Minimum fill duration (secs)", (d: Double) => minPunch = Some( d ))
+         doubleOpt( "dur-max", "Maximum fill duration (secs)", (d: Double) => maxPunch = Some( d ))
+         doubleOpt( "boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _ )
+         intOpt( "m", "num-matches", "Maximum number of matches (default 1)", numMatches = _ )
+         intOpt( "num-per-file", "Maximum matches per single file (default 1)", numPerFile = _ )
+         doubleOpt( "spacing", "Minimum spacing between matches within one file (default 0.0)", minSpacing = _ )
+         arg( "input", "Meta file of input to process", (i: String) => input = Some( i ))
+         opt( "no-norm", "Do not apply feature normalization", action = { normalize = false })
+      }
+
+      if( !parser.parse( args )) sys.exit( 1 )
+
+      (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
+         case (Some( in ), Some( piStart ), Some( piStop ), Some( pMin ), Some( pMax ), Some( dir )) =>
+            val inFile  = new File( in )
+            val metaIn  = FeatureExtraction.Config.fromXMLFile( inFile )
+            val inSpec  = AudioFile.readSpec( metaIn.audioInput )
+
+            def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
+
+            val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
+               case (Some( poStart ), Some( poStop )) =>
+                  val outSpan = Span( secsToFrames( poStart ), secsToFrames( poStop ))
+                  require( outSpan.length > 0, "Punch out span is empty" )
+                  true -> Some( FeatureCorrelation.Punch( outSpan, tempOut.toFloat ))
+
+               case (None, None) => true -> None
+               case _ => false -> None
+            }
+            if( ok ) {
+               val inSpan  = Span( secsToFrames( piStart ), secsToFrames( piStop ))
+               require( inSpan.length > 0, "Punch in span is empty" )
+               val punchIn = FeatureCorrelation.Punch( inSpan, tempIn.toFloat )
+               val minFrames  = secsToFrames( pMin )
+               require( minFrames > 0, "Minimum duration is zero" )
+               val maxFrames  = secsToFrames( pMax )
+               require( maxFrames >= minFrames, "Maximum duration is smaller than minimum duration" )
+
+               FeatureCorrelation.verbose = verbose
+               val set              = FeatureCorrelation.Config()
+               set.databaseFolder   = new File( dir )
+               set.punchIn          = punchIn
+               set.punchOut         = punchOutO
+               set.metaInput        = inFile
+               set.minPunch         = minFrames
+               set.maxPunch         = maxFrames
+               set.normalize        = normalize
+               set.maxBoost         = maxBoost.toFloat
+               set.numMatches       = numMatches
+               set.numPerFile       = numPerFile
+               set.minSpacing       = secsToFrames( minSpacing )
+
+               import FeatureCorrelation._
+               var lastProg = 0
+               val fc = FeatureCorrelation( set ) {
+                  case Result(Success(res)) if (res.nonEmpty) =>
+                     println( "  Success." )
+
+                     res.foreach { m =>
+                        println(  "\nFile      : " + m.file.getAbsolutePath +
+                                  "\nSimilarity: " + toPercentStr( m.sim ) +
+                                  "\nSpan start: " + m.punch.start +
+                                  "\nBoost in  : " + toDBStr( m.boostIn ))
+                        if( punchOutO.isDefined ) {
+                           println( "Span stop : " + m.punch.stop +
+                                  "\nBoost out : " + toDBStr( m.boostOut ))
+                        }
+                     }
+                     println()
+
+                  case Result(Success(_)) =>
+                     println( "  No matches found." )
+                  case Result(Failure(Aborted())) =>
+                     println( "  Aborted" )
+                  case Result(Failure(e)) =>
+                     println( "  Failed: " )
+                     e.printStackTrace()
+                  case Progress(perc) =>
+                     val i = perc >> 2
+                     while( lastProg < i ) {
+                        print( "#" )
+                     lastProg += 1 }
+               }
+
+            } else exit1()
+
+         case _ => exit1()
+      }
    }
 
   private def ampToDB     (amp: Double) = 20 * math.log10(amp)
@@ -506,7 +505,7 @@ object Strugatzki {
      })(breakOut)
 
      val targetDir = new File(dir)
-     val sb = ESettingsBuilder()
+     val sb = ExtrConfig()
      sb.channelsBehavior = chanMode
 
      def iter(list: List[File]) {
@@ -527,7 +526,7 @@ object Strugatzki {
      iter(inFiles)
    }
 
-  def feature(set: ESettings)(whenDone: Boolean => Unit) {
+  def feature(set: ExtrConfig)(whenDone: Boolean => Unit) {
     import FeatureExtraction._
     println("Starting extraction... " + set.audioInput.getName)
     var lastProg = 0

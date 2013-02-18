@@ -339,12 +339,12 @@
 //            val chunkLen   = math.min( left, readSz ) // .toInt
 //            afExtr.read( eInBuf, readOff, chunkLen )
 //            val eInBufOff = logicalOff % winLen
-//            util.Math.normalize( normBuf, eInBuf, readOff, chunkLen )
+//            util.MathUtil.normalize( normBuf, eInBuf, readOff, chunkLen )
 //            val temporal = if( tempWeight > 0f ) {
-//               util.Math.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
+//               util.MathUtil.correlateHalf( 1, halfWinLen, eInBuf, eInBufOff, 0 )
 //            } else 0f
 //            val spectral = if( tempWeight < 1f ) {
-//               util.Math.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
+//               util.MathUtil.correlateHalf( extr.numCoeffs, halfWinLen, eInBuf, eInBufOff, 1 )
 //            } else 0f
 //            val sim = temporal * tempWeight + spectral * (1f - tempWeight)
 //            if( entryHasSpace || sim < highestSim ) {

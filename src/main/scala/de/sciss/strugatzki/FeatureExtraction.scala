@@ -118,10 +118,8 @@ object FeatureExtraction extends ProcessorCompanion {
   }
 
   object ConfigBuilder {
-    def apply(): ConfigBuilder = new ConfigBuilder
-
     def apply(settings: Config): ConfigBuilder = {
-      val sb = ConfigBuilder()
+      val sb = Config()
       sb.read(settings)
       sb
     }
@@ -206,7 +204,7 @@ object FeatureExtraction extends ProcessorCompanion {
     }
 
     def fromXML(xml: NodeSeq): Config = {
-      val sb = ConfigBuilder()
+      val sb = Config()
       sb.audioInput     = new File((xml \ "input").text)
       sb.featureOutput  = new File((xml \ "output").text)
       sb.metaOutput     = {

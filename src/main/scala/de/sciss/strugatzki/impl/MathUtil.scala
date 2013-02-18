@@ -1,6 +1,6 @@
-package de.sciss.strugatzki.util
+package de.sciss.strugatzki.impl
 
-object Math {
+object MathUtil {
    /**
     * Calculates the mean and standard deviation of a given matrix
     *
