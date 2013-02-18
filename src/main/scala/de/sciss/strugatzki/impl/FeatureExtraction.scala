@@ -26,15 +26,12 @@
 package de.sciss.strugatzki
 package impl
 
-import sys.process.{ProcessLogger, Process}
 import de.sciss.synth
 import synth.GE
-import synth.io.{AudioFileSpec, SampleFormat, AudioFileType, AudioFile}
-import de.sciss.osc.{PacketCodec, Bundle}
-import java.io.{File, RandomAccessFile}
-import java.nio.ByteBuffer
+import synth.io.AudioFile
 import xml.XML
-import concurrent.{ExecutionContext, Promise}
+import concurrent.{Await, ExecutionContext, Promise}
+import concurrent.duration.Duration
 
 private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.Config,
                                                   protected val observer: FeatureExtraction.Observer,
@@ -46,35 +43,14 @@ private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.
 
   protected val companion = FeatureExtraction
 
-  private var scsynth: Process = null
-
   protected def body() {
     import NonRealtimeProcessor.{BufferSpec, RenderConfig, render}
 
     val inSpec      = AudioFile.readSpec(config.audioInput)
     val inChannels  = inSpec.numChannels
     val stepSize    = config.fftSize / config.fftOverlap
-
-//    val coeffRate = spec.sampleRate / stepSize
-//
-//    val so                = Server.Config()
-//    val oscF              = IOUtil.createTempFile("tmp", ".osc")
-//    val dummyOutput       = IOUtil.createTempFile("tmp", ".aif")
-//    so.inputBusChannels   = spec.numChannels
-//    so.sampleRate         = spec.sampleRate.toInt // coeffRate.toInt
-//    so.outputBusChannels  = 1
-//    so.nrtCommandPath     = oscF.getAbsolutePath
-//    so.nrtInputPath       = Some(config.audioInput.getAbsolutePath)
-//    so.nrtOutputPath      = dummyOutput.getAbsolutePath
-//    so.nrtHeaderFormat    = AudioFileType.AIFF
-//    so.nrtSampleFormat    = SampleFormat.Int16
-//
-//    val s                 = Server.dummy("nrt", so.build)
-//    val coeffBufSize      = 1024 // 888
-    val numFeatures       = config.numCoeffs + 1
-//    val fftBufID          = 0
-//    val coeffBufID        = 1
-    val fftWinType        = 1 // -1 rect, 0 sine, 1 hann
+    val numFeatures = config.numCoeffs + 1
+    val fftWinType  = 1 // -1 rect, 0 sine, 1 hann
 
     def extract(in0: GE): GE = {
       import synth._
@@ -92,12 +68,6 @@ private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.
       sig
     }
 
-//    val syn       = Synth(s)
-//    val fftBuf    = new Buffer(s, fftBufID)
-//    val coeffBuf  = new Buffer(s, coeffBufID)
-//    val numFFTs   = ((spec.numFrames + stepSize - 1) / stepSize).toInt // + 1
-//    val numWrites = (numFFTs + coeffBufSize - 1) / coeffBufSize
-
     val fftBuf = BufferSpec("fft", numFrames = config.fftSize)
 
     val rCfg = RenderConfig(
@@ -108,18 +78,12 @@ private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.
       progress = progress(_), checkAborted = () => checkAborted()
     )
 
-    render(rCfg)(extract)
+    val r = render(rCfg)(extract)
+    Await.result(r, Duration.Inf)
 
     config.metaOutput.foreach { metaFile =>
       val xml = config.toXML
       XML.save(metaFile.getAbsolutePath, xml, "UTF-8", xmlDecl = true, doctype = null)
-    }
-  }
-
-  override protected def cleanUp() {
-    if (scsynth != null) {
-      scsynth.destroy()
-      scsynth = null
     }
   }
 }

@@ -424,9 +424,7 @@ object Strugatzki {
 //      }
 //
 //      println( "Starting stats... " )
-//      val paths: IndexedSeq[ File ] = new File( dir ).listFiles( new FilenameFilter {
-//         def accept( d: File, f: String ) = f.endsWith( "_feat.aif" )
-//      })
+//      val paths: IndexedSeq[ File ] = file(dir).children(_.name.endsWith("_feat.aif"))
 //      import FeatureStats._
 //      var lastProg = 0
 //      val fs = FeatureStats( paths ) {
@@ -494,14 +492,17 @@ object Strugatzki {
      FeatureExtraction.verbose = verbose
      val inFiles: List[File] = inputs.flatMap(p => {
        val f = new File(p)
-       if (f.isFile) List(f)
-       else f.listFiles(new FileFilter {
-         def accept(f: File) = try {
+       if (f.isFile) {
+         f :: Nil
+       } else if (f.isDirectory) {
+         f.children(f => try {
            AudioFile.identify(f).isDefined
          } catch {
            case _: IOException => false
-         }
-       }).toList
+         })
+       } else {
+         sys.error(s"Not a valid input: $p")
+       }
      })(breakOut)
 
      val targetDir = new File(dir)
