@@ -32,8 +32,13 @@ import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
 import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import FeatureExtraction.{Config => ESettings, ConfigBuilder => ESettingsBuilder}
+import scala.util.{Failure, Success}
+import de.sciss.strugatzki.Processor.Aborted
+import concurrent.ExecutionContext
 
 object Strugatzki {
+  import ExecutionContext.Implicits.global
+
   final val NORMALIZE_NAME  = "feat_norms.aif"
   var tmpDir                = new File(sys.props.getOrElse("java.io.tmpdir", "/tmp"))
   final val name            = "Strugatzki"
@@ -209,11 +214,11 @@ object Strugatzki {
 //      }
    }
 
-   private def ampToDB( amp: Double ) = 20 * math.log10( amp )
-   private def toPercentStr( d: Double ) = percentFormat.format( d )
-   private def toDBStr( amp: Double ) = decibelFormat.format( ampToDB( amp ))
+  private def ampToDB     (amp: Double) = 20 * math.log10(amp)
+  private def toPercentStr(d: Double)   = percentFormat.format(d)
+  private def toDBStr     (amp: Double) = decibelFormat.format(ampToDB(amp))
 
-   def featureSegm( args: Array[ String ]) {
+  def featureSegm( args: Array[ String ]) {
 //      var dirOption     = Option.empty[ String ]
 //      var verbose       = false
 //      var corrLen       = 0.5
@@ -522,27 +527,26 @@ object Strugatzki {
    }
 
   def feature(set: ESettings)(whenDone: Boolean => Unit) {
-//    import FeatureExtraction._
-//    println("Starting extraction... " + set.audioInput.getName)
-//    var lastProg = 0
-//    val f = FeatureExtraction(set) {
-//      case Success(_) =>
-//        println("  Success.")
-//        whenDone(true)
-//      case Failure(e) =>
-//        println("  Failed: ")
-//        e.printStackTrace()
-//        whenDone(false)
-//      case Aborted =>
-//        println("  Aborted")
-//        whenDone(false)
-//      case Progress(perc) =>
-//        val i = perc >> 2
-//        while (lastProg < i) {
-//          print("#")
-//          lastProg += 1
-//        }
-//    }
-//    f.start()
+    import FeatureExtraction._
+    println("Starting extraction... " + set.audioInput.getName)
+    var lastProg = 0
+    FeatureExtraction(set) {
+      case Result(Success(_)) =>
+        println("  Success.")
+        whenDone(true)
+      case Result(Failure(Aborted())) =>
+        println("  Aborted")
+        whenDone(false)
+      case Result(Failure(e)) =>
+        println("  Failed: ")
+        e.printStackTrace()
+        whenDone(false)
+      case Progress(perc) =>
+        val i = perc >> 2
+        while (lastProg < i) {
+          print("#")
+          lastProg += 1
+        }
+    }
   }
 }

@@ -51,7 +51,7 @@ private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.
   protected def body() {
     import NonRealtimeProcessor.{BufferSpec, RenderConfig, render}
 
-    val inSpec       = AudioFile.readSpec(config.audioInput)
+    val inSpec      = AudioFile.readSpec(config.audioInput)
     val inChannels  = inSpec.numChannels
     val stepSize    = config.fftSize / config.fftOverlap
 
