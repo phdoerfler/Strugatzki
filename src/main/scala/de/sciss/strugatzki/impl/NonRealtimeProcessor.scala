@@ -41,7 +41,7 @@ object NonRealtimeProcessor {
 
     val s                 = Server.dummy("nrt", so)
     val featBufSize       = 1024
-    val featBuf           = new Buffer(s)
+    val featBuf           = Buffer(s)
     val featRate          = sampleRate / stepSize
 
     val df = SynthDef("nrt") {

@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "Strugatzki"
 
-version := "1.5.0-SNAPSHOT"
+version := "1.5.0"
 
 organization := "de.sciss"
 
@@ -15,7 +15,7 @@ homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalacollider" % "1.4.+",
+   "de.sciss" %% "scalacollider" % "1.5.+",
    "de.sciss" % "intensitypalette" % "1.0.0",
    "com.github.scopt" %% "scopt" % "2.1.0",
    "org.scalatest" %% "scalatest" % "1.9.1" % "test"
