@@ -31,6 +31,7 @@ import de.sciss.synth.io.AudioFile
 import java.io.File
 import collection.immutable.{SortedSet => ISortedSet}
 import concurrent.{Promise, ExecutionContext}
+import de.sciss.span.Span
 
 private[strugatzki] final class FeatureSegmentation(val config: FeatureSegmentation.Config,
                                                     protected val observer: FeatureSegmentation.Observer,
@@ -103,13 +104,15 @@ private[strugatzki] final class FeatureSegmentation(val config: FeatureSegmentat
 
       val afExtr = AudioFile.openRead( extr.featureOutput )
       try {
-         val (afStart, afStop) = config.span match {
-            case Some( span ) =>
-               (math.max( 0, fullToFeat( span.start )), math.min( afExtr.numFrames.toInt, fullToFeat( span.stop )))
-            case None =>
-               (0, afExtr.numFrames.toInt)
-         }
-         val afLen = afStop - afStart
+        val afStart = config.span match {
+          case Span.HasStart(s) => math.max(0, fullToFeat(s))
+          case _ => 0
+        }
+        val afStop = config.span match {
+          case Span.HasStop(s) => math.min(afExtr.numFrames.toInt, fullToFeat(s))
+          case _ => afExtr.numFrames.toInt
+        }
+        val afLen = afStop - afStart
 
          if( afStart > 0 ) afExtr.seek( afStart )
          var left       = afLen // afExtr.numFrames

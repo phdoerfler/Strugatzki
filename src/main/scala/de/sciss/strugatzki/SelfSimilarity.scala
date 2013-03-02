@@ -29,6 +29,8 @@ import java.io.File
 import xml.{XML, NodeSeq}
 import language.implicitConversions
 import concurrent.{ExecutionContext, Promise}
+import de.sciss.span.Span.SpanOrVoid
+import de.sciss.span.Span
 
 object SelfSimilarity extends ProcessorCompanion {
    type PayLoad = Unit
@@ -90,7 +92,7 @@ object SelfSimilarity extends ProcessorCompanion {
        * An option which restricts the calculation to a given span within the
        * input file. If `None`, the whole file is considered.
        */
-      def span: Option[ Span ]
+      def span: Span.NonVoid
 
       /**
        * The size of the sliding window over which the features are correlated.
@@ -188,7 +190,7 @@ object SelfSimilarity extends ProcessorCompanion {
       /**
        * The optional span restriction defaults to `None`.
        */
-      var span                = Option.empty[ Span ]
+      var span                = Span.all: Span.NonVoid
       /**
        * The correlation length defaults to 44100 sample frames
        * (or 1.0 seconds at 44.1 kHz sample rate).
@@ -241,25 +243,25 @@ object SelfSimilarity extends ProcessorCompanion {
          normalize      = settings.normalize
       }
 
-     private final case class Impl( databaseFolder: File, metaInput: File, imageOutput: File, span: Option[ Span ],
+     private final case class Impl( databaseFolder: File, metaInput: File, imageOutput: File, span: Span.NonVoid,
                                 corrLen: Long, decimation: Int, temporalWeight: Float,
                                 colors: ColorScheme, colorWarp: Float, colorCeil: Float, colorInv: Boolean,
                                 normalize: Boolean )
      extends Config {
        override def productPrefix = "Config"
 
-        private def spanToXML( span: Span ) =
-  <span>
-     <start>{span.start}</start>
-     <stop>{span.stop}</stop>
-  </span>
+       private def spanToXML( span: Span.NonVoid ) =
+ <span>
+   {span match { case Span.HasStart(s) => <start>{s}</start>; case _ => Nil}}
+   {span match { case Span.HasStop(s) => <stop>{s}</stop>; case _ => Nil}}
+ </span>
 
         def toXML =
   <selfsimilarity>
      <database>{databaseFolder.getPath}</database>
      <input>{metaInput.getPath}</input>
      <output>{imageOutput.getPath}</output>
-     {span match { case Some( s ) => <span>{spanToXML( s ).child}</span>; case _ => Nil }}
+     {span match { case Span.All => Nil; case _ @ Span(_, _) => <span>{spanToXML(span).child}</span> }}
      <corr>{corrLen}</corr>
      <decimation>{decimation}</decimation>
      <weight>{temporalWeight}</weight>
@@ -277,11 +279,16 @@ object SelfSimilarity extends ProcessorCompanion {
 
       implicit def build( sb: ConfigBuilder ) : Config = sb.build
 
-      private def spanFromXML( xml: NodeSeq ) : Span = {
-         val start   = (xml \ "start").text.toLong
-         val stop    = (xml \ "stop").text.toLong
-         Span( start, stop )
-      }
+     private def spanFromXML(xml: NodeSeq): Span.NonVoid = {
+       val start = (xml \ "start").headOption.map(_.text.toLong)
+       val stop  = (xml \ "stop").headOption.map(_.text.toLong)
+       (start, stop) match {
+         case (Some(_start), Some(_stop)) => Span(_start, _stop)
+         case (Some(_start), None)        => Span.from(_start)
+         case (None,         Some(_stop)) => Span.until(_stop)
+         case (None,         None)        => Span.all
+       }
+     }
 
       def fromXMLFile( file: File ) : Config = fromXML( XML.loadFile( file ))
       def fromXML( xml: NodeSeq ) : Config = {
@@ -291,7 +298,7 @@ object SelfSimilarity extends ProcessorCompanion {
          sb.imageOutput    = new File( (xml \ "output").text )
          sb.span           = {
             val e = xml \ "span"
-            if( e.isEmpty ) None else Some( spanFromXML( e ))
+            if( e.isEmpty ) Span.all else spanFromXML(e)
          }
          sb.corrLen        = (xml \ "corr").text.toLong
          sb.decimation     = (xml \ "decimation").text.toInt

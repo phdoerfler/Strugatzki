@@ -35,6 +35,7 @@ import FeatureExtraction.{Config => ExtrConfig}
 import scala.util.{Failure, Success}
 import de.sciss.strugatzki.Processor.Aborted
 import concurrent.ExecutionContext
+import de.sciss.span.Span
 
 object Strugatzki {
   import ExecutionContext.Implicits.global
@@ -253,12 +254,12 @@ object Strugatzki {
             def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
 
             val span    = (spanStart, spanStop) match {
-               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
-               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
-               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
-               case (None,          None)         => None
+               case (Some( start ), Some( stop )) => Span(secsToFrames(start), secsToFrames(stop))
+               case (Some( start ), None)         => Span.from(secsToFrames(start))
+               case (None,          Some( stop )) => Span.until(secsToFrames(stop))
+               case (None,          None)         => Span.All
             }
-            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            require( span.nonEmpty, "Span is empty" )
             val corrFrames = secsToFrames( corrLen )
             require( corrFrames > 0, "Correlation duration is zero" )
 
@@ -354,12 +355,12 @@ object Strugatzki {
             def secsToFrames( s: Double ) = (s * inSpec.sampleRate + 0.5).toLong
 
             val span    = (spanStart, spanStop) match {
-               case (Some( start ), Some( stop )) => Some( Span( secsToFrames( start ), secsToFrames( stop )))
-               case (Some( start ), None)         => Some( Span( secsToFrames( start ), inSpec.numFrames ))
-               case (None,          Some( stop )) => Some( Span( 0L, secsToFrames( stop )))
-               case (None,          None)         => None
+               case (Some( start ), Some( stop )) => Span(secsToFrames(start), secsToFrames(stop))
+               case (Some( start ), None)         => Span.from(secsToFrames(start))
+               case (None,          Some( stop )) => Span.until(secsToFrames(stop))
+               case (None,          None)         => Span.all
             }
-            span.foreach( s => require( s.length > 0, "Span is empty" ))
+            require( span.nonEmpty, "Span is empty" )
             val corrFrames = secsToFrames( corrLen )
             require( corrFrames > 0, "Correlation duration is zero" )
 

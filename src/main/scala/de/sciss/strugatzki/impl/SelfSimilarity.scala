@@ -8,6 +8,7 @@ import de.sciss.intensitypalette.IntensityPalette
 import java.awt.image.{DataBufferInt, BufferedImage}
 import javax.imageio.ImageIO
 import concurrent.{ExecutionContext, Promise}
+import de.sciss.span.Span
 
 private[strugatzki] final class SelfSimilarity(val config: SelfSimilarity.Config,
                                                protected val observer: SelfSimilarity.Observer,
@@ -44,20 +45,21 @@ extends ProcessorImpl[SelfSimilarity.PayLoad, SelfSimilarity.Config] {
 
       val afExtr = AudioFile.openRead( extr.featureOutput )
       try {
-         val (afStart, afStop) = config.span match {
-            case Some( span ) =>
-               (math.max( 0, fullToFeat( span.start )), math.min( afExtr.numFrames.toInt, fullToFeat( span.stop )))
-            case None =>
-               (0, afExtr.numFrames.toInt)
-         }
-
+        val afStart = config.span match {
+          case Span.HasStart(s) => math.max(0, fullToFeat(s))
+          case _ => 0
+        }
+        val afStop = config.span match {
+          case Span.HasStop(s) => math.min(afExtr.numFrames.toInt, fullToFeat(s))
+          case _ => afExtr.numFrames.toInt
+        }
          val afLen = afStop - afStart
 
-         val numCorrs      = {
-            val n = math.max( 0L, afLen - winLen + 1 )
-//            require( n <= 0xB504, "32-bit overflow" )
-            require( n <= 0x7FFFFFFF, "32-bit overflow" )
-            n.toInt
+         val numCorrs = {
+           val n = math.max(0L, afLen - winLen + 1)
+           // require( n <= 0xB504, "32-bit overflow" )
+           require(n <= 0x7FFFFFFF, "32-bit overflow")
+           n.toInt
          }
          val (decim, imgExt)  = {
             val d = config.decimation

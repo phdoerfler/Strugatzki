@@ -2,6 +2,7 @@ package de.sciss.strugatzki
 
 import java.io.File
 import org.scalatest.{GivenWhenThen, FeatureSpec}
+import de.sciss.span.Span
 
 class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
    feature( "The xml representations should be correct" ) {
@@ -70,14 +71,14 @@ class StrugatzkiSuite extends FeatureSpec with GivenWhenThen {
          val fs = FeatureSegmentation.Config()
          fs.databaseFolder      = new File( "db" ).getCanonicalFile
          fs.metaInput           = new File( "rarara.xml" )
-         fs.span                = Some( Span( 1, 2 ))
+         fs.span                = Span( 1, 2 )
          fs.corrLen            += 1
          fs.temporalWeight     += 0.1f
          fs.normalize           = !fs.normalize
          fs.numBreaks          += 1
          fs.minSpacing         += 1
          val fs1 = fs.build
-         fs.span               = None
+         fs.span               = Span.all
          fs.normalize          = !fs.normalize
          val fs2 = fs.build
          When( "it is transformed to XML and back to the settings object" )

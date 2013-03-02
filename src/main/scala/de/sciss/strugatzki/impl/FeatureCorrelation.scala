@@ -34,6 +34,7 @@ import scala.Some
 import de.sciss.synth.io.AudioFile
 import collection.immutable.{SortedSet => ISortedSet}
 import concurrent.{ExecutionContext, Promise, blocking}
+import de.sciss.span.Span
 
 private[strugatzki] final class FeatureCorrelation(val config: FeatureCorrelation.Config,
                                                    protected val observer: FeatureCorrelation.Observer,
@@ -149,7 +150,7 @@ private[strugatzki] final class FeatureCorrelation(val config: FeatureCorrelatio
     // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
     // the previous match (if the similarity is greater).
     def addMatch(m: Match) {
-      if ((lastEntryMatch != null) && (m.punch.spacing(lastEntryMatch.punch) < config.minSpacing)) {
+      if ((lastEntryMatch != null) && (SpanUtil.spacing(m.punch, lastEntryMatch.punch) < config.minSpacing)) {
         // gotta collapse them
         if (lastEntryMatch.sim < m.sim) {
           // ok, replace previous match

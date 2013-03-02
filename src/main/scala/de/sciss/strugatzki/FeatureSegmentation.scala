@@ -29,6 +29,8 @@ import java.io.File
 import xml.{NodeSeq, XML}
 import language.implicitConversions
 import concurrent.{ExecutionContext, Promise}
+import de.sciss.span.Span
+import impl.SpanUtil
 
 /**
 * A processor which performs segmentation on a given file.
@@ -96,7 +98,7 @@ object FeatureSegmentation extends ProcessorCompanion {
        * input file. That is, only breaking points within this span are
        * reported. If `None`, the whole file is considered.
        */
-      def span: Option[ Span ]
+      def span: Span.NonVoid
 
       /**
        * The size of the sliding window over which the features are correlated.
@@ -154,7 +156,7 @@ object FeatureSegmentation extends ProcessorCompanion {
       /**
        * The optional span restriction defaults to `None`.
        */
-      var span                = Option.empty[ Span ]
+      var span                = Span.All: Span.NonVoid
       /**
        * The correlation length defaults to 22050 sample frames
        * (or 0.5 seconds at 44.1 kHz sample rate).
@@ -191,22 +193,16 @@ object FeatureSegmentation extends ProcessorCompanion {
          minSpacing     = settings.minSpacing
       }
 
-     private final case class Impl( databaseFolder: File, metaInput: File, span: Option[ Span ], corrLen: Long,
+     private final case class Impl( databaseFolder: File, metaInput: File, span: Span.NonVoid, corrLen: Long,
                                 temporalWeight: Float, normalize: Boolean, numBreaks: Int, minSpacing: Long )
      extends Config {
        override def productPrefix = "Config"
-
-        private def spanToXML( span: Span ) =
-  <span>
-     <start>{span.start}</start>
-     <stop>{span.stop}</stop>
-  </span>
 
         def toXML =
   <segmentation>
      <database>{databaseFolder.getPath}</database>
      <input>{metaInput.getPath}</input>
-     {span match { case Some( s ) => <span>{spanToXML( s ).child}</span>; case _ => Nil }}
+     <span>{SpanUtil.toXML(span)}</span>
      <corr>{corrLen}</corr>
      <weight>{temporalWeight}</weight>
      <normalize>{normalize}</normalize>
@@ -221,21 +217,12 @@ object FeatureSegmentation extends ProcessorCompanion {
 
       implicit def build( sb: ConfigBuilder ) : Config = sb.build
 
-      private def spanFromXML( xml: NodeSeq ) : Span = {
-         val start   = (xml \ "start").text.toLong
-         val stop    = (xml \ "stop").text.toLong
-         Span( start, stop )
-      }
-
-      def fromXMLFile( file: File ) : Config = fromXML( XML.loadFile( file ))
+     def fromXMLFile( file: File ) : Config = fromXML( XML.loadFile( file ))
       def fromXML( xml: NodeSeq ) : Config = {
          val sb = Config()
          sb.databaseFolder = new File( (xml \ "database").text )
          sb.metaInput      = new File( (xml \ "input").text )
-         sb.span           = {
-            val e = xml \ "span"
-            if( e.isEmpty ) None else Some( spanFromXML( e ))
-         }
+         sb.span           = SpanUtil.fromXML(xml \ "span")
          sb.corrLen        = (xml \ "corr").text.toLong
          sb.temporalWeight = (xml \ "weight").text.toFloat
          sb.normalize      = (xml \ "normalize").text.toBoolean

@@ -29,6 +29,7 @@ import java.io.File
 import xml.{NodeSeq, XML}
 import language.implicitConversions
 import concurrent.{ExecutionContext, Promise}
+import de.sciss.span.Span
 
 /**
 * A processor which searches through the database and matches
