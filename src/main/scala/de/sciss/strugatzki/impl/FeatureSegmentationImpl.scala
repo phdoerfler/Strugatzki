@@ -1,5 +1,5 @@
 /*
- *  FeatureSegmentation.scala
+ *  FeatureSegmentationImpl.scala
  *  (Strugatzki)
  *
  *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
@@ -30,19 +30,14 @@ import xml.XML
 import de.sciss.synth.io.AudioFile
 import java.io.File
 import collection.immutable.{SortedSet => ISortedSet}
-import concurrent.{Promise, ExecutionContext}
 import de.sciss.span.Span
+import de.sciss.processor.impl.ProcessorImpl
 
-private[strugatzki] final class FeatureSegmentation(val config: FeatureSegmentation.Config,
-                                                    protected val observer: FeatureSegmentation.Observer,
-                                                    protected val promise: Promise[FeatureSegmentation.PayLoad])
-                                                   (implicit protected val executionContext: ExecutionContext)
-  extends ProcessorImpl[FeatureSegmentation.PayLoad, FeatureSegmentation.Config] {
+private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegmentation.Config)
+  extends FeatureSegmentation with ProcessorImpl[FeatureSegmentation.Product, FeatureSegmentation] {
    import FeatureSegmentation._
 
-   protected val companion = FeatureSegmentation
-
-   protected def body(): PayLoad = {
+   protected def body(): Product = {
       import FeatureExtraction.{ Config => ExtrConfig }
 
       val extr       = ExtrConfig.fromXML( XML.loadFile( config.metaInput ))

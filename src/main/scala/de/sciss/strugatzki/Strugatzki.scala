@@ -33,9 +33,10 @@ import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import FeatureExtraction.{Config => ExtrConfig}
 import scala.util.{Failure, Success}
-import de.sciss.strugatzki.Processor.Aborted
-import concurrent.ExecutionContext
+import de.sciss.processor.{ProcessorFactory, Processor}
+import concurrent.{Future, Await, ExecutionContext}
 import de.sciss.span.Span
+import concurrent.duration.Duration
 
 object Strugatzki {
   import ExecutionContext.Implicits.global
@@ -95,6 +96,12 @@ object Strugatzki {
           sys.exit(1)
       }
     } else sys.exit(1) // parser.showUsage
+  }
+
+  private def go(factory: ProcessorFactory { type Repr <: Future[_]})(config: factory.Config)
+                (observer: factory.Observer) {
+    val proc = factory.run(config)(observer)
+    Await.ready(proc, Duration.Inf)
   }
 
   def featureCorr( args: Array[ String ]) {
@@ -176,10 +183,10 @@ object Strugatzki {
                set.numPerFile       = numPerFile
                set.minSpacing       = secsToFrames( minSpacing )
 
-               import FeatureCorrelation._
+               import Processor._
                var lastProg = 0
-               FeatureCorrelation(set) {
-                  case Result(Success(res)) if (res.nonEmpty) =>
+               go(FeatureCorrelation)(set) {
+                  case Result(_, Success(res)) if (res.nonEmpty) =>
                      println( "  Success." )
 
                      res.foreach { m =>
@@ -194,15 +201,15 @@ object Strugatzki {
                      }
                      println()
 
-                  case Result(Success(_)) =>
+                  case Result(_, Success(_)) =>
                      println( "  No matches found." )
-                  case Result(Failure(Aborted())) =>
+                  case Result(_, Failure(Aborted())) =>
                      println( "  Aborted" )
-                  case Result(Failure(e)) =>
+                  case Result(_, Failure(e)) =>
                      println( "  Failed: " )
                      e.printStackTrace()
-                  case Progress(perc) =>
-                     val i = perc >> 2
+                  case Progress(_, perc) =>
+                    val i = (perc * 25).toInt
                      while( lastProg < i ) {
                         print( "#" )
                      lastProg += 1 }
@@ -279,10 +286,10 @@ object Strugatzki {
                case _ => exit1()
             }
 
-            import FeatureSegmentation._
+            import Processor._
             var lastProg = 0
-            FeatureSegmentation( set ) {
-               case Result(Success(res)) if( res.nonEmpty ) =>
+            go(FeatureSegmentation)(set) {
+               case Result(_, Success(res)) if( res.nonEmpty ) =>
                   println( "  Success." )
 
                   res.foreach { b =>
@@ -291,15 +298,15 @@ object Strugatzki {
                   }
                   println()
 
-               case Result(Success(_)) =>
+               case Result(_, Success(_)) =>
                   println( "  No breaks found." )
-               case Result(Failure(Aborted())) =>
+               case Result(_, Failure(Aborted())) =>
                   println( "  Aborted" )
-               case Result(Failure(e)) =>
+               case Result(_, Failure(e)) =>
                   println( "  Failed: " )
                   e.printStackTrace()
-               case Progress( perc ) =>
-                  val i = perc >> 2
+               case Progress(_, perc) =>
+                 val i = (perc * 25).toInt
                   while( lastProg < i ) {
                      print( "#" )
                   lastProg += 1 }
@@ -384,19 +391,19 @@ object Strugatzki {
                case _ => exit1()
             }
 
-            import SelfSimilarity._
+            import Processor._
             var lastProg = 0
-            SelfSimilarity(set) {
-               case Result(Success(_)) =>
+            go(SelfSimilarity)(set) {
+               case Result(_, Success(_)) =>
                   println( "  Done." )
                   println()
-               case Result(Failure(Aborted())) =>
+               case Result(_, Failure(Aborted())) =>
                   println( "  Aborted" )
-               case Result(Failure(e)) =>
+               case Result(_, Failure(e)) =>
                   println( "  Failed: " )
                   e.printStackTrace()
-               case Progress( perc ) =>
-                  val i = perc >> 2
+               case Progress(_, perc ) =>
+                 val i = (perc * 25).toInt
                   while( lastProg < i ) {
                      print( "#" )
                   lastProg += 1 }
@@ -423,10 +430,10 @@ object Strugatzki {
 
       println( "Starting stats... " )
       val paths = file(dir).children(_.name.endsWith("_feat.aif"))
-      import FeatureStats._
+      import Processor._
       var lastProg = 0
-      FeatureStats( paths ) {
-         case Result(Success(spans)) =>
+      go(FeatureStats)(paths) {
+         case Result(_, Success(spans)) =>
             println( "  Success." )
             val afNorm = AudioFile.openWrite( new File( dir, NORMALIZE_NAME ),
                AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100 ))
@@ -441,14 +448,14 @@ object Strugatzki {
                afNorm.close()
             }
             println( "Done." )
-         case Result(Failure(Aborted())) =>
+         case Result(_, Failure(Aborted())) =>
             println( "  Aborted" )
-         case Result(Failure((e))) =>
+         case Result(_, Failure((e))) =>
             println( "  Failed: " )
             e.printStackTrace()
-         case Progress(perc) =>
-            val i = perc >> 2
-            while( lastProg < i ) {
+         case Progress(_, perc) =>
+           val i = (perc * 25).toInt
+            while (lastProg < i) {
                print( "#" )
             lastProg += 1 }
       }
@@ -525,22 +532,22 @@ object Strugatzki {
    }
 
   def feature(set: ExtrConfig)(whenDone: Boolean => Unit) {
-    import FeatureExtraction._
+    import Processor._
     println("Starting extraction... " + set.audioInput.getName)
     var lastProg = 0
-    FeatureExtraction(set) {
-      case Result(Success(_)) =>
+    go(FeatureExtraction)(set) {
+      case Result(_, Success(_)) =>
         println("  Success.")
         whenDone(true)
-      case Result(Failure(Aborted())) =>
+      case Result(_, Failure(Aborted())) =>
         println("  Aborted")
         whenDone(false)
-      case Result(Failure(e)) =>
+      case Result(_, Failure(e)) =>
         println("  Failed: ")
         e.printStackTrace()
         whenDone(false)
-      case Progress(perc) =>
-        val i = perc >> 2
+      case Progress(_, perc) =>
+        val i = (perc * 25).toInt
         while (lastProg < i) {
           print("#")
           lastProg += 1

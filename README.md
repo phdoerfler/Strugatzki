@@ -35,7 +35,7 @@ If you build your project with sbt, the following line adds a dependency for Str
 
     "de.sciss" %% "strugatzki" % v
 
-The current version `v` is `"1.6.+"`
+The current version `v` is `"1.7.+"`
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
@@ -44,18 +44,18 @@ As documentation you are referred to the API docs at the moment. These can be cr
     import de.sciss.strugatzki._
     import java.io.File
     
-    val fs = FeatureExtraction.SettingsBuilder()
-    fs.audioInput    = new File( "my-audio-input" )
-    fs.featureOutput = new File( "my-feature-aiff-output" )
-    fs.metaOutput    = Some( new File( "my-meta-data-xml-output" ))  // optional
+    val fs = FeatureExtraction.Config()
+    fs.audioInput    = new File("my-audio-input")
+    fs.featureOutput = new File("my-feature-aiff-output")
+    fs.metaOutput    = Some(new File("my-meta-data-xml-output"))  // optional
     
     // the process is constructed with the settings and a partial function which
     // acts as a process observer
-    val f = FeatureExtraction( fs ) {
-        case FeatureExtraction.Success( _ ) => println( "Done." )
+    val f = FeatureExtraction.run(fs) {
+      case Processor.Success(_, _) => println("Done.")
     }
-    f.start()  // this launches the processing thread
-    
+    // f is a `Future` of the result you may want to work with
+
 ```
 
 For the detailed settings, such as FFT size, number of MFCC, etc., please refer to the API docs.
@@ -81,11 +81,3 @@ We have found it quite useful to normalize the MFCC by creating statistics over 
 #### self similarity
 
 For analysis and visualisation purposes, we have added a self similarity module which produces a `png` image file with the self similarity matrix of a given feature file.
-
-### creating an IntelliJ IDEA project
-
-You can create a project if you wish to develop the source code of Strugatzki. If you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
-
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
-
-Then to create the IDEA project, run `sbt gen-idea`.

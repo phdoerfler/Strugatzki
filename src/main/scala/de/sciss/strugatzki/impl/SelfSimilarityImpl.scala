@@ -3,23 +3,18 @@ package impl
 
 import de.sciss.synth.io.AudioFile
 import java.io.File
-import scala.Some
 import de.sciss.intensitypalette.IntensityPalette
 import java.awt.image.{DataBufferInt, BufferedImage}
 import javax.imageio.ImageIO
-import concurrent.{ExecutionContext, Promise}
 import de.sciss.span.Span
+import de.sciss.processor.impl.ProcessorImpl
 
-private[strugatzki] final class SelfSimilarity(val config: SelfSimilarity.Config,
-                                               protected val observer: SelfSimilarity.Observer,
-                                               protected val promise: Promise[SelfSimilarity.PayLoad])
-                                              (implicit protected val executionContext: ExecutionContext)
-extends ProcessorImpl[SelfSimilarity.PayLoad, SelfSimilarity.Config] {
-   import SelfSimilarity._
+private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Config)
+  extends SelfSimilarity with ProcessorImpl[SelfSimilarity.Product, SelfSimilarity] {
 
-   protected val companion = SelfSimilarity
+  import SelfSimilarity._
 
-   protected def body(): PayLoad = {
+  protected def body(): Product = {
       val extr          = FeatureExtraction.Config.fromXMLFile( config.metaInput )
       val stepSize      = extr.fftSize / extr.fftOverlap
 

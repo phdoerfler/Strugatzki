@@ -28,52 +28,54 @@ package de.sciss.strugatzki
 import java.io.File
 import xml.{NodeSeq, XML}
 import language.implicitConversions
-import concurrent.{ExecutionContext, Promise}
 import de.sciss.span.Span
 import impl.SpanUtil
+import de.sciss.processor.{Processor, ProcessorFactory}
 
 /**
 * A processor which performs segmentation on a given file.
 * Returns a given number of best matches (maximum change in
 * the feature vector).
 */
-object FeatureSegmentation extends ProcessorCompanion {
-   /**
-    * The result is a sequence of matches, sorted
-    * by descending dissimilarity
-    */
-   type PayLoad = IndexedSeq[ Break ]
+object FeatureSegmentation extends ProcessorFactory.WithDefaults {
+  var verbose = false
 
-   object Break {
-      def fromXML( xml: NodeSeq ) : Break = {
-         val sim     = (xml \ "sim").text.toFloat
-         val pos     = (xml \ "pos").text.toLong
-         Break( sim, pos )
-      }
-   }
-   final case class Break( sim: Float, pos: Long ) {
-      def toXML =
+  /**
+   * The result is a sequence of matches, sorted
+   * by descending dissimilarity
+   */
+  type Product  = IndexedSeq[Break]
+
+  type Repr     = FeatureSegmentation
+
+  object Break {
+    def fromXML(xml: NodeSeq): Break = {
+      val sim = (xml \ "sim").text.toFloat
+      val pos = (xml \ "pos").text.toLong
+      Break(sim, pos)
+    }
+  }
+
+  final case class Break(sim: Float, pos: Long) {
+    def toXML =
 <break>
-   <sim>{sim}</sim>
-   <pos>{pos}</pos>
+  <sim>{sim}</sim>
+  <pos>{pos}</pos>
 </break>
 
-      def pretty : String = "Break( sim = " + sim + ", pos = " + pos + ")"
-   }
+    def pretty: String = "Break( sim = " + sim + ", pos = " + pos + ")"
+  }
 
-   // sortedset orders ascending according to the ordering, and with this
-   // ordering we will have low similarities (high dissimilarities)
-   // at the head and high similarities at the tail
-   private[strugatzki] object BreakMaxOrd extends Ordering[ Break ] {
-      def compare( a: Break, b: Break ) = a.sim compare b.sim
-   }
+  // sortedset orders ascending according to the ordering, and with this
+  // ordering we will have low similarities (high dissimilarities)
+  // at the head and high similarities at the tail
+  private[strugatzki] object BreakMaxOrd extends Ordering[Break] {
+    def compare(a: Break, b: Break) = a.sim compare b.sim
+  }
 
   protected def defaultConfig: Config = Config()
 
-  protected def create(config: Config, observer: FeatureSegmentation.Observer,
-                       promise: Promise[FeatureSegmentation.PayLoad])
-                      (implicit exec: ExecutionContext): Processor[FeatureSegmentation.PayLoad, Config] =
-    new impl.FeatureSegmentation(config, observer, promise)
+  protected def prepare(config: Config): Prepared = new impl.FeatureSegmentationImpl(config)
 
   /**
     * All durations, spans and spacings are given in sample frames
@@ -234,4 +236,7 @@ object FeatureSegmentation extends ProcessorCompanion {
   sealed trait Config extends ConfigLike {
     def toXML: xml.Node
   }
+}
+trait FeatureSegmentation extends Processor[FeatureSegmentation.Product, FeatureSegmentation] {
+  def config: FeatureSegmentation.Config
 }

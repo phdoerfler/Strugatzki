@@ -1,5 +1,5 @@
 /*
- *  FeatureCorrelation.scala
+ *  FeatureCorrelationImpl.scala
  *  (Strugatzki)
  *
  *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
@@ -33,20 +33,16 @@ import scala.IndexedSeq
 import scala.Some
 import de.sciss.synth.io.AudioFile
 import collection.immutable.{SortedSet => ISortedSet}
-import concurrent.{ExecutionContext, Promise, blocking}
+import concurrent.blocking
 import de.sciss.span.Span
+import de.sciss.processor.impl.ProcessorImpl
 
-private[strugatzki] final class FeatureCorrelation(val config: FeatureCorrelation.Config,
-                                                   protected val observer: FeatureCorrelation.Observer,
-                                                   protected val promise: Promise[FeatureCorrelation.PayLoad])
-                                                  (implicit protected val executionContext: ExecutionContext)
-  extends ProcessorImpl[FeatureCorrelation.PayLoad, FeatureCorrelation.Config] {
+private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrelation.Config)
+  extends FeatureCorrelation with ProcessorImpl[FeatureCorrelation.Product, FeatureCorrelation] {
 
   import FeatureCorrelation._
 
-   protected val companion = FeatureCorrelation
-
-  protected def body(): PayLoad = blocking {
+  protected def body(): Product = blocking {
     import FeatureExtraction.{Config => ExtrSettings}
 
     val extrIn    = ExtrSettings.fromXML(XML.loadFile(config.metaInput))

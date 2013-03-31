@@ -8,6 +8,7 @@ import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
 import sys.process.{ProcessLogger, Process}
 import concurrent.{ExecutionContext, Future, blocking, future}
+import de.sciss.processor.Processor
 
 object NonRealtimeProcessor {
   final case class BufferSpec(control: String, numFrames: Int, numChannels: Int = 1)

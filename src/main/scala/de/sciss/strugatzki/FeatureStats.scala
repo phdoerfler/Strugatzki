@@ -27,16 +27,18 @@ package de.sciss.strugatzki
 
 import java.io.File
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import concurrent.{ExecutionContext, Promise}
+import de.sciss.processor.{Processor, ProcessorFactory}
 
-object FeatureStats extends ProcessorCompanion {
-  type PayLoad  = IIdxSeq[(Double, Double)]
+object FeatureStats extends ProcessorFactory.WithDefaults {
+  type Product  = IIdxSeq[(Double, Double)]
   type Config   = IIdxSeq[File]
+  type Repr     = FeatureStats
 
   protected def defaultConfig: IIdxSeq[File] = Vector.empty
 
-  protected def create(config: FeatureStats.Config, observer: FeatureStats.Observer,
-                       promise: Promise[FeatureStats.PayLoad])
-                      (implicit exec: ExecutionContext): Processor[FeatureStats.PayLoad, FeatureStats.Config] =
-    new impl.FeatureStats(config, observer, promise)
+  protected def prepare(config: FeatureStats.Config): Prepared =
+    new impl.FeatureStatsImpl(config)
+}
+trait FeatureStats extends Processor[FeatureStats.Product, FeatureStats] {
+  def config: FeatureStats.Config
 }

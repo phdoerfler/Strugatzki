@@ -28,20 +28,23 @@ package de.sciss.strugatzki
 import java.io.File
 import xml.{NodeSeq, XML}
 import language.implicitConversions
-import concurrent.{ExecutionContext, Promise}
 import de.sciss.span.Span
+import de.sciss.processor.{Processor, ProcessorFactory}
 
 /**
 * A processor which searches through the database and matches
 * entries against a given audio file input. Returns a given
 * number of best matches.
 */
-object FeatureCorrelation extends ProcessorCompanion {
+object FeatureCorrelation extends ProcessorFactory.WithDefaults {
+   var verbose = false
+
   /**
    * The result is a sequence of matches, sorted
    * by descending similarity
    */
-  type PayLoad = IndexedSeq[Match]
+  type Product  = IndexedSeq[Match]
+  type Repr     = FeatureCorrelation
 
   object Match {
     def fromXML(xml: NodeSeq): Match = {
@@ -89,87 +92,95 @@ object FeatureCorrelation extends ProcessorCompanion {
 
   protected def defaultConfig: Config = Config()
 
-  protected def create(config: Config, observer: FeatureCorrelation.Observer,
-                       promise: Promise[FeatureCorrelation.PayLoad])
-                      (implicit exec: ExecutionContext): Processor[FeatureCorrelation.PayLoad, Config] =
-    new impl.FeatureCorrelation(config, observer, promise)
+  protected def prepare(config: Config): Prepared = new impl.FeatureCorrelationImpl(config)
 
   /** where temporal weight is between 0 (just spectral corr) and 1 (just temporal corr) */
-   object Punch {
-      def fromXML( xml: NodeSeq ) : Punch = {
-         val start   = (xml \ "start").text.toLong
-         val stop    = (xml \ "stop").text.toLong
-         val weight  = (xml \ "weight").text.toFloat
-         Punch( Span( start, stop ), weight )
-      }
-   }
-   final case class Punch( span: Span, temporalWeight: Float = 0.5f ) {
-      def toXML =
+  object Punch {
+    def fromXML(xml: NodeSeq): Punch = {
+      val start   = (xml \ "start" ).text.toLong
+      val stop    = (xml \ "stop"  ).text.toLong
+      val weight  = (xml \ "weight").text.toFloat
+      Punch(Span(start, stop), weight)
+    }
+  }
+
+  final case class Punch(span: Span, temporalWeight: Float = 0.5f) {
+    def toXML =
 <punch>
-   <start>{span.start}</start>
-   <stop>{span.stop}</stop>
-   <weight>{temporalWeight}</weight>
+  <start>{span.start}</start>
+  <stop>{span.stop}</stop>
+  <weight>{temporalWeight}</weight>
 </punch>
-   }
+  }
 
-   /**
-    * All durations, spans and spacings are given in sample frames
-    * with respect to the sample rate of the audio input file.
-    */
-   sealed trait ConfigLike {
-      /**
-       * The folder which is scanned for extraction entries to be used in the search.
-       * This currently includes '''only those files''' ending in `_feat.xml` and which
-       * have the same number of coefficients and time resolution (step size) as the
-       * target file (`metaInput`).
-       */
-      def databaseFolder : File
-      def metaInput: File
-      /** The span in the audio input serving for correlation to find the punch in material */
-      def punchIn: Punch
-      /** The span in the audio input serving for correlation to find the punch out material */
-      def punchOut : Option[ Punch ]
-      /** Minimum length of the material to punch in */
-      def minPunch: Long
-      /** Maximum length of the material to punch in */
-      def maxPunch: Long
-      /** Whether to apply normalization to the features (recommended) */
-      def normalize : Boolean
-      /**
-       * Maximum energy boost (as an amplitude factor) allowed for a match to be considered.
-       * The estimation of the boost factor for two matched signals
-       * is `exp ((ln( loud_in ) - ln( loud_db )) / 0.6 )`
-       */
-      def maxBoost : Float
-      /** Maximum number of matches to report */
-      def numMatches : Int
-      /** Maximum number of matches to report of a single database entry */
-      def numPerFile : Int
-      /** Minimum spacing between matches within a single database entry */
-      def minSpacing : Long
+  /**
+   * All durations, spans and spacings are given in sample frames
+   * with respect to the sample rate of the audio input file.
+   */
+  sealed trait ConfigLike {
+    /**
+     * The folder which is scanned for extraction entries to be used in the search.
+     * This currently includes '''only those files''' ending in `_feat.xml` and which
+     * have the same number of coefficients and time resolution (step size) as the
+     * target file (`metaInput`).
+     */
+    def databaseFolder: File
 
-      final def pretty: String = {
-         "Settings(\n   databaseFolder = " + databaseFolder +
-                  "\n   metaInput      = " + metaInput +
-                  "\n   punchIn        = " + punchIn +
-                  "\n   punchOut       = " + punchOut +
-                  "\n   minPunch       = " + minPunch +
-                  "\n   maxPunch       = " + maxPunch +
-                  "\n   normalize      = " + normalize +
-                  "\n   maxBoost       = " + maxBoost +
-                  "\n   numMatches     = " + numMatches +
-                  "\n   numPerFiles    = " + numPerFile +
-                  "\n   minSpacing     = " + minSpacing + "\n)"
-      }
-   }
+    def metaInput: File
 
-   object ConfigBuilder {
-      def apply(config: Config): ConfigBuilder = {
-         val sb = Config()
-         sb.read( config )
-         sb
-      }
-   }
+    /** The span in the audio input serving for correlation to find the punch in material */
+    def punchIn: Punch
+
+    /** The span in the audio input serving for correlation to find the punch out material */
+    def punchOut: Option[Punch]
+
+    /** Minimum length of the material to punch in */
+    def minPunch: Long
+
+    /** Maximum length of the material to punch in */
+    def maxPunch: Long
+
+    /** Whether to apply normalization to the features (recommended) */
+    def normalize: Boolean
+
+    /**
+     * Maximum energy boost (as an amplitude factor) allowed for a match to be considered.
+     * The estimation of the boost factor for two matched signals
+     * is `exp ((ln( loud_in ) - ln( loud_db )) / 0.6 )`
+     */
+    def maxBoost: Float
+
+    /** Maximum number of matches to report */
+    def numMatches: Int
+
+    /** Maximum number of matches to report of a single database entry */
+    def numPerFile: Int
+
+    /** Minimum spacing between matches within a single database entry */
+    def minSpacing: Long
+
+    final def pretty: String = {
+      "Settings(\n   databaseFolder = " + databaseFolder +
+               "\n   metaInput      = " + metaInput +
+               "\n   punchIn        = " + punchIn +
+               "\n   punchOut       = " + punchOut +
+               "\n   minPunch       = " + minPunch +
+               "\n   maxPunch       = " + maxPunch +
+               "\n   normalize      = " + normalize +
+               "\n   maxBoost       = " + maxBoost +
+               "\n   numMatches     = " + numMatches +
+               "\n   numPerFiles    = " + numPerFile +
+               "\n   minSpacing     = " + minSpacing + "\n)"
+    }
+  }
+
+  object ConfigBuilder {
+    def apply(config: Config): ConfigBuilder = {
+      val sb = Config()
+      sb.read(config)
+      sb
+    }
+  }
 
   final class ConfigBuilder private[FeatureCorrelation]() extends ConfigLike {
     /**
@@ -237,54 +248,56 @@ object FeatureCorrelation extends ProcessorCompanion {
       minSpacing      = config.minSpacing
     }
 
-    private final case class Impl( databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[ Punch ],
-                                minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float,
-                                numMatches: Int, numPerFile: Int, minSpacing: Long )
-     extends Config {
-       override def productPrefix = "Config"
-        def toXML =
-  <correlate>
-     <database>{databaseFolder.getPath}</database>
-     <input>{metaInput.getPath}</input>
-     <punchIn>{punchIn.toXML.child}</punchIn>
-     {punchOut match { case Some( p ) => <punchOut>{p.toXML.child}</punchOut>; case _ => Nil }}
-     <minPunch>{minPunch}</minPunch>
-     <maxPunch>{maxPunch}</maxPunch>
-     <normalize>{normalize}</normalize>
-     <maxBoost>{maxBoost}</maxBoost>
-     <numMatches>{numMatches}</numMatches>
-     <numPerFile>{numPerFile}</numPerFile>
-     <minSpacing>{minSpacing}</minSpacing>
-  </correlate>
-     }
-   }
+    private final case class Impl(databaseFolder: File, metaInput: File, punchIn: Punch, punchOut: Option[Punch],
+                                  minPunch: Long, maxPunch: Long, normalize: Boolean, maxBoost: Float,
+                                  numMatches: Int, numPerFile: Int, minSpacing: Long)
+      extends Config {
+      override def productPrefix = "Config"
 
-   object Config {
-     def apply(): ConfigBuilder = new ConfigBuilder
+      def toXML =
+<correlate>
+  <database>{databaseFolder.getPath}</database>
+  <input>{metaInput.getPath}</input>
+  <punchIn>{punchIn.toXML.child}</punchIn>
+  {punchOut match { case Some( p ) => <punchOut>{p.toXML.child}</punchOut>; case _ => Nil }}
+  <minPunch>{minPunch}</minPunch>
+  <maxPunch>{maxPunch}</maxPunch>
+  <normalize>{normalize}</normalize>
+  <maxBoost>{maxBoost}</maxBoost>
+  <numMatches>{numMatches}</numMatches>
+  <numPerFile>{numPerFile}</numPerFile>
+  <minSpacing>{minSpacing}</minSpacing>
+</correlate>
+    }
+  }
 
-     implicit def build(b: ConfigBuilder): Config = b.build
+  object Config {
+    def apply(): ConfigBuilder = new ConfigBuilder
 
-     def fromXMLFile(file: File): Config = fromXML(XML.loadFile(file))
+    implicit def build(b: ConfigBuilder): Config = b.build
 
-     def fromXML(xml: NodeSeq): Config = {
-       val sb = Config()
-         sb.databaseFolder = new File( (xml \ "database").text )
-         sb.metaInput      = new File( (xml \ "input").text )
-         sb.punchIn        = Punch.fromXML( xml \ "punchIn" )
-         sb.punchOut       = {
-            val e = xml \ "punchOut"
-            if( e.isEmpty ) None else Some( Punch.fromXML( e ))
-         }
-         sb.minPunch       = (xml \ "minPunch").text.toLong
-         sb.maxPunch       = (xml \ "maxPunch").text.toLong
-         sb.normalize      = (xml \ "normalize").text.toBoolean
-         sb.maxBoost       = (xml \ "maxBoost").text.toFloat
-         sb.numMatches     = (xml \ "numMatches").text.toInt
-         sb.numPerFile     = (xml \ "numPerFile").text.toInt
-         sb.minSpacing     = (xml \ "minSpacing").text.toLong
-         sb.build
+    def fromXMLFile(file: File): Config = fromXML(XML.loadFile(file))
+
+    def fromXML(xml: NodeSeq): Config = {
+      val sb = Config()
+      sb.databaseFolder = new File((xml \ "database").text)
+      sb.metaInput      = new File((xml \ "input").text)
+      sb.punchIn        = Punch.fromXML(xml \ "punchIn")
+      sb.punchOut       = {
+        val e = xml \ "punchOut"
+        if (e.isEmpty) None else Some(Punch.fromXML(e))
       }
-   }
+      sb.minPunch       = (xml \ "minPunch"  ).text.toLong
+      sb.maxPunch       = (xml \ "maxPunch"  ).text.toLong
+      sb.normalize      = (xml \ "normalize" ).text.toBoolean
+      sb.maxBoost       = (xml \ "maxBoost"  ).text.toFloat
+      sb.numMatches     = (xml \ "numMatches").text.toInt
+      sb.numPerFile     = (xml \ "numPerFile").text.toInt
+      sb.minSpacing     = (xml \ "minSpacing").text.toLong
+      sb.build
+    }
+  }
+
   sealed trait Config extends ConfigLike {
     def toXML: xml.Node
   }
@@ -292,14 +305,15 @@ object FeatureCorrelation extends ProcessorCompanion {
   private[strugatzki] final case class FeatureMatrix(mat: Array[Array[Float]], numFrames: Int,
                                                      mean: Double, stdDev: Double) {
     def numChannels = mat.length
-    def matSize     = numFrames * numChannels
+    def matSize = numFrames * numChannels
   }
 
   private[strugatzki] final case class InputMatrix(temporal: FeatureMatrix, spectral: FeatureMatrix,
                                                    lnAvgLoudness: Double) {
-
     require(temporal.numFrames == spectral.numFrames)
-
     def numFrames: Int = temporal.numFrames
   }
+}
+trait FeatureCorrelation extends Processor[FeatureCorrelation.Product, FeatureCorrelation] {
+  def config: FeatureCorrelation.Config
 }

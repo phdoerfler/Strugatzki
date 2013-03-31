@@ -1,5 +1,5 @@
 /*
- *  FeatureExtraction.scala
+ *  FeatureExtractionImpl.scala
  *  (Strugatzki)
  *
  *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
@@ -30,18 +30,14 @@ import de.sciss.synth
 import synth.GE
 import synth.io.AudioFile
 import xml.XML
-import concurrent.{Await, ExecutionContext, Promise}
+import concurrent.Await
 import concurrent.duration.Duration
+import de.sciss.processor.impl.ProcessorImpl
 
-private[strugatzki] final class FeatureExtraction(val config: FeatureExtraction.Config,
-                                                  protected val observer: FeatureExtraction.Observer,
-                                                  protected val promise: Promise[Unit])
-                                                 (implicit protected val executionContext: ExecutionContext)
-  extends ProcessorImpl[Unit, FeatureExtraction.Config] {
+private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtraction.Config)
+  extends FeatureExtraction with ProcessorImpl[Unit, FeatureExtraction] {
 
   import FeatureExtraction._
-
-  protected val companion = FeatureExtraction
 
   protected def body() {
     import NonRealtimeProcessor.{BufferSpec, RenderConfig, render}

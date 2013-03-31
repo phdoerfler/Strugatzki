@@ -30,14 +30,18 @@ import xml.{NodeSeq, XML}
 import language.implicitConversions
 import annotation.switch
 import scala.util.control.NonFatal
-import concurrent.{ExecutionContext, Promise}
+import de.sciss.processor.{Processor, ProcessorFactory}
 
-object FeatureExtraction extends ProcessorCompanion {
+object FeatureExtraction extends ProcessorFactory.WithDefaults {
+  var verbose = false
+
+  type Product  = Unit
+  type Repr     = FeatureExtraction
+
   protected def defaultConfig = Config().build
 
-  protected def create(settings: Config, observer: Observer, promise: Promise[Unit])
-                      (implicit exec: ExecutionContext): Processor[Unit, FeatureExtraction.Config] =
-    new impl.FeatureExtraction(settings, observer, promise)
+  protected def prepare(settings: Config): Prepared =
+    new impl.FeatureExtractionImpl(settings)
 
   object ChannelsBehavior {
     def apply(id: Int): ChannelsBehavior = (id: @switch) match {
@@ -224,6 +228,7 @@ object FeatureExtraction extends ProcessorCompanion {
   sealed trait Config extends ConfigLike {
     def toXML: xml.Node
   }
-
-  type PayLoad = Unit
+}
+trait FeatureExtraction extends Processor[FeatureExtraction.Product, FeatureExtraction] {
+  def config: FeatureExtraction.Config
 }
