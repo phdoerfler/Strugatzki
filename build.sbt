@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "Strugatzki"
 
-version := "1.7.0"
+version := "1.8.0"
 
 organization := "de.sciss"
 
@@ -15,12 +15,12 @@ homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "processor"        % "0.1.+",
-   "de.sciss" %% "scalacollider"    % "1.5.+",
-   "de.sciss" %% "span"             % "1.1.+",
-   "de.sciss" %  "intensitypalette" % "1.0.0",
-   "com.github.scopt" %% "scopt" % "2.1.0",
-   "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+  "de.sciss" %% "processor"        % "0.1.+",
+  "de.sciss" %% "scalacollider"    % "1.6.+",
+  "de.sciss" %% "span"             % "1.2.+",
+  "de.sciss" %  "intensitypalette" % "1.0.0",
+  "com.github.scopt" %% "scopt" % "2.1.0",
+  "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 )
 
 retrieveManaged := true
@@ -33,9 +33,9 @@ buildInfoSettings
 
 sourceGenerators in Compile <+= buildInfo
 
-buildInfoKeys := Seq( name, organization, version, scalaVersion, description,
-   BuildInfoKey.map( homepage ) { case (k, opt) => k -> opt.get },
-   BuildInfoKey.map( licenses ) { case (_, Seq( (lic, _) )) => "license" -> lic }
+buildInfoKeys := Seq(name, organization, version, scalaVersion, description,
+  BuildInfoKey.map(homepage) { case (k, opt)             => k -> opt.get },
+  BuildInfoKey.map(licenses) { case (_, Seq( (lic, _) )) => "license" -> lic }
 )
 
 buildInfoPackage := "de.sciss.strugatzki"
@@ -44,12 +44,12 @@ buildInfoPackage := "de.sciss.strugatzki"
 
 publishMavenStyle := true
 
-publishTo <<= version { (v: String) =>
-   Some( if( v.endsWith( "-SNAPSHOT" ))
-      "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-   else
-      "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
-   )
+publishTo <<= version { v =>
+  Some(if (v endsWith "-SNAPSHOT")
+    "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+  else
+    "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+  )
 }
 
 publishArtifact in Test := false
@@ -72,17 +72,17 @@ pomExtra <<= name { n =>
 
 // ---- packaging ----
 
-seq( assemblySettings: _* )
+seq(assemblySettings: _*)
 
 test in assembly := {}
 
 // ---- ls.implicit.ly ----
 
-seq( lsSettings :_* )
+seq(lsSettings :_*)
 
-(LsKeys.tags in LsKeys.lsync) := Seq( "music-information-retrieval", "machine-learning", "music", "dsp", "feature-extraction" )
+(LsKeys.tags in LsKeys.lsync) := Seq("music-information-retrieval", "machine-learning", "music", "dsp", "feature-extraction")
 
-(LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" )
+(LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
 
 (LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
 
