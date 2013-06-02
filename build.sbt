@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name := "Strugatzki"
 
-version := "1.9.0"
+version := "2.0.0"
 
 organization := "de.sciss"
 
@@ -16,7 +16,7 @@ licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "processor"        % "0.2.+",
-  "de.sciss" %% "scalacollider"    % "1.7.+",
+  "de.sciss" %% "scalacollider"    % "1.8.+",
   "de.sciss" %% "span"             % "1.2.+",
   "de.sciss" %  "intensitypalette" % "1.0.0",
   "com.github.scopt" %% "scopt" % "2.1.0",
@@ -62,11 +62,11 @@ pomExtra <<= name { n =>
   <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
 </scm>
 <developers>
-   <developer>
-      <id>sciss</id>
-      <name>Hanns Holger Rutz</name>
-      <url>http://www.sciss.de</url>
-   </developer>
+  <developer>
+    <id>sciss</id>
+    <name>Hanns Holger Rutz</name>
+    <url>http://www.sciss.de</url>
+  </developer>
 </developers>
 }
 

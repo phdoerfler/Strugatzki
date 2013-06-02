@@ -104,10 +104,10 @@ object NonRealtimeProcessor {
     val fch = raf.getChannel
     bndls.foreach { bndl =>
       bndl.encode(c, bb)
-      bb.flip
+      bb.flip()
       raf.writeInt(bb.limit)
       fch.write(bb)
-      bb.clear
+      bb.clear()
     }
     raf.close()
 
