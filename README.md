@@ -1,18 +1,18 @@
-## Strugatzki
+# Strugatzki
 
-### statement
+## statement
 
 Strugatzki is a Scala library containing several algorithms for audio feature extraction, with the aim of similarity and dissimilarity measurements. They have been originally used in my live electronic piece ["Inter-Play/Re-Sound"](http://sciss.de/texts/liv_interplay.html), then successively in the tape piece ["Leere Null"](http://sciss.de/texts/tap_leerenull.html), the sound installation ["Writing Machine"](http://sciss.de/texts/ins_writingmachine.html), and the tape piece  ["Leere Null (2)"](http://sciss.de/texts/tap_leerenull2.html).
 
 (C)opyright 2011-2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
-### requirements / installation
+## requirements / installation
 
 Builds with sbt 0.12 against Scala 2.10. Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
 
 Strugatzki can be either used as a standalone command line tool, or embedded in your project as a library.
 
-#### standalone use
+### standalone use
 
 This assumes you check out Strugatzki from source, as the easiest way to use it in the terminal is via the sbt prompt. First, start sbt without arguments. In the sbt shell, execute `run` which will print the switches for the different modules:
 
@@ -29,13 +29,13 @@ This assumes you check out Strugatzki from source, as the easiest way to use it 
 
 To find out the switches for the extraction module: `run -f`. This will print the particular options available for this module. While in the API times are all given in sample frames with respect to the original sound file's sample rate, the standalone/ terminal mode assumes times are all given as floating point seconds.
 
-#### library use
+### library use
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
     "de.sciss" %% "strugatzki" % v
 
-The current version `v` is `"2.0.+"`
+The current version `v` is `"2.1.+"`
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
@@ -60,7 +60,7 @@ As documentation you are referred to the API docs at the moment. These can be cr
 
 For the detailed settings, such as FFT size, number of MFCC, etc., please refer to the API docs.
 
-### algorithms
+## algorithms
 
 Strugatzki is not a full fledged MIR system, but was rather born of my personal preference and experience, resulting in an API which is a bit idiosyncratic, but nevertheless completely independent of my specific use cases.
 
@@ -74,10 +74,10 @@ The feature vectors (MFCC and loudness) are calculated on a frame-by-frame basis
 
 There are two main algorithms that operate on the extracted features: The correlation module is capable of finding sound in a database that match a target sound in terms of similarity or dissimilarity. The segmentation module is capable of suggesting breaking points in a single target sound on the basis of novelty or maximisation of dissimilarity within a given time window.
 
-#### normalization
+### normalization
 
 We have found it quite useful to normalize the MFCC by creating statistics over a large body of database sounds. Therefore, a particular stats module is provided which can scan a directory of feature extraction files and calculate the minimum and maximum ranges for each coefficient. In the standalone mode, these ranges can be written out to a dedicated AIFF file, and may be used for correlation and segmentation, yielding in our opinion better results.
 
-#### self similarity
+### self similarity
 
 For analysis and visualisation purposes, we have added a self similarity module which produces a `png` image file with the self similarity matrix of a given feature file.

@@ -2,11 +2,11 @@ import AssemblyKeys._
 
 name := "Strugatzki"
 
-version := "2.0.0"
+version := "2.1.0"
 
 organization := "de.sciss"
 
-scalaVersion := "2.10.1"
+scalaVersion := "2.10.2"
 
 description := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -16,7 +16,7 @@ licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "processor"        % "0.2.+",
-  "de.sciss" %% "scalacollider"    % "1.8.+",
+  "de.sciss" %% "scalacollider"    % "1.9.+",
   "de.sciss" %% "span"             % "1.2.+",
   "de.sciss" %  "intensitypalette" % "1.0.0",
   "com.github.scopt" %% "scopt" % "2.1.0",
