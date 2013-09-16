@@ -145,7 +145,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     // truncates the queue. if the match collides with a previous match that is closer
     // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
     // the previous match (if the similarity is greater).
-    def addMatch(m: Match) {
+    def addMatch(m: Match): Unit = {
       if ((lastEntryMatch != null) && (SpanUtil.spacing(m.punch, lastEntryMatch.punch) < config.minSpacing)) {
         // gotta collapse them
         if (lastEntryMatch.sim < m.sim) {

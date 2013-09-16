@@ -130,41 +130,35 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
   }
 
   final class ConfigBuilder private[FeatureExtraction]() extends ConfigLike {
-    /**
-     * The audio input defaults to `input.aif` (relative path)
-     */
+    /** The audio input defaults to `input.aif` (relative path). */
     var audioInput: File = new File("input.aif")
-    /**
-     * The feature vector output file defaults to a temporary file
-     * beginning with `features` and having suffix `.aif`.
-     *
-     * @see  Strugatzki#tmpDir
-     */
+
+    /** The feature vector output file defaults to a temporary file
+      * beginning with `features` and having suffix `.aif`.
+      *
+      * @see  Strugatzki#tmpDir
+      */
     var featureOutput: File = File.createTempFile("features", ".aif", Strugatzki.tmpDir)
-    /**
-     * The extraction meta data file option defaults to `None`
-     */
+
+    /** The extraction meta data file option defaults to `None`. */
     var metaOutput = Option.empty[File]
     /**
      * The number of MFCC defaults to 13.
      */
     var numCoeffs: Int = 13
-    /**
-     * The FFT size defaults to 1024
-     */
+
+    /** The FFT size defaults to 1024. */
     var fftSize: Int = 1024
-    /**
-     * The FFT overlap defaults to 2
-     */
+
+    /** The FFT overlap defaults to 2. */
     var fftOverlap: Int = 2
-    /**
-     * The multichannel behaviour defaults to `Mix`.
-     */
+
+    /** The multichannel behaviour defaults to `Mix`. */
     var channelsBehavior: ChannelsBehavior = ChannelsBehavior.Mix
 
     def build: Config = Impl(audioInput, featureOutput, metaOutput, numCoeffs, fftSize, fftOverlap, channelsBehavior)
 
-    def read(settings: Config) {
+    def read(settings: Config): Unit = {
       audioInput        = settings.audioInput
       featureOutput     = settings.featureOutput
       metaOutput        = settings.metaOutput

@@ -1,8 +1,7 @@
 package de.sciss.strugatzki.impl
 
 object MathUtil {
-   /**
-    * Calculates the mean and standard deviation of a given matrix
+  /** Calculates the mean and standard deviation of a given matrix
     *
     * @param   mat         the matrix to analyse
     * @param   frameOff    0 if the whole matrix is to be considered,
@@ -14,33 +13,42 @@ object MathUtil {
     *
     * @return              the tuple (mean, stddev)
     */
-   def stat( mat: Array[ Array[ Float ]], frameOff: Int, frameLen: Int,
-             chanOff: Int, chanLen: Int ) : (Double, Double) = {
-      val chanStop   = chanOff + chanLen
-      val frameStop  = frameOff + frameLen
-      var sum = 0.0
-      var ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            sum += cb( i )
-         i +=1 }
-      ch += 1 }
-      val matSize = frameLen * chanLen
-      val mean = sum / matSize
-      sum = 0.0
-      ch = chanOff; while( ch < chanStop ) {
-         val cb = mat( ch )
-         var i = frameOff; while( i < frameStop ) {
-            val d = cb( i ) - mean
-            sum += d * d
-         i +=1 }
-      ch += 1 }
-      val stddev = math.sqrt( sum / matSize )
-      (mean, stddev)
-   }
+   def stat(mat: Array[Array[Float]], frameOff: Int, frameLen: Int,
+            chanOff: Int, chanLen: Int): (Double, Double) = {
+    val chanStop  = chanOff  + chanLen
+    val frameStop = frameOff + frameLen
 
-   /*
-    * Perform cross correlation between two horizontal halves of a matrix 'a'.
+    var sum = 0.0
+    var ch  = chanOff
+    while (ch < chanStop) {
+      val cb  = mat(ch)
+      var i   = frameOff
+      while (i < frameStop) {
+        sum += cb(i)
+        i += 1
+      }
+      ch += 1
+    }
+    val matSize = frameLen * chanLen
+    val mean    = sum / matSize
+
+    sum = 0.0
+    ch  = chanOff
+    while (ch < chanStop) {
+      val cb  = mat(ch)
+      var i   = frameOff
+      while (i < frameStop) {
+        val d = cb(i) - mean
+        sum += d * d
+        i   += 1
+      }
+      ch += 1
+    }
+    val stddev = math.sqrt(sum / matSize)
+    (mean, stddev)
+  }
+
+  /** Perform cross correlation between two horizontal halves of a matrix 'a'.
     *
     * For efficiency reasons, a may be updated in a rotational manner, thus frameOff + halfWinSize
     * may exceed the number of frames in a (the algorithm automatically takes the modulus).
@@ -56,25 +64,28 @@ object MathUtil {
     * @return  the cross correlation coefficient (sum of cell multiplies, divided by product of
     *          variance and matrix size)
     */
-   def correlateHalf( numChannels: Int, halfWinSize: Int, a: Array[ Array[ Float ]], frameOff: Int, chanOff: Int ) : Float = {
-      val numFrames        = halfWinSize << 1
-      val (mean, stdDev)   = stat( a, 0, numFrames, chanOff, numChannels )
-      val add              = -mean
-      val matSize          = numChannels * halfWinSize
+   def correlateHalf(numChannels: Int, halfWinSize: Int, a: Array[Array[Float]], frameOff: Int, chanOff: Int): Float = {
+    val numFrames       = halfWinSize << 1
+    val (mean, stdDev)  = stat(a, 0, numFrames, chanOff, numChannels)
+    val add             = -mean
+    val matSize         = numChannels * halfWinSize
 
-      var sum = 0.0
-      var ch = 0; while( ch < numChannels ) {
-         val ca = a( ch + chanOff )
-         var i = frameOff; val j = frameOff + halfWinSize
-         while( i < j ) {
-            sum += (ca( i % numFrames ) + add) * (ca( (i + halfWinSize) % numFrames ) + add)
-         i += 1 }
-      ch += 1 }
-      (sum / (stdDev * stdDev * matSize)).toFloat  // ensures correlate( a, a ) == 1.0
-   }
+    var sum = 0.0
+    var ch  = 0
+    while (ch < numChannels) {
+      val ca  = a(ch + chanOff)
+      var i   = frameOff
+      val j   = frameOff + halfWinSize
+      while (i < j) {
+        sum += (ca(i % numFrames) + add) * (ca((i + halfWinSize) % numFrames) + add)
+        i += 1
+      }
+      ch += 1
+    }
+    (sum / (stdDev * stdDev * matSize)).toFloat // ensures correlate( a, a ) == 1.0
+  }
 
-   /**
-    * Calculates the mean of a vector
+  /** Calculates the mean of a vector
     *
     * @param   b  the vector
     * @param   off   the offset into the vector
@@ -82,16 +93,18 @@ object MathUtil {
     *
     * @return  the average of the `len` samples starting at offset `off` in vector `b`.
     */
-   def avg( b: Array[ Float ], off: Int, len: Int ) : Float = {
-      var sum = 0.0
-      var i = off; val stop = off + len; while( i < stop ) {
-         sum += b( i )
-      i += 1 }
-      (sum / len).toFloat
-   }
+  def avg(b: Array[Float], off: Int, len: Int): Float = {
+    var sum   = 0.0
+    var i     = off
+    val stop  = off + len
+    while (i < stop) {
+      sum += b(i)
+      i += 1
+    }
+    (sum / len).toFloat
+  }
 
-   /**
-    * Normalizes a matrix with respect to a normalization vector. For each row in the matrix, given
+  /** Normalizes a matrix with respect to a normalization vector. For each row in the matrix, given
     * the rows minimum and maximum value through the normalization vector, every cell is offset
     * by `-minimum` and then divided by `maximum - minimum`.
     *
@@ -103,24 +116,29 @@ object MathUtil {
     * @param   bOff     a frame of column offset in the matrix `b`.
     * @param   bLen     the number of frames or columns to process in the matrix `b`.
     */
-   def normalize( normBuf: Array[ Array[ Float ]], b: Array[ Array[ Float ]], bOff: Int, bLen: Int ) {
-      if( normBuf == null ) return
-      var ch = 0; val numCh = b.length; while( ch < numCh ) {
-         val cb   = b( ch )
-         val cn   = normBuf( ch )
-         val min  = cn( 0 )
-         val max  = cn( 1 )
-         val d    = max - min
-         var i = bOff; val iStop = bOff + bLen; while( i < iStop ) {
-            val f    = cb( i )
-            // XXX should values be clipped to [0...1] or not?
-            cb( i )  = (f - min) / d
-         i += 1 }
-      ch += 1 }
-   }
+  def normalize(normBuf: Array[Array[Float]], b: Array[Array[Float]], bOff: Int, bLen: Int): Unit = {
+    if (normBuf == null) return
+    var ch    = 0
+    val numCh = b.length
+    while (ch < numCh) {
+      val cb  = b(ch)
+      val cn  = normBuf(ch)
+      val min = cn(0)
+      val max = cn(1)
+      val d   = max - min
+      var i   = bOff
+      val iStop = bOff + bLen
+      while (i < iStop) {
+        val f = cb(i)
+        // XXX should values be clipped to [0...1] or not?
+        cb(i) = (f - min) / d
+        i += 1
+      }
+      ch += 1
+    }
+  }
 
-   /*
-    * Perform cross correlation between two matrices a and b. Because either `a` or `b` may be static,
+  /** Perform cross correlation between two matrices a and b. Because either `a` or `b` may be static,
     * the method expects the means and standard deviations of matrices to be passed in.
     *
     * While `a` is considered a full matrix with at least `numChannels` rows and at least
@@ -143,20 +161,24 @@ object MathUtil {
     *
     * @return  the cross correlation coefficient
     */
-   def correlate( a: Array[ Array[ Float ]], aMean: Double, aStdDev: Double, numFrames: Int, numChannels: Int,
-                  b: Array[ Array[ Float ]], bMean: Double, bStdDev: Double, bFrameOff: Int, bChanOff: Int ) : Float = {
-      val aAdd = -aMean
-      val bAdd = -bMean
-      val aMatSize = numChannels * numFrames
+  def correlate(a: Array[Array[Float]], aMean: Double, aStdDev: Double, numFrames: Int, numChannels: Int,
+                b: Array[Array[Float]], bMean: Double, bStdDev: Double, bFrameOff: Int, bChanOff: Int): Float = {
+    val aAdd      = -aMean
+    val bAdd      = -bMean
+    val aMatSize  = numChannels * numFrames
 
-      var sum           = 0.0
-      var ch = 0; while( ch < numChannels ) {
-         val ca = a( ch ) // a.mat( ch )
-         val cb = b( ch + bChanOff )
-         var i = 0; while( i < numFrames ) {
-            sum += (ca( i ) + aAdd) * (cb( (i + bFrameOff) % cb.length ) + bAdd)
-         i += 1 }
-      ch += 1 }
-      (sum / (aStdDev * bStdDev * aMatSize)).toFloat  // ensures correlate( a, a ) == 1.0
-   }
+    var sum = 0.0
+    var ch = 0
+    while (ch < numChannels) {
+      val ca = a(ch) // a.mat( ch )
+      val cb = b(ch + bChanOff)
+      var i = 0
+      while (i < numFrames) {
+        sum += (ca(i) + aAdd) * (cb((i + bFrameOff) % cb.length) + bAdd)
+        i += 1
+      }
+      ch += 1
+    }
+    (sum / (aStdDev * bStdDev * aMatSize)).toFloat // ensures correlate( a, a ) == 1.0
+  }
 }

@@ -145,63 +145,54 @@ object FeatureSegmentation extends ProcessorFactory.WithDefaults {
          sb
       }
    }
-   final class ConfigBuilder private[FeatureSegmentation] () extends ConfigLike {
-      /**
-       * The database folder defaults to `database` (relative path).
-       */
-      var databaseFolder      = new File( "database" )
-      /**
-       * The input file's extractor meta data file defaults to
-       * `input_feat.xml` (relative path).
-       */
-      var metaInput           = new File( "input_feat.xml" )
-      /**
-       * The optional span restriction defaults to `None`.
-       */
-      var span                = Span.All: Span.NonVoid
-      /**
-       * The correlation length defaults to 22050 sample frames
-       * (or 0.5 seconds at 44.1 kHz sample rate).
-       */
-      var corrLen             = 22050L
-      /**
-       * The temporal weight defaults to 0.5.
-       */
-      var temporalWeight      = 0.5f
-      /**
-       * The feature vector normalization flag defaults to `true`.
-       */
-      var normalize           = true
-      /**
-       * The number of breaking points reported defaults to 1.
-       */
-      var numBreaks           = 1
-      /**
-       * The minimum spacing between breaking points defaults to 22050 sample frames
-       * (or 0.5 seconds at 44.1 kHz sample rate).
-       */
-      var minSpacing          = 22050L
 
-      def build: Config = Impl( databaseFolder, metaInput, span, corrLen, temporalWeight, normalize, numBreaks, minSpacing )
+  final class ConfigBuilder private[FeatureSegmentation]() extends ConfigLike {
+    /** The database folder defaults to `database` (relative path). */
+    var databaseFolder = new File("database")
 
-      def read( settings: Config ) {
-         databaseFolder = settings.databaseFolder
-         metaInput      = settings.metaInput
-         span           = settings.span
-         corrLen        = settings.corrLen
-         temporalWeight = settings.temporalWeight
-         normalize      = settings.normalize
-         numBreaks      = settings.numBreaks
-         minSpacing     = settings.minSpacing
-      }
+    /** The input file's extractor meta data file defaults to `input_feat.xml` (relative path). */
+    var metaInput = new File("input_feat.xml")
 
-     private final case class Impl( databaseFolder: File, metaInput: File, span: Span.NonVoid, corrLen: Long,
-                                temporalWeight: Float, normalize: Boolean, numBreaks: Int, minSpacing: Long )
-     extends Config {
-       override def productPrefix = "Config"
+    /** The optional span restriction defaults to `None`. */
+    var span = Span.All: Span.NonVoid
 
-        def toXML =
-  <segmentation>
+    /** The correlation length defaults to 22050 sample frames (or 0.5 seconds at 44.1 kHz sample rate). */
+    var corrLen = 22050L
+
+    /** The temporal weight defaults to 0.5. */
+    var temporalWeight = 0.5f
+
+    /** The feature vector normalization flag defaults to `true`. */
+    var normalize = true
+
+    /** The number of breaking points reported defaults to 1. */
+    var numBreaks = 1
+
+    /** The minimum spacing between breaking points defaults to 22050 sample frames
+      * (or 0.5 seconds at 44.1 kHz sample rate).
+      */
+    var minSpacing = 22050L
+
+    def build: Config = Impl(databaseFolder, metaInput, span, corrLen, temporalWeight, normalize, numBreaks, minSpacing)
+
+     def read(settings: Config): Unit = {
+       databaseFolder = settings.databaseFolder
+       metaInput      = settings.metaInput
+       span           = settings.span
+       corrLen        = settings.corrLen
+       temporalWeight = settings.temporalWeight
+       normalize      = settings.normalize
+       numBreaks      = settings.numBreaks
+       minSpacing     = settings.minSpacing
+     }
+
+    private final case class Impl(databaseFolder: File, metaInput: File, span: Span.NonVoid, corrLen: Long,
+                                  temporalWeight: Float, normalize: Boolean, numBreaks: Int, minSpacing: Long)
+      extends Config {
+      override def productPrefix = "Config"
+
+      def toXML =
+<segmentation>
      <database>{databaseFolder.getPath}</database>
      <input>{metaInput.getPath}</input>
      <span>{SpanUtil.toXML(span)}</span>
@@ -211,32 +202,35 @@ object FeatureSegmentation extends ProcessorFactory.WithDefaults {
      <numBreaks>{numBreaks}</numBreaks>
      <minSpacing>{minSpacing}</minSpacing>
   </segmentation>
-     }
-   }
+    }
+  }
 
-   object Config {
-     def apply() : ConfigBuilder = new ConfigBuilder()
+  object Config {
+    def apply(): ConfigBuilder = new ConfigBuilder()
 
-      implicit def build( sb: ConfigBuilder ) : Config = sb.build
+    implicit def build(sb: ConfigBuilder): Config = sb.build
 
-     def fromXMLFile( file: File ) : Config = fromXML( XML.loadFile( file ))
-      def fromXML( xml: NodeSeq ) : Config = {
-         val sb = Config()
-         sb.databaseFolder = new File( (xml \ "database").text )
-         sb.metaInput      = new File( (xml \ "input").text )
-         sb.span           = SpanUtil.fromXML(xml \ "span")
-         sb.corrLen        = (xml \ "corr").text.toLong
-         sb.temporalWeight = (xml \ "weight").text.toFloat
-         sb.normalize      = (xml \ "normalize").text.toBoolean
-         sb.numBreaks      = (xml \ "numBreaks").text.toInt
-         sb.minSpacing     = (xml \ "minSpacing").text.toLong
-         sb.build
-      }
-   }
+    def fromXMLFile(file: File): Config = fromXML(XML.loadFile(file))
+
+    def fromXML(xml: NodeSeq): Config = {
+      val sb = Config()
+      sb.databaseFolder = new File( (xml \ "database").text )
+      sb.metaInput      = new File((xml \ "input").text)
+      sb.span           = SpanUtil.fromXML(xml \ "span")
+      sb.corrLen        = (xml \ "corr").text.toLong
+      sb.temporalWeight = (xml \ "weight").text.toFloat
+      sb.normalize      = (xml \ "normalize").text.toBoolean
+      sb.numBreaks      = (xml \ "numBreaks").text.toInt
+      sb.minSpacing     = (xml \ "minSpacing").text.toLong
+      sb.build
+    }
+  }
+
   sealed trait Config extends ConfigLike {
     def toXML: xml.Node
   }
 }
+
 trait FeatureSegmentation extends Processor[FeatureSegmentation.Product, FeatureSegmentation] {
   def config: FeatureSegmentation.Config
 }

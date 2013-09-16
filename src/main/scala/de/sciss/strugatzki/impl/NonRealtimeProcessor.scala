@@ -121,7 +121,7 @@ object NonRealtimeProcessor {
       def buffer[T](f: => T): T = f
 
       // ???
-      def out(line: => String) {
+      def out(line: => String): Unit =
         if (line.startsWith("nextOSCPacket")) {
           val time = line.substring(14).toFloat
           val prog = time / dur * 0.8 // first 80%
@@ -135,11 +135,8 @@ object NonRealtimeProcessor {
         } else if (line != "start time 0") {
           Console.out.println(line)
         }
-      }
 
-      def err(line: => String) {
-        Console.err.println(line)
-      }
+      def err(line: => String): Unit = Console.err.println(line)
     }
     lazy val proc: Process = procBuilder.run(log)
 

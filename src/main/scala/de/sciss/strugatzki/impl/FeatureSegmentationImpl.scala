@@ -77,7 +77,7 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
       // truncates the queue. if the match collides with a previous match that is closer
       // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
       // the previous match (if the similarity is greater).
-      def addBreak( b: Break ) {
+      def addBreak(b: Break): Unit = {
          if( (lastBreak != null) && ((b.pos - lastBreak.pos) < config.minSpacing) ) {
             // gotta collapse them
             if( lastBreak.sim > b.sim ) {  // ok, replace previous match

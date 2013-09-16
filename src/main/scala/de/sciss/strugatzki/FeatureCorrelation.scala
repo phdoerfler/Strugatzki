@@ -234,7 +234,7 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
     def build: Config = Impl(databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
       maxBoost, numMatches, numPerFile, minSpacing)
 
-    def read(config: Config) {
+    def read(config: Config): Unit = {
       databaseFolder  = config.databaseFolder
       metaInput       = config.metaInput
       punchIn         = config.punchIn

@@ -39,7 +39,7 @@ private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtract
 
   import FeatureExtraction._
 
-  protected def body() {
+  protected def body(): Unit = {
     import NonRealtimeProcessor.{BufferSpec, RenderConfig, render}
 
     val inSpec      = AudioFile.readSpec(config.audioInput)

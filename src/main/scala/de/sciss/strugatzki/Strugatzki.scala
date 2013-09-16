@@ -73,7 +73,7 @@ object Strugatzki {
     res
   }
 
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     var which = ""
 
     val parser = new OptionParser(name) {
@@ -99,28 +99,28 @@ object Strugatzki {
   }
 
   private def go(factory: ProcessorFactory { type Repr <: Future[_]})(config: factory.Config)
-                (observer: factory.Observer) {
+                (observer: factory.Observer): Unit = {
     val proc = factory.run(config)(observer)
     Await.ready(proc, Duration.Inf)
   }
 
-  def featureCorr( args: Array[ String ]) {
-      var dirOption     = Option.empty[ String ]
-      var verbose       = false
-      var punchInStart  = Option.empty[ Double ]
-      var punchInStop   = Option.empty[ Double ]
-      var tempIn        = 0.5
-      var punchOutStart = Option.empty[ Double ]
-      var punchOutStop  = Option.empty[ Double ]
-      var tempOut       = 0.5
-      var minPunch      = Option.empty[ Double ]
-      var maxPunch      = Option.empty[ Double ]
-      var input         = Option.empty[ String ]
-      var maxBoost      = 8.0
-      var numMatches    = 1
-      var numPerFile    = 1
-      var minSpacing    = 0.0 // 0.5
-      var normalize     = true
+  def featureCorr(args: Array[String]): Unit = {
+    var dirOption     = Option.empty[String]
+    var verbose       = false
+    var punchInStart  = Option.empty[Double]
+    var punchInStop   = Option.empty[Double]
+    var tempIn        = 0.5
+    var punchOutStart = Option.empty[Double]
+    var punchOutStop  = Option.empty[Double]
+    var tempOut       = 0.5
+    var minPunch      = Option.empty[Double]
+    var maxPunch      = Option.empty[Double]
+    var input         = Option.empty[String]
+    var maxBoost      = 8.0
+    var numMatches    = 1
+    var numPerFile    = 1
+    var minSpacing    = 0.0 // 0.5
+    var normalize     = true
 
       implicit val parser  = new OptionParser( name + " -c" ) {
          opt( "v", "verbose", "Verbose output", action = { verbose = true })
@@ -225,17 +225,17 @@ object Strugatzki {
   private def toPercentStr(d: Double)   = percentFormat.format(d)
   private def toDBStr     (amp: Double) = decibelFormat.format(ampToDB(amp))
 
-  def featureSegm( args: Array[ String ]) {
-      var dirOption     = Option.empty[ String ]
-      var verbose       = false
-      var corrLen       = 0.5
-      var temp          = 0.5
-      var spanStart     = Option.empty[ Double ]
-      var spanStop      = Option.empty[ Double ]
-      var numBreaks     = 1
-      var minSpacing    = 0.2
-      var input         = Option.empty[ String ]
-      var normalize     = true
+  def featureSegm(args: Array[String]): Unit = {
+    var dirOption     = Option.empty[String]
+    var verbose       = false
+    var corrLen       = 0.5
+    var temp          = 0.5
+    var spanStart     = Option.empty[Double]
+    var spanStop      = Option.empty[Double]
+    var numBreaks     = 1
+    var minSpacing    = 0.2
+    var input         = Option.empty[String]
+    var normalize     = true
 
       implicit val parser  = new OptionParser( name + " -s" ) {
          opt( "v", "verbose", "Verbose output", action = { verbose = true })
@@ -316,22 +316,22 @@ object Strugatzki {
       }
    }
 
-   def featureSelf( args: Array[ String ]) {
-      import SelfSimilarity.{ColorScheme, PsychoOptical, Config}
-      var dirOption     = Option.empty[ String ]
-      var verbose       = false
-      var corrLen       = 1.0
-      var decim         = 1
-      var temp          = 0.5
-      var spanStart     = Option.empty[ Double ]
-      var spanStop      = Option.empty[ Double ]
-      var input         = Option.empty[ String ]
-      var output        = Option.empty[ String ]
-      var colorWarp     = 1.0
-      var colorCeil     = 1.0
-      var colors        = PsychoOptical: ColorScheme
-      var colorInv      = false
-      var normalize     = true
+  def featureSelf(args: Array[String]): Unit = {
+    import SelfSimilarity.{ColorScheme, PsychoOptical, Config}
+    var dirOption     = Option.empty[String]
+    var verbose       = false
+    var corrLen       = 1.0
+    var decim         = 1
+    var temp          = 0.5
+    var spanStart     = Option.empty[Double]
+    var spanStop      = Option.empty[Double]
+    var input         = Option.empty[String]
+    var output        = Option.empty[String]
+    var colorWarp     = 1.0
+    var colorCeil     = 1.0
+    var colors        = PsychoOptical: ColorScheme
+    var colorInv      = false
+    var normalize     = true
 
       implicit val parser  = new OptionParser( name + " -x" ) {
          opt( "v", "verbose", "Verbose output", action = { verbose = true })
@@ -413,11 +413,11 @@ object Strugatzki {
       }
    }
 
-   def featureStats( args: Array[ String ]) {
-      var dirOption = Option.empty[ String ]
-      var verbose = false
+  def featureStats(args: Array[String]): Unit = {
+    var dirOption = Option.empty[String]
+    var verbose   = false
 
-      implicit val parser  = new OptionParser( name + " --stats" ) {
+    implicit val parser  = new OptionParser( name + " --stats" ) {
          opt( "v", "verbose", "Verbose output", action = { verbose = true })
          opt( "d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some( s ))
       }
@@ -461,18 +461,18 @@ object Strugatzki {
       }
    }
 
-   private def exit1()( implicit p: OptionParser ) : Nothing = {
-      p.showUsage
-      sys.exit( 1 )
-   }
+  private def exit1()(implicit p: OptionParser): Nothing = {
+    p.showUsage
+    sys.exit(1)
+  }
 
-   def featurePre( args: Array[ String ]) {
-      var inputs     = IndexedSeq.empty[ String ]
-      var dirOption  = Option.empty[ String ]
-      var verbose    = false
-      var chanString = "mix"
+  def featurePre(args: Array[String]): Unit = {
+    var inputs      = IndexedSeq.empty[String]
+    var dirOption   = Option.empty[String]
+    var verbose     = false
+    var chanString  = "mix"
 
-      implicit val parser  = new OptionParser( name + " -f" ) {
+    implicit val parser  = new OptionParser( name + " -f" ) {
          opt( "v", "verbose", "Verbose output", action = { verbose = true })
          arglistOpt( "inputs...", "List of input files or directories", inputs +:= _ )
          opt( "d", "dir", "<directory>", "Target directory", (s: String) => dirOption = Some( s ))
@@ -531,7 +531,7 @@ object Strugatzki {
      iter(inFiles)
    }
 
-  def feature(set: ExtrConfig)(whenDone: Boolean => Unit) {
+  def feature(set: ExtrConfig)(whenDone: Boolean => Unit): Unit = {
     import Processor._
     println("Starting extraction... " + set.audioInput.getName)
     var lastProg = 0

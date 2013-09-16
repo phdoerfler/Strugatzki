@@ -21,11 +21,10 @@ object SpanUtil {
     if (startSeq.isEmpty && stopSeq.isEmpty) Nil else startSeq ++ stopSeq
   }
 
-  def spacing(a: Span, b: Span): Long = {
+  def spacing(a: Span, b: Span): Long =
     if (a.start < b.start) {
       b.start - a.stop
     } else {
       a.start - b.stop
     }
-  }
 }

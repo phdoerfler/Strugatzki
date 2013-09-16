@@ -232,7 +232,7 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
     def build: Config = Impl(databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight,
       colors, colorWarp, colorCeil, colorInv, normalize)
 
-    def read(settings: Config) {
+    def read(settings: Config): Unit = {
       databaseFolder = settings.databaseFolder
       metaInput      = settings.metaInput
       imageOutput    = settings.imageOutput
