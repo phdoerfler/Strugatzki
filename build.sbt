@@ -2,11 +2,11 @@ import AssemblyKeys._
 
 name         := "Strugatzki"
 
-version      := "2.2.0"
+version      := "2.3.0-SNAPSHOT"
 
 organization := "de.sciss"
 
-scalaVersion := "2.10.2"
+scalaVersion := "2.10.3"
 
 description  := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -15,12 +15,13 @@ homepage     := Some(url("https://github.com/Sciss/" + name.value))
 licenses     := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-  "de.sciss" %% "processor"        % "0.2.+",
-  "de.sciss" %% "scalacollider"    % "1.10.+",
-  "de.sciss" %% "span"             % "1.2.+",
-  "de.sciss" %  "intensitypalette" % "1.0.0",
-  "com.github.scopt" %% "scopt" % "2.1.0",
-  "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+  "de.sciss"          %% "processor"        % "0.2.+",    // provides futures with progess report and cancel
+  "de.sciss"          %% "scalacollider"    % "1.10.+",   // for the feature ugens
+  "de.sciss"          %% "span"             % "1.2.+",    // representation of time spans
+  "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
+  "de.sciss"          %% "fileutil"         % "1.1.+",    // easy path compositions
+  "com.github.scopt"  %% "scopt"            % "2.1.0",    // parsing command line options
+  "org.scalatest"     %% "scalatest"        % "1.9.1" % "test"
 )
 
 retrieveManaged := true
@@ -55,7 +56,7 @@ publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
-pomExtra <<= name { n =>
+pomExtra := { val n = name.value
 <scm>
   <url>git@github.com:Sciss/{n}.git</url>
   <connection>scm:git:git@github.com:Sciss/{n}.git</connection>

@@ -25,11 +25,11 @@
 
 package de.sciss.strugatzki
 
-import java.io.File
 import xml.{NodeSeq, XML}
 import language.implicitConversions
 import de.sciss.span.Span
 import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.file._
 
 /**
 * A processor which searches through the database and matches
@@ -49,12 +49,12 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
   object Match {
     def fromXML(xml: NodeSeq): Match = {
       val sim       = (xml \ "sim").text.toFloat
-      val file      = new File((xml \ "file").text)
+      val f         = file((xml \ "file").text)
       val start     = (xml \ "start").text.toLong
       val stop      = (xml \ "stop").text.toLong
       val boostIn   = (xml \ "boostIn").text.toFloat
       val boostOut  = (xml \ "boostOut").text.toFloat
-      Match(sim, file, Span(start, stop), boostIn, boostOut)
+      Match(sim, f, Span(start, stop), boostIn, boostOut)
     }
   }
 
@@ -143,11 +143,10 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
     /** Whether to apply normalization to the features (recommended) */
     def normalize: Boolean
 
-    /**
-     * Maximum energy boost (as an amplitude factor) allowed for a match to be considered.
-     * The estimation of the boost factor for two matched signals
-     * is `exp ((ln( loud_in ) - ln( loud_db )) / 0.6 )`
-     */
+    /** Maximum energy boost (as an amplitude factor) allowed for a match to be considered.
+      * The estimation of the boost factor for two matched signals
+      * is `exp ((ln( loud_in ) - ln( loud_db )) / 0.6 )`
+      */
     def maxBoost: Float
 
     /** Maximum number of matches to report */
@@ -183,52 +182,43 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
   }
 
   final class ConfigBuilder private[FeatureCorrelation]() extends ConfigLike {
-    /**
-     * The database folder defaults to `database` (relative path)
-     */
-    var databaseFolder = new File("database") // Strugatzki.defaultDir
-    /**
-     * The correlation input file's extractor meta data file defaults
-     * to `input_feat.xml` (relative path)
-     */
-    var metaInput = new File("input_feat.xml")
-    /**
-     * The punch in defaults to a `Span( 0L, 44100L )` and a temporal weight of 0.5.
-     */
+    /** The database folder defaults to `database` (relative path). */
+    var databaseFolder = file("database") // Strugatzki.defaultDir
+
+    /** The correlation input file's extractor meta data file defaults
+      * to `input_feat.xml` (relative path)
+      */
+    var metaInput = file("input_feat.xml")
+
+    /** The punch in defaults to a `Span( 0L, 44100L )` and a temporal weight of 0.5. */
     var punchIn = Punch(Span(0L, 44100L), 0.5f)
-    /**
-     * The punch out option defaults to `None`.
-     */
+
+    /** The punch out option defaults to `None`. */
     var punchOut = Option.empty[Punch]
-    /**
-     * The minimum punch length defaults to 22050 sample frames
-     * (or 0.5 seconds at 44.1 kHz sample rate)
-     */
+
+    /** The minimum punch length defaults to 22050 sample frames
+      * (or 0.5 seconds at 44.1 kHz sample rate).
+      */
     var minPunch = 22050L
-    /**
-     * The maximum punch length defaults to 88200 sample frames
-     * (or 2.0 seconds at 44.1 kHz sample rate)
-     */
+
+    /** The maximum punch length defaults to 88200 sample frames
+      * (or 2.0 seconds at 44.1 kHz sample rate).
+      */
     var maxPunch = 88200L
-    /**
-     * The vector normalization flag defaults to `true`.
-     */
+
+    /** The vector normalization flag defaults to `true`. */
     var normalize = true
-    /**
-     * The maximum boost factor defaults to 8.0.
-     */
+
+    /** The maximum boost factor defaults to 8.0. */
     var maxBoost = 8f
-    /**
-     * The number of matches defaults to 1.
-     */
+
+    /** The number of matches defaults to 1. */
     var numMatches = 1
-    /**
-     * The maximum number of matches per file defaults to 1.
-     */
+
+    /** The maximum number of matches per file defaults to 1. */
     var numPerFile = 1
-    /**
-     * The minimum spacing between matches defaults to 0 sample frames.
-     */
+
+    /** The minimum spacing between matches defaults to 0 sample frames. */
     var minSpacing = 0L // 22050L
 
     def build: Config = Impl(databaseFolder, metaInput, punchIn, punchOut, minPunch, maxPunch, normalize,
@@ -280,8 +270,8 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
 
     def fromXML(xml: NodeSeq): Config = {
       val sb = Config()
-      sb.databaseFolder = new File((xml \ "database").text)
-      sb.metaInput      = new File((xml \ "input").text)
+      sb.databaseFolder = file((xml \ "database").text)
+      sb.metaInput      = file((xml \ "input").text)
       sb.punchIn        = Punch.fromXML(xml \ "punchIn")
       sb.punchOut       = {
         val e = xml \ "punchOut"

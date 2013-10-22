@@ -17,7 +17,7 @@ object SpanUtil {
 
   def toXML(span: Span.NonVoid): xml.NodeSeq = {
     val startSeq  = span match { case Span.HasStart(s) => <start>{s}</start>; case _ => Nil}
-    val stopSeq   = span match { case Span.HasStop(s) => <stop>{s}</stop>; case _ => Nil}
+    val stopSeq   = span match { case Span.HasStop (s) => <stop>{s}</stop>;   case _ => Nil}
     if (startSeq.isEmpty && stopSeq.isEmpty) Nil else startSeq ++ stopSeq
   }
 

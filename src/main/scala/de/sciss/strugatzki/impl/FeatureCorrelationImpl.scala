@@ -27,15 +27,13 @@ package de.sciss.strugatzki
 package impl
 
 import xml.XML
-import java.io.File
 import collection.breakOut
-import scala.IndexedSeq
-import scala.Some
 import de.sciss.synth.io.AudioFile
 import collection.immutable.{SortedSet => ISortedSet}
 import concurrent.blocking
 import de.sciss.span.Span
 import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.file._
 
 private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrelation.Config)
   extends FeatureCorrelation with ProcessorImpl[FeatureCorrelation.Product, FeatureCorrelation] {
@@ -72,7 +70,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     }
 
     val normBuf = if (config.normalize) {
-      val afNorm = AudioFile.openRead(new File(config.databaseFolder, Strugatzki.NORMALIZE_NAME))
+      val afNorm = AudioFile.openRead(config.databaseFolder / Strugatzki.NormalizeName)
       try {
         require((afNorm.numChannels == extrIn.numCoeffs + 1) && afNorm.numFrames == 2L)
         val b = afNorm.buffer(2)
@@ -94,10 +92,10 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
       val afIn = AudioFile.openRead(extrIn.featureOutput)
       try {
         def readInBuffer(punch: Punch): InputMatrix = {
-          val start = fullToFeat(punch.span.start)
-          val stop = fullToFeat(punch.span.stop)
-          val frameNum = stop - start
-          val b = afIn.buffer(frameNum)
+          val start     = fullToFeat(punch.span.start)
+          val stop      = fullToFeat(punch.span.stop)
+          val frameNum  = stop - start
+          val b         = afIn.buffer(frameNum)
           afIn.seek(start)
           afIn.read(b)
           MathUtil.normalize(normBuf, b, 0, frameNum)
@@ -113,22 +111,22 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
         // Outline of Algorithm:
         // - read input feature in-span and out-span
         // - optionally normalize
-        (readInBuffer(config.punchIn), config.punchOut.map(readInBuffer(_)))
+        (readInBuffer(config.punchIn), config.punchOut.map(readInBuffer))
       } finally {
         afIn.close()
       }
     }
 
-    val punchInLen = matrixIn.numFrames
-    val punchOutLen = matrixOutO.map(_.numFrames).getOrElse(0)
-    val inTempWeight = config.punchIn.temporalWeight
+    val punchInLen    = matrixIn.numFrames
+    val punchOutLen   = matrixOutO.map(_.numFrames).getOrElse(0)
+    val inTempWeight  = config.punchIn.temporalWeight
 
-    var allPrio   = ISortedSet.empty[Match](MatchMinOrd)
-    var entryPrio = ISortedSet.empty[Match](MatchMinOrd)
-    var lastEntryMatch: Match = null
+    var allPrio       = ISortedSet.empty[Match](MatchMinOrd)
+    var entryPrio     = ISortedSet.empty[Match](MatchMinOrd)
+    var lastEntryMatch= null: Match
 
-    val minPunch = fullToFeat(config.minPunch)
-    val maxPunch = fullToFeat(config.maxPunch)
+    val minPunch      = fullToFeat(config.minPunch)
+    val maxPunch      = fullToFeat(config.maxPunch)
 
     def entryHasSpace = {
       val maxEntrySz = math.min(config.numMatches - allPrio.size, config.numPerFile)
@@ -136,8 +134,8 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     }
 
     def lowestSim = {
-      if (entryPrio.nonEmpty) entryPrio.last.sim
-      else if (allPrio.nonEmpty) allPrio.last.sim
+      if      (entryPrio.nonEmpty) entryPrio.last.sim
+      else if (allPrio  .nonEmpty) allPrio  .last.sim
       else 0f // Float.NegativeInfinity
     }
 
@@ -145,7 +143,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     // truncates the queue. if the match collides with a previous match that is closer
     // than minSpacing, it is either dropped (if the similarity is equal or smaller) or replaces
     // the previous match (if the similarity is greater).
-    def addMatch(m: Match): Unit = {
+    def addMatch(m: Match): Unit =
       if ((lastEntryMatch != null) && (SpanUtil.spacing(m.punch, lastEntryMatch.punch) < config.minSpacing)) {
         // gotta collapse them
         if (lastEntryMatch.sim < m.sim) {
@@ -161,18 +159,17 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
         }
         lastEntryMatch = m
       }
-    }
 
-    val tInBuf   = Array.ofDim[Float](2, 1024)
-    val tOutBuf = Array.ofDim[Float](2, 1024) // tOut.frameBuffer( 1024 )
-    val eInBuf = Array.ofDim[Float](extrIn.numCoeffs + 1, punchInLen)
-    val eOutBuf = Array.ofDim[Float](extrIn.numCoeffs + 1, punchOutLen)
-    var tIn: AudioFile = null
-    var tOut: AudioFile = null
+    val tInBuf    = Array.ofDim[Float](2, 1024)
+    val tOutBuf   = Array.ofDim[Float](2, 1024) // tOut.frameBuffer( 1024 )
+    val eInBuf    = Array.ofDim[Float](extrIn.numCoeffs + 1, punchInLen )
+    val eOutBuf   = Array.ofDim[Float](extrIn.numCoeffs + 1, punchOutLen)
+    var tIn       = null: AudioFile
+    var tOut      = null: AudioFile
 
     try {
       // - for each span:
-      extrDBs.zipWithIndex foreach {
+      extrDBs.zipWithIndex.foreach {
         case (extrDB, extrIdx) =>
 
           checkAborted()
@@ -189,28 +186,28 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
             // than the previous best match. This could also trigger
             // the punch-out measurement which could thus offset at
             // first_punch_in + min_punch_len
-            var tInOpen = false
-            var tInOff = 0
-            var tInBufOff = 0
+            var tInOpen     = false
+            var tInOff      = 0
+            var tInBufOff   = 0
             //  val b          = afExtr.frameBuffer( math.max( punchInLen, punchOutLen ))
-            var left = afExtr.numFrames
+            var left        = afExtr.numFrames
             matrixOutO.foreach {
               mo => left -= minPunch /* + mo.numFrames */
             }
-            var readSz = punchInLen // read full buffer in first round
-            var readOff = 0
-            var logicalOff = 0
+            var readSz      = punchInLen // read full buffer in first round
+            var readOff     = 0
+            var logicalOff  = 0
             // - go through in-span file and calculate correlations
             while (left > 0) {
 
               checkAborted()
 
-              val chunkLen = math.min(left, readSz).toInt
+              val chunkLen  = math.min(left, readSz).toInt
               afExtr.read(eInBuf, readOff, chunkLen)
               val eInBufOff = logicalOff % punchInLen
               MathUtil.normalize(normBuf, eInBuf, readOff, chunkLen)
-              val boost = calcBoost(matrixIn, eInBuf(0))
-              val sim = if (boost <= config.maxBoost) {
+              val boost     = calcBoost(matrixIn, eInBuf(0))
+              val sim       = if (boost <= config.maxBoost) {
                 val temporal = if (inTempWeight > 0f) {
                   correlate(matrixIn.temporal, eInBuf, eInBufOff, 0)
                 } else 0f
@@ -231,7 +228,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                     } else {
                       tIn.seek(0L)
                     }
-                    tInOff = logicalOff
+                    tInOff  = logicalOff
                     tInOpen = true
                   }
                   tInBuf(0)(tInBufOff) = sim
@@ -246,16 +243,16 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
               } else {
                 if (entryHasSpace || sim > lowestSim) {
                   val start = featToFull(logicalOff)
-                  val stop = featToFull(logicalOff + punchInLen)
-                  val m = Match(sim, extrDB.audioInput, Span(start, stop), boost, 1f)
+                  val stop  = featToFull(logicalOff + punchInLen)
+                  val m     = Match(sim, extrDB.audioInput, Span(start, stop), boost, 1f)
                   addMatch(m)
                 }
               }
 
-              left -= chunkLen
-              readOff = (readOff + chunkLen) % punchInLen
+              left       -= chunkLen
+              readOff     = (readOff + chunkLen) % punchInLen
               logicalOff += 1
-              readSz = 1 // read single frames in successive round (and rotate buffer)
+              readSz      = 1 // read single frames in successive round (and rotate buffer)
             }
 
             // - if there is no punch-out, or if no minimally good correlations have been found,
@@ -272,7 +269,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
 
                 val poOff0 = tInOff + minPunch
 
-                left = afExtr.numFrames - (poOff0 /*+ matrixOut.numFrames */)
+                left = afExtr.numFrames - poOff0
                 if (left >= matrixOut.numFrames) {
                   // means we actually do at least one full correlation
                   if (tOut == null) {
@@ -283,23 +280,23 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
 
                   val outTempWeight = punchOut.temporalWeight
                   afExtr.seek(poOff0)
-                  readSz = punchOutLen // read full buffer in first round
-                  readOff = 0
-                  logicalOff = 0
+                  readSz          = punchOutLen // read full buffer in first round
+                  readOff         = 0
+                  logicalOff      = 0
                   // - go through out-span file and calculate correlations
 
-                  var tOutBufOff = 0
-                  val tOutSize = left
+                  var tOutBufOff  = 0
+                  val tOutSize    = left
                   while (left > 0) {
 
                     checkAborted()
 
-                    val chunkLen = math.min(left, readSz).toInt
+                    val chunkLen    = math.min(left, readSz).toInt
                     afExtr.read(eOutBuf, readOff, chunkLen)
                     MathUtil.normalize(normBuf, eOutBuf, readOff, chunkLen)
                     val extraBufOff = logicalOff % punchOutLen
-                    val boost = calcBoost(matrixOut, eOutBuf(0))
-                    val sim = if (boost <= config.maxBoost) {
+                    val boost       = calcBoost(matrixOut, eOutBuf(0))
+                    val sim         = if (boost <= config.maxBoost) {
                       val temporal = if (outTempWeight > 0f) {
                         correlate(matrixOut.temporal, eOutBuf, extraBufOff, 0)
                       } else 0f
@@ -320,10 +317,10 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                       tOutBufOff = 0
                     }
 
-                    left -= chunkLen
-                    readOff = (readOff + chunkLen) % punchOutLen
+                    left       -= chunkLen
+                    readOff     = (readOff + chunkLen) % punchOutLen
                     logicalOff += 1
-                    readSz = 1 // read single frames in successive round (and rotate buffer)
+                    readSz      = 1 // read single frames in successive round (and rotate buffer)
                   }
                   // flush
                   if (tOutBufOff > 0) {
@@ -346,13 +343,10 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                     val inSim   = tInBuf(0)(tInBufOff)
                     val boostIn = tInBuf(1)(tInBufOff)
 
-                    //                        val piOff   = tIn.readInt()
-                    //                        val inSim   = tIn.readFloat()
-                    //                        val boostIn = tIn.readFloat()
                     // lowestSim is now
-                    // defined as min( inSim, outSim )
-                    var low = lowestSim // cache it here
-                    var hs = entryHasSpace // cahce it here
+                    // defined as min(inSim, outSim)
+                    var low = lowestSim     // cache it here
+                    var hs  = entryHasSpace // cahce it here
                     //                        if( hs || inSim > ws ) // for sim = min( inSim, outSim )
                     if (inSim > (low * low)) {
                       // sqrt( inSim * 1 ) > ws
@@ -365,10 +359,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                       val tOutSeek = piOff - tInOff // = numRead from tIn !
                       tOut.seek(tOutSeek)
 
-                      //                           tOut.seek( (poOff0 + (piOff - piOff0)) * 8 )
-                      //                           var left2   = math.min( (tOut.length - tOut.getFilePointer) / 8, maxPunch - minPunch + 1 ) // float <sim>, float <boost>
                       var left2 = math.min(tOutSize - tOutSeek, maxPunch - minPunch + 1)
-                      //println( "---2 (" + left2 + ") " + hs + " | " + ws )
                       while (left2 > 0) {
 
                         checkAborted()
@@ -407,7 +398,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                   }
                 }
 
-              case _ =>
+              case _ => // no punch out
             }
           } finally {
             afExtr.close()
@@ -421,7 +412,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
       }
 
     } finally {
-      if (tIn != null) tIn.close()
+      if (tIn  != null) tIn .close()
       if (tOut != null) tOut.close()
     }
 

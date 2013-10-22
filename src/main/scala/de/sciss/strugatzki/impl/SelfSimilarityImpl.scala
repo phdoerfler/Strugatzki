@@ -24,7 +24,7 @@ private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Co
       val winLen        = halfWinLen * 2
 
       val normBuf = if( config.normalize ) {
-         val afNorm = AudioFile.openRead( new File( config.databaseFolder, Strugatzki.NORMALIZE_NAME ))
+         val afNorm = AudioFile.openRead( new File( config.databaseFolder, Strugatzki.NormalizeName ))
          try {
             require( (afNorm.numChannels == extr.numCoeffs + 1) && afNorm.numFrames == 2L )
             val b = afNorm.buffer( 2 )
