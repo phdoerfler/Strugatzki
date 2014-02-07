@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name         := "Strugatzki"
 
-version      := "2.3.0-SNAPSHOT"
+version      := "2.3.0"
 
 organization := "de.sciss"
 
@@ -16,12 +16,12 @@ licenses     := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "processor"        % "0.2.+",    // provides futures with progess report and cancel
-  "de.sciss"          %% "scalacollider"    % "1.10.+",   // for the feature ugens
+  "de.sciss"          %% "scalacollider"    % "1.10.1+",  // for the feature ugens
   "de.sciss"          %% "span"             % "1.2.+",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.+",    // easy path compositions
   "com.github.scopt"  %% "scopt"            % "2.1.0",    // parsing command line options
-  "org.scalatest"     %% "scalatest"        % "1.9.1" % "test"
+  "org.scalatest"     %% "scalatest"        % "2.0" % "test"
 )
 
 retrieveManaged := true
@@ -75,6 +75,10 @@ pomExtra := { val n = name.value
 seq(assemblySettings: _*)
 
 test in assembly := ()
+
+target in assembly := baseDirectory.value
+
+jarName in assembly := s"${name.value}.jar"
 
 // ---- ls.implicit.ly ----
 

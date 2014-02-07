@@ -2,21 +2,9 @@
  *  FeatureExtraction.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2013 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either
- *  version 2, june 1991 of the License, or (at your option) any later version.
- *
- *  This software is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public
- *  License (gpl.txt) along with this software; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  This software is published under the GNU General Public License v2+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -45,9 +33,9 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
 
   object ChannelsBehavior {
     def apply(id: Int): ChannelsBehavior = (id: @switch) match {
-      case Mix.id   => Mix
+      case Mix  .id => Mix
       case First.id => First
-      case Last.id  => Last
+      case Last .id => Last
       case _        => throw new IllegalArgumentException(id.toString)
     }
 
@@ -67,57 +55,47 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
   }
 
   sealed trait ConfigLike {
-    /**
-     * The input audio file to extract the features from.
-     */
+    /** The input audio file to extract the features from. */
     def audioInput: File
 
-    /**
-     * The output "audio" file to write the feature vectors to
-     * (this will be in AIFF format).
-     */
+    /** The output "audio" file to write the feature vectors to
+      * (this will be in AIFF format).
+      */
     def featureOutput: File
 
-    /**
-     * An optional file to which the extraction settings are
-     * saved (in XML format).
-     */
+    /** An optional file to which the extraction settings are
+      * saved (in XML format).
+      */
     def metaOutput: Option[File]
 
-    /**
-     * The number of MFCC used for the spectral feature.
-     */
+    /** The number of MFCC used for the spectral feature. */
     def numCoeffs: Int
 
-    /**
-     * The FFT size used to calculate the feature vectors.
-     */
+    /** The FFT size used to calculate the feature vectors. */
     def fftSize: Int
 
-    /**
-     * The FFT overlap factor used to step from vector to vector.
-     * This equals fftSize / stepSize, so a value of 2 means
-     * the window step is half of the fft size (windows are 50% overlapping).
-     */
+    /** The FFT overlap factor used to step from vector to vector.
+      * This equals fftSize / stepSize, so a value of 2 means
+      * the window step is half of the fft size (windows are 50% overlapping).
+      */
     def fftOverlap: Int
 
-    /**
-     * The channel behaviour determines how to handle multichannel files.
-     * Currently the feature vectors are calculated on a mono signal only.
-     * This setting determines whether multiple channels in the input audio
-     * file are mixed together, or if just the first or just the last
-     * channel is used in the extraction process.
-     */
+    /** The channel behaviour determines how to handle multichannel files.
+      * Currently the feature vectors are calculated on a mono signal only.
+      * This setting determines whether multiple channels in the input audio
+      * file are mixed together, or if just the first or just the last
+      * channel is used in the extraction process.
+      */
     def channelsBehavior: ChannelsBehavior
 
     final def pretty: String = {
       "Config(\n   audioInput       = " + audioInput +
-               "\n   featureOutput    = " + featureOutput +
-               "\n   metaOutput       = " + metaOutput +
-               "\n   numCoeffs        = " + numCoeffs +
-               "\n   fftSize          = " + fftSize +
-               "\n   fftOverlap       = " + fftOverlap +
-               "\n   channelsBehavior = " + channelsBehavior + "\n)"
+             "\n   featureOutput    = " + featureOutput +
+             "\n   metaOutput       = " + metaOutput +
+             "\n   numCoeffs        = " + numCoeffs +
+             "\n   fftSize          = " + fftSize +
+             "\n   fftOverlap       = " + fftOverlap +
+             "\n   channelsBehavior = " + channelsBehavior + "\n)"
     }
   }
 
@@ -203,14 +181,14 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
 
     def fromXML(xml: NodeSeq): Config = {
       val sb = Config()
-      sb.audioInput     = new File((xml \ "input").text)
+      sb.audioInput     = new File((xml \ "input" ).text)
       sb.featureOutput  = new File((xml \ "output").text)
       sb.metaOutput     = {
         val e = (xml \ "meta").text
         if (e.isEmpty) None else Some(new File(e))
       }
       sb.numCoeffs        = (xml \ "numCoeffs").text.toInt
-      sb.fftSize          = (xml \ "fftSize").text.toInt
+      sb.fftSize          = (xml \ "fftSize"  ).text.toInt
       sb.fftOverlap       = (xml \ "fftOverlap").text.toInt
       sb.channelsBehavior = {
         val e = (xml \ "channels").text

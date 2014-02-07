@@ -4,7 +4,7 @@
 
 Strugatzki is a Scala library containing several algorithms for audio feature extraction, with the aim of similarity and dissimilarity measurements. They have been originally used in my live electronic piece ["Inter-Play/Re-Sound"](http://sciss.de/texts/liv_interplay.html), then successively in the tape piece ["Leere Null"](http://sciss.de/texts/tap_leerenull.html), the sound installation ["Writing Machine"](http://sciss.de/texts/ins_writingmachine.html), and the tape piece  ["Leere Null (2)"](http://sciss.de/texts/tap_leerenull2.html).
 
-(C)opyright 2011-2013 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
+(C)opyright 2011-2014 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) v2+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ## requirements / installation
 
@@ -29,25 +29,27 @@ This assumes you check out Strugatzki from source, as the easiest way to use it 
 
 To find out the switches for the extraction module: `run -f`. This will print the particular options available for this module. While in the API times are all given in sample frames with respect to the original sound file's sample rate, the standalone/ terminal mode assumes times are all given as floating point seconds.
 
+Another possibility is to build the standalone via `sbt assembly` and then execute it with shell script `./strugatzki`
+
 ### library use
 
 If you build your project with sbt, the following line adds a dependency for Strugatzki:
 
     "de.sciss" %% "strugatzki" % v
 
-The current stable version `v` is `"2.2.+"`. Current snapshot version is `"2.3.+"`.
+The current version `v` is `"2.3.+"`.
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
 ```scala
     
     import de.sciss.strugatzki._
-    import java.io.File
+    import de.sciss.file._
     
-    val fs = FeatureExtraction.Config()
-    fs.audioInput    = new File("my-audio-input")
-    fs.featureOutput = new File("my-feature-aiff-output")
-    fs.metaOutput    = Some(new File("my-meta-data-xml-output"))  // optional
+    val fs           = FeatureExtraction.Config()
+    fs.audioInput    = file("my-audio-input")
+    fs.featureOutput = file("my-feature-aiff-output")
+    fs.metaOutput    = Some(file("my-meta-data-xml-output"))  // optional
     
     // the process is constructed with the settings and a partial function which
     // acts as a process observer
