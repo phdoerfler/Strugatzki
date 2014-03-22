@@ -20,7 +20,7 @@ import de.sciss.osc.{PacketCodec, Bundle}
 import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
 import sys.process.{ProcessLogger, Process}
-import concurrent.{ExecutionContext, Future, blocking, future}
+import concurrent.{ExecutionContext, Future, blocking}
 import de.sciss.processor.Processor
 
 object NonRealtimeProcessor {
@@ -33,7 +33,7 @@ object NonRealtimeProcessor {
                                 checkAborted: () => Unit = () => ())
 
   def render[A](config: RenderConfig)(extract: GE => GE)
-               (implicit exec: ExecutionContext): Future[File] = future { blocking {
+               (implicit exec: ExecutionContext): Future[File] = Future { blocking {
 
     val inChannels        = config.inSpec.numChannels
     val sampleRate        = config.inSpec.sampleRate
@@ -106,7 +106,7 @@ object NonRealtimeProcessor {
     val renderMsgs = featBuf.allocMsg(featBufSize, config.numFeatures) :: df.recvMsg ::
       syn.newMsg(df.name, s.rootNode, args = userArgs) :: Nil
 
-    val initBndl = Bundle.secs(0.0, (userMsgs ::: renderMsgs): _*)
+    val initBndl = Bundle.secs(0.0, userMsgs ::: renderMsgs: _*)
 
     val bndls = initBndl +: bufBndls // don't bother about n_free and b_free
 

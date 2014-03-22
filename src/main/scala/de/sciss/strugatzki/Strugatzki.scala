@@ -25,6 +25,7 @@ import de.sciss.processor.{ProcessorFactory, Processor}
 import concurrent.{Future, Await, ExecutionContext}
 import de.sciss.span.Span
 import concurrent.duration.Duration
+import scala.collection.immutable.{IndexedSeq => Vec}
 import de.sciss.file._
 
 object Strugatzki {
@@ -37,13 +38,13 @@ object Strugatzki {
   private lazy val decibelFormat = {
     val res = NumberFormat.getInstance(Locale.US)
     res match {
-      case d: DecimalFormat => {
+      case d: DecimalFormat =>
         d.setGroupingUsed(false)
         d.setMinimumFractionDigits(1)
         d.setMaximumFractionDigits(1)
         d.setNegativeSuffix(" dB")
         d.setPositiveSuffix(" dB")
-      }
+
       case _ =>
     }
     res
@@ -52,11 +53,11 @@ object Strugatzki {
   private lazy val percentFormat = {
     val res = NumberFormat.getPercentInstance(Locale.US)
     res match {
-      case d: DecimalFormat => {
+      case d: DecimalFormat =>
         d.setGroupingUsed(false)
         d.setMinimumFractionDigits(1)
         d.setMaximumFractionDigits(1)
-      }
+
       case _ =>
     }
     res
@@ -65,15 +66,15 @@ object Strugatzki {
   def main(args: Array[String]): Unit = {
     var which = ""
 
-    val parser = new OptionParser(name) {
-      opt("f", "feature", "Feature extraction",                                   action = { which = "feat"  })
-      opt("c", "correlate", "Find best correlation with database",                action = { which = "corr"  })
-      opt("s", "segmentation", "Find segmentation breaks with a file",            action = { which = "segm"  })
-      opt("x", "selfsimilarity", "Create an image of the self similarity matrix", action = { which = "self"  })
-      opt("y", "crosssimilarity", "Create a cross-similarity vector file",        action = { which = "cross" })
-      opt("stats", "Statistics from feature database",                            action = { which = "stats" })
+    val parser = new OptionParser[Unit](name) {
+      opt[Unit]('f', "feature"        ) text "Feature extraction"                            action { (_,_) => which = "feat"  }
+      opt[Unit]('c', "correlate"      ) text "Find best correlation with database"           action { (_,_) => which = "corr"  }
+      opt[Unit]('s', "segmentation"   ) text "Find segmentation breaks with a file"          action { (_,_) => which = "segm"  }
+      opt[Unit]('x', "selfsimilarity" ) text "Create an image of the self similarity matrix" action { (_,_) => which = "self"  }
+      opt[Unit]('y', "crosssimilarity") text "Create a cross-similarity vector file"         action { (_,_) => which = "cross" }
+      opt[Unit]("stats")                text "Statistics from feature database"              action { (_,_) => which = "stats" }
     }
-    if( parser.parse(args.take(1))) {
+    if (parser.parse(args.take(1))) {
       val argsRem = args.drop(1)
       which match {
         case "feat"   => featurePre  (argsRem)
@@ -96,129 +97,123 @@ object Strugatzki {
   }
 
   def featureCorr(args: Array[String]): Unit = {
-    var dirOption     = Option.empty[String]
+    var dir           = file("")
     var verbose       = false
-    var punchInStart  = Option.empty[Double]
-    var punchInStop   = Option.empty[Double]
+    var punchInStart  = Double.NaN
+    var punchInStop   = Double.NaN
     var tempIn        = 0.5
     var punchOutStart = Option.empty[Double]
     var punchOutStop  = Option.empty[Double]
     var tempOut       = 0.5
-    var minPunch      = Option.empty[Double]
-    var maxPunch      = Option.empty[Double]
-    var input         = Option.empty[String]
+    var minPunch      = Double.NaN
+    var maxPunch      = Double.NaN
+    var inFile        = file("")
     var maxBoost      = 8.0
     var numMatches    = 1
     var numPerFile    = 1
     var minSpacing    = 0.0 // 0.5
     var normalize     = true
 
-    implicit val parser  = new OptionParser(name + " -c") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      opt("d", "dir", "<directory>", "Database directory", (s: String) => dirOption    = Some(s))
-      doubleOpt("in-start", "Punch in begin (secs)"      , (d: Double) => punchInStart = Some(d))
-      doubleOpt("in-stop", "Punch in end (secs)"         , (d: Double) => punchInStop  = Some(d))
-      doubleOpt("in-temp", "Temporal weight for punch in (0 to 1, default 0.5)", tempIn = _ )
-      doubleOpt("out-start", "Punch out begin (secs)", (d: Double) => punchOutStart = Some(d))
-      doubleOpt("out-stop", "Punch out end (secs)", (d: Double) => punchOutStop  = Some( d ))
-      doubleOpt("out-temp", "Temporal weight for punch out (0 to 1, default 0.5)", tempOut = _)
-      doubleOpt("dur-min", "Minimum fill duration (secs)", (d: Double) => minPunch = Some(d))
-      doubleOpt("dur-max", "Maximum fill duration (secs)", (d: Double) => maxPunch = Some(d))
-      doubleOpt("boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _)
-      intOpt("m", "num-matches", "Maximum number of matches (default 1)", numMatches = _)
-      intOpt("num-per-file", "Maximum matches per single file (default 1)", numPerFile = _)
-      doubleOpt("spacing", "Minimum spacing between matches within one file (default 0.0)", minSpacing = _)
-      arg("input", "Meta file of input to process", (i: String) => input = Some(i))
-      opt("no-norm", "Do not apply feature normalization", action = { normalize = false })
+    implicit val parser  = new OptionParser[Unit](name + " -c") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      opt[File]('d', "dir") required() text "Database directory" action { (f,_) => dir = f }
+      opt[Double]("in-start") required() text "Punch in begin (secs)" action { (d,_) => punchInStart = d }
+      opt[Double]("in-stop" ) required() text "Punch in end (secs)"   action { (d,_) => punchInStop  = d }
+      opt[Double]("in-temp") text "Temporal weight for punch in (0 to 1, default 0.5)" action { (d,_) => tempIn = d }
+      opt[Double]("out-start") text "Punch out begin (secs)" action { (d,_) => punchOutStart = Some(d) }
+      opt[Double]("out-stop" ) text "Punch out end (secs)"   action { (d,_) => punchOutStop  = Some(d) }
+      opt[Double]("out-temp") text "Temporal weight for punch out (0 to 1, default 0.5)" action { (d,_) => tempOut = d }
+      opt[Double]("dur-min") required() text "Minimum fill duration (secs)" action { (d,_) => minPunch = d }
+      opt[Double]("dur-max") required() text "Maximum fill duration (secs)" action { (d,_) => maxPunch = d }
+      opt[Double]("boost-max") text "Maximum loudness boost factor (default 8)" action { (d,_) => maxBoost = d }
+      opt[Int]('m', "num-matches") text "Maximum number of matches (default 1)" action { (i,_) => numMatches = i }
+      opt[Int]("num-per-file") text "Maximum matches per single file (default 1)" action { (i,_) => numPerFile = i }
+      opt[Double]("spacing") text "Minimum spacing between matches within one file (default 0.0)" action { (d,_) => minSpacing = d }
+      arg[File]("input") required() text "Meta file of input to process" action { (f,_) => inFile = f }
+      opt[Unit]("no-norm") text "Do not apply feature normalization" action { (_,_) => normalize = false }
     }
 
     if (!parser.parse(args)) sys.exit(1)
 
-    (input, punchInStart, punchInStop, minPunch, maxPunch, dirOption) match {
-      case (Some(in), Some(piStart), Some(piStop), Some(pMin), Some(pMax), Some(dir)) =>
-        val inFile = file(in)
-        val metaIn = FeatureExtraction.Config.fromXMLFile(inFile)
-        val inSpec = AudioFile.readSpec(metaIn.audioInput)
+    val metaIn = FeatureExtraction.Config.fromXMLFile(inFile)
+    val inSpec = AudioFile.readSpec(metaIn.audioInput)
 
-        def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
+    def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
 
-        val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
-          case (Some(poStart), Some(poStop)) =>
-            val outSpan = Span(secsToFrames(poStart), secsToFrames(poStop))
-            require(outSpan.length > 0, "Punch out span is empty")
-            true -> Some(FeatureCorrelation.Punch(outSpan, tempOut.toFloat))
+    val (ok, punchOutO) = (punchOutStart, punchOutStop) match {
+      case (Some(poStart), Some(poStop)) =>
+        val outSpan = Span(secsToFrames(poStart), secsToFrames(poStop))
+        require(outSpan.length > 0, "Punch out span is empty")
+        true -> Some(FeatureCorrelation.Punch(outSpan, tempOut.toFloat))
 
-          case (None, None) => true -> None
-          case _            => false -> None
-        }
-        if (ok) {
-          val inSpan    = Span(secsToFrames(piStart), secsToFrames(piStop))
-          require(inSpan.length > 0, "Punch in span is empty")
-          val punchIn   = FeatureCorrelation.Punch(inSpan, tempIn.toFloat)
-          val minFrames = secsToFrames(pMin)
-          require(minFrames > 0, "Minimum duration is zero")
-          val maxFrames = secsToFrames(pMax)
-          require(maxFrames >= minFrames, "Maximum duration is smaller than minimum duration")
+      case (None, None) => true -> None
+      case _            => false -> None
+    }
+    if (ok) {
+      val inSpan = Span(secsToFrames(punchInStart), secsToFrames(punchInStop))
+      require(inSpan.length > 0, "Punch in span is empty")
+      val punchIn = FeatureCorrelation.Punch(inSpan, tempIn.toFloat)
+      val minFrames = secsToFrames(minPunch)
+      require(minFrames > 0, "Minimum duration is zero")
+      val maxFrames = secsToFrames(maxPunch)
+      require(maxFrames >= minFrames, "Maximum duration is smaller than minimum duration")
 
-          FeatureCorrelation.verbose = verbose
-          val con             = FeatureCorrelation.Config()
-          con.databaseFolder  = file(dir)
-          con.punchIn         = punchIn
-          con.punchOut        = punchOutO
-          con.metaInput       = inFile
-          con.minPunch        = minFrames
-          con.maxPunch        = maxFrames
-          con.normalize       = normalize
-          con.maxBoost        = maxBoost.toFloat
-          con.numMatches      = numMatches
-          con.numPerFile      = numPerFile
-          con.minSpacing      = secsToFrames(minSpacing)
+      FeatureCorrelation.verbose = verbose
+      val con = FeatureCorrelation.Config()
+      con.databaseFolder  = dir
+      con.punchIn         = punchIn
+      con.punchOut        = punchOutO
+      con.metaInput       = inFile
+      con.minPunch        = minFrames
+      con.maxPunch        = maxFrames
+      con.normalize       = normalize
+      con.maxBoost        = maxBoost.toFloat
+      con.numMatches      = numMatches
+      con.numPerFile      = numPerFile
+      con.minSpacing      = secsToFrames(minSpacing)
 
-          import Processor._
-          var lastProg = 0
-          go(FeatureCorrelation)(con) {
-            case Result(_, Success(res)) if res.nonEmpty =>
-              println("  Success.")
+      import Processor._
+      var lastProg = 0
+      go(FeatureCorrelation)(con) {
+        case Result(_, Success(res)) if res.nonEmpty =>
+          println("  Success.")
 
-              res.foreach { m =>
-                println("\nFile      : " + m.file.getAbsolutePath +
-                        "\nSimilarity: " + toPercentStr(m.sim) +
-                        "\nSpan start: " + m.punch.start +
-                        "\nBoost in  : " + toDBStr(m.boostIn))
-                if (punchOutO.isDefined) {
-                  println("Span stop : " + m.punch.stop +
-                        "\nBoost out : " + toDBStr(m.boostOut))
-                }
-              }
-              println()
-
-            case Result(_, Success(_)) =>
-              println("  No matches found.")
-            case Result(_, Failure(Aborted())) =>
-              println("  Aborted")
-            case Result(_, Failure(e)) =>
-              println("  Failed: ")
-              e.printStackTrace()
-            case Progress(_, perc) =>
-              val i = (perc * 25).toInt
-              while (lastProg < i) {
-                print("#")
-                lastProg += 1
+          res.foreach {
+            m =>
+              println("\nFile      : " + m.file.getAbsolutePath +
+                "\nSimilarity: " + toPercentStr(m.sim) +
+                "\nSpan start: " + m.punch.start +
+                "\nBoost in  : " + toDBStr(m.boostIn))
+              if (punchOutO.isDefined) {
+                println("Span stop : " + m.punch.stop +
+                  "\nBoost out : " + toDBStr(m.boostOut))
               }
           }
+          println()
 
-        } else exit1()
-
-      case _ => exit1()
+        case Result(_, Success(_)) =>
+          println("  No matches found.")
+        case Result(_, Failure(Aborted())) =>
+          println("  Aborted")
+        case Result(_, Failure(e)) =>
+          println("  Failed: ")
+          e.printStackTrace()
+        case Progress(_, p) =>
+          val i = (p * 25).toInt
+          while (lastProg < i) {
+            print("#")
+            lastProg += 1
+          }
+      }
     }
   }
 
   private def ampToDB     (amp: Double) = 20 * math.log10(amp)
-  private def toPercentStr(d: Double)   = percentFormat.format(d)
+  private def toPercentStr(d  : Double) = percentFormat.format(d)
   private def toDBStr     (amp: Double) = decibelFormat.format(ampToDB(amp))
 
   def featureSegm(args: Array[String]): Unit = {
-    var dirOption     = Option.empty[String]
+    var dirOption     = Option.empty[File]
     var verbose       = false
     var corrLen       = 0.5
     var temp          = 0.5
@@ -226,210 +221,192 @@ object Strugatzki {
     var spanStop      = Option.empty[Double]
     var numBreaks     = 1
     var minSpacing    = 0.2
-    var input         = Option.empty[String]
+    var inFile        = file("")
     var normalize     = true
 
-    implicit val parser = new OptionParser(name + " -s") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      opt("d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some(s))
-      doubleOpt("length", "Correlation length in secs (default: 0.5)", corrLen = _)
-      doubleOpt("temp", "Temporal weight (0 to 1, default 0.5)", temp = _)
-      doubleOpt("span-start", "Search begin in file (secs)", (d: Double) => spanStart = Some(d))
-      doubleOpt("span-stop", "Search end in file (secs)", (d: Double) => spanStop = Some(d))
-      intOpt("m", "num-breaks", "Maximum number of breaks (default 1)", numBreaks = _)
-      doubleOpt("spacing", "Minimum spacing between matches within one file (default 0.2)", minSpacing = _)
-      arg("input", "Meta file of input to process", (i: String) => input = Some(i))
-      opt("no-norm", "Do not apply feature normalization", action = { normalize = false })
+    implicit val parser = new OptionParser[Unit](name + " -s") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
+      opt[Double]("length") text "Correlation length in secs (default: 0.5)" action { (d,_) => corrLen = d }
+      opt[Double]("temp") text "Temporal weight (0 to 1, default 0.5)" action { (d,_) => temp = d }
+      opt[Double]("span-start") text "Search begin in file (secs)" action { (d,_) => spanStart = Some(d) }
+      opt[Double]("span-stop" ) text "Search end in file (secs)"   action { (d,_) => spanStop  = Some(d) }
+      opt[Int]('m', "num-breaks") text "Maximum number of breaks (default 1)" action { (i,_) => numBreaks = i }
+      opt[Double]("spacing") text "Minimum spacing between matches within one file (default 0.2)" action { (d,_) => minSpacing = d }
+      arg[File]("input") required() text "Meta file of input to process" action { (f,_) => inFile = f }
+      opt[Unit]("no-norm") text "Do not apply feature normalization" action { (_,_) => normalize = false }
     }
 
     if (!parser.parse(args)) sys.exit(1)
 
-    input match {
-      case Some(in) =>
-        val inFile = file(in)
-        val metaIn = FeatureExtraction.Config.fromXMLFile(inFile)
-        val inSpec = AudioFile.readSpec(metaIn.audioInput)
+    val metaIn = FeatureExtraction.Config.fromXMLFile(inFile)
+    val inSpec = AudioFile.readSpec(metaIn.audioInput)
 
-        def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
+    def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
 
-        val span = (spanStart, spanStop) match {
-          case (Some(start) , Some(stop)) => Span     (secsToFrames(start), secsToFrames(stop))
-          case (Some(start) , None      ) => Span.from(secsToFrames(start))
-          case (None        , Some(stop)) => Span.until                    (secsToFrames(stop))
-          case (None        , None      ) => Span.All
-        }
-        require(span.nonEmpty, "Span is empty")
-        val corrFrames = secsToFrames(corrLen)
-        require(corrFrames > 0, "Correlation duration is zero")
+    val span = (spanStart, spanStop) match {
+      case (Some(start) , Some(stop)) => Span     (secsToFrames(start), secsToFrames(stop))
+      case (Some(start) , None      ) => Span.from(secsToFrames(start))
+      case (None        , Some(stop)) => Span.until                    (secsToFrames(stop))
+      case (None        , None      ) => Span.All
+    }
+    require(span.nonEmpty, "Span is empty")
+    val corrFrames = secsToFrames(corrLen)
+    require(corrFrames > 0, "Correlation duration is zero")
 
-        FeatureSegmentation.verbose = verbose
-        val con             = FeatureSegmentation.Config()
-        con.metaInput       = inFile
-        con.span            = span
-        con.corrLen         = corrFrames
-        con.temporalWeight  = temp.toFloat
-        con.normalize       = normalize
-        con.numBreaks       = numBreaks
-        con.minSpacing      = secsToFrames(minSpacing)
+    FeatureSegmentation.verbose = verbose
+    val con             = FeatureSegmentation.Config()
+    con.metaInput       = inFile
+    con.span            = span
+    con.corrLen         = corrFrames
+    con.temporalWeight  = temp.toFloat
+    con.normalize       = normalize
+    con.numBreaks       = numBreaks
+    con.minSpacing      = secsToFrames(minSpacing)
 
-        if (normalize) dirOption match {
-          case Some(dir) =>
-            con.databaseFolder = new File(dir)
-          case _ => exit1()
-        }
-
-        import Processor._
-        var lastProg = 0
-        go(FeatureSegmentation)(con) {
-          case Result(_, Success(res)) if res.nonEmpty =>
-            println("  Success.")
-
-            res.foreach { b =>
-              println("\nSimilarity: " + toPercentStr(b.sim) +
-                      "\nPosition:   " + b.pos)
-            }
-            println()
-
-          case Result(_, Success(_)) =>
-            println("  No breaks found.")
-          case Result(_, Failure(Aborted())) =>
-            println("  Aborted")
-          case Result(_, Failure(e)) =>
-            println("  Failed: ")
-            e.printStackTrace()
-          case Progress(_, perc) =>
-            val i = (perc * 25).toInt
-            while (lastProg < i) {
-              print("#")
-              lastProg += 1
-            }
-        }
-
+    if (normalize) dirOption match {
+      case Some(dir) =>
+        con.databaseFolder = dir
       case _ => exit1()
+    }
+
+    import Processor._
+    var lastProg = 0
+    go(FeatureSegmentation)(con) {
+      case Result(_, Success(res)) if res.nonEmpty =>
+        println("  Success.")
+
+        res.foreach { b =>
+          println("\nSimilarity: " + toPercentStr(b.sim) +
+                  "\nPosition:   " + b.pos)
+        }
+        println()
+
+      case Result(_, Success(_)) =>
+        println("  No breaks found.")
+      case Result(_, Failure(Aborted())) =>
+        println("  Aborted")
+      case Result(_, Failure(e)) =>
+        println("  Failed: ")
+        e.printStackTrace()
+      case Progress(_, p) =>
+        val i = (p * 25).toInt
+        while (lastProg < i) {
+          print("#")
+          lastProg += 1
+        }
     }
   }
 
   def featureSelf(args: Array[String]): Unit = {
     import SelfSimilarity.{ColorScheme, PsychoOptical, Config}
-    var dirOption     = Option.empty[String]
+    var dirOption     = Option.empty[File]
     var verbose       = false
     var corrLen       = 1.0
     var decim         = 1
     var temp          = 0.5
     var spanStart     = Option.empty[Double]
     var spanStop      = Option.empty[Double]
-    var input         = Option.empty[String]
-    var output        = Option.empty[String]
+    var inFile        = file("")
+    var outFile       = file("")
     var colorWarp     = 1.0
     var colorCeil     = 1.0
     var colors        = PsychoOptical: ColorScheme
     var colorInv      = false
     var normalize     = true
 
-    implicit val parser = new OptionParser(name + " -x") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      opt("d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some(s))
-      doubleOpt("length", "Correlation length in secs (default: 1.0)", corrLen = _)
-      doubleOpt("temp", "Temporal weight (0 to 1, default 0.5)", temp = _)
-      doubleOpt("span-start", "Correlation begin in file (secs)", (d: Double) => spanStart = Some(d))
-      doubleOpt("span-stop", "Correlation end in file (secs)", (d: Double) => spanStop = Some(d))
-      opt("c", "colors", "(gray|psycho)", "Color scale (defaults to 'psycho')", (s: String) => colors = ColorScheme(s))
-      doubleOpt("color-warp", "Color scale warping factor (default: 1.0)", (d: Double) => colorWarp = d)
-      doubleOpt("color-ceil", "Color scale input ceiling (default: 1.0)", (d: Double) => colorCeil = d)
-      opt("i", "color-inv", "Inverted color scale", action = { colorInv = true })
-      intOpt("m", "decim", "Pixel decimation factor (default: 1)", (i: Int) => decim = i)
-      arg("input", "Meta file of input to process", (i: String) => input = Some(i))
-      arg("output", "Image output file", (i: String) => output = Some(i))
-      opt("no-norm", "Do not apply feature normalization", action = { normalize = false })
+    implicit val parser = new OptionParser[Unit](name + " -x") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
+      opt[Double]("length") text "Correlation length in secs (default: 1.0)" action { (d,_) => corrLen = d }
+      opt[Double]("temp") text "Temporal weight (0 to 1, default 0.5)" action { (d,_) => temp = d }
+      opt[Double]("span-start") text "Correlation begin in file (secs)" action { (d,_) => spanStart = Some(d) }
+      opt[Double]("span-stop" ) text "Correlation end in file (secs)"   action { (d,_) => spanStop  = Some(d) }
+      opt[String]('c', "colors") text "Color scale (gray|psycho ; defaults to 'psycho')" action { (s,_) => colors = ColorScheme(s) }
+      opt[Double]("color-warp") text "Color scale warping factor (default: 1.0)" action { (d,_) => colorWarp = d }
+      opt[Double]("color-ceil") text "Color scale input ceiling (default: 1.0)"  action { (d,_) => colorCeil = d }
+      opt[Unit]('i', "color-inv") text "Inverted color scale" action { (_,_) => colorInv = true }
+      opt[Int]('m', "decim") text "Pixel decimation factor (default: 1)" action { (i,_) => decim = i }
+      arg[File]("input" ) required() text "Meta file of input to process" action { (f,_) => inFile  = f }
+      arg[File]("output") required() text "Image output file"             action { (f,_) => outFile = f }
+      opt[Unit]("no-norm") text "Do not apply feature normalization" action { (_,_) => normalize = false }
     }
 
     if (!parser.parse(args)) sys.exit(1)
 
-    (input, output) match {
-      case (Some(in), Some(out)) =>
-        val inFile  = file(in)
-        val outFile = file(out)
-        val metaIn  = FeatureExtraction.Config.fromXMLFile(inFile)
-        val inSpec  = AudioFile.readSpec(metaIn.audioInput)
+    val metaIn  = FeatureExtraction.Config.fromXMLFile(inFile)
+    val inSpec  = AudioFile.readSpec(metaIn.audioInput)
 
-        def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
+    def secsToFrames(s: Double) = (s * inSpec.sampleRate + 0.5).toLong
 
-        val span = (spanStart, spanStop) match {
-          case (Some(start) , Some(stop)) => Span(secsToFrames(start), secsToFrames(stop))
-          case (Some(start) , None      ) => Span.from(secsToFrames(start))
-          case (None        , Some(stop)) => Span.until(secsToFrames(stop))
-          case (None        , None      ) => Span.all
-        }
-        require(span.nonEmpty, "Span is empty")
-        val corrFrames = secsToFrames(corrLen)
-        require(corrFrames > 0, "Correlation duration is zero")
+    val span = (spanStart, spanStop) match {
+      case (Some(start) , Some(stop)) => Span(secsToFrames(start), secsToFrames(stop))
+      case (Some(start) , None      ) => Span.from(secsToFrames(start))
+      case (None        , Some(stop)) => Span.until(secsToFrames(stop))
+      case (None        , None      ) => Span.all
+    }
+    require(span.nonEmpty, "Span is empty")
+    val corrFrames = secsToFrames(corrLen)
+    require(corrFrames > 0, "Correlation duration is zero")
 
-        SelfSimilarity.verbose = verbose
-        val con             = Config()
-        con.metaInput       = inFile
-        con.imageOutput     = outFile
-        con.span            = span
-        con.corrLen         = corrFrames
-        con.decimation      = decim
-        con.temporalWeight  = temp.toFloat
-        con.colors          = colors
-        con.colorWarp       = colorWarp.toFloat
-        con.colorCeil       = colorCeil.toFloat
-        con.colorInv        = colorInv
-        con.normalize       = normalize
+    SelfSimilarity.verbose = verbose
+    val con             = Config()
+    con.metaInput       = inFile
+    con.imageOutput     = outFile
+    con.span            = span
+    con.corrLen         = corrFrames
+    con.decimation      = decim
+    con.temporalWeight  = temp.toFloat
+    con.colors          = colors
+    con.colorWarp       = colorWarp.toFloat
+    con.colorCeil       = colorCeil.toFloat
+    con.colorInv        = colorInv
+    con.normalize       = normalize
 
-        if (normalize) dirOption match {
-          case Some(dir) =>
-            con.databaseFolder = new File(dir)
-          case _ => exit1()
-        }
-
-        import Processor._
-        var lastProg = 0
-        go(SelfSimilarity)(con) {
-          case Result(_, Success(_)) =>
-            println("  Done.")
-            println()
-          case Result(_, Failure(Aborted())) =>
-            println("  Aborted")
-          case Result(_, Failure(e)) =>
-            println("  Failed: ")
-            e.printStackTrace()
-          case Progress(_, perc) =>
-            val i = (perc * 25).toInt
-            while (lastProg < i) {
-              print("#")
-              lastProg += 1
-            }
-        }
-
+    if (normalize) dirOption match {
+      case Some(dir) =>
+        con.databaseFolder = dir
       case _ => exit1()
+    }
+
+    import Processor._
+    var lastProg = 0
+    go(SelfSimilarity)(con) {
+      case Result(_, Success(_)) =>
+        println("  Done.")
+        println()
+      case Result(_, Failure(Aborted())) =>
+        println("  Aborted")
+      case Result(_, Failure(e)) =>
+        println("  Failed: ")
+        e.printStackTrace()
+      case Progress(_, p) =>
+        val i = (p * 25).toInt
+        while (lastProg < i) {
+          print("#")
+          lastProg += 1
+        }
     }
   }
 
   def featureStats(args: Array[String]): Unit = {
-    var dirOption = Option.empty[String]
+    var dir       = file("")
     var verbose   = false
 
-    implicit val parser = new OptionParser(name + " --stats") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      opt("d", "dir", "<directory>", "Database directory", (s: String) => dirOption = Some(s))
+    implicit val parser = new OptionParser[Unit](name + " --stats") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      opt[File]('d', "dir") required() text "Database directory" action { (f,_) => dir = f }
     }
     if (!parser.parse(args)) sys.exit(1)
 
-    val dir = dirOption match {
-      case Some(d) => d
-      case None => exit1()
-    }
-
     println( "Starting stats... " )
-    val paths = file(dir).children(_.name.endsWith("_feat.aif"))
+    val paths = dir.children(_.name.endsWith("_feat.aif"))
     import Processor._
     var lastProg = 0
     go(FeatureStats)(paths) {
       case Result(_, Success(spans)) =>
         println("  Success.")
-        val afNorm = AudioFile.openWrite(new File(dir, NormalizeName),
+        val afNorm = AudioFile.openWrite(dir / NormalizeName,
           AudioFileSpec(AudioFileType.AIFF, SampleFormat.Float, spans.size, 44100))
         try {
           val b = afNorm.buffer(2)
@@ -448,8 +425,8 @@ object Strugatzki {
       case Result(_, Failure((e))) =>
         println("  Failed: ")
         e.printStackTrace()
-      case Progress(_, perc) =>
-        val i = (perc * 25).toInt
+      case Progress(_, p) =>
+        val i = (p * 25).toInt
         while (lastProg < i) {
           print("#")
           lastProg += 1
@@ -457,28 +434,25 @@ object Strugatzki {
     }
   }
 
-  private def exit1()(implicit p: OptionParser): Nothing = {
+  private def exit1[A]()(implicit p: OptionParser[A]): Nothing = {
     p.showUsage
     sys.exit(1)
   }
 
   def featurePre(args: Array[String]): Unit = {
-    var inputs      = IndexedSeq.empty[String]
-    var dirOption   = Option.empty[String]
+    var inputs      = Vec.empty[File]
+    var dir         = file("")
     var verbose     = false
     var chanString  = "mix"
 
-    implicit val parser = new OptionParser(name + " -f") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      arglistOpt("inputs...", "List of input files or directories", inputs +:= _)
-      opt("d", "dir", "<directory>", "Target directory", (s: String) => dirOption = Some(s))
-      opt("c", "channels", "(mix|first|last)", "Channel mode (defaults to 'mix')", (s: String) => chanString = s)
+    implicit val parser = new OptionParser[Unit](name + " -f") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      arg[File]("<input>...") required() unbounded() text "List of input files or directories" action { (f,_) => inputs +:= f }
+      opt[File]('d', "dir") required() text "Target directory" action { (f,_) => dir = f }
+      opt[String]('c', "channels") text "Channel mode (mix|first|last ; defaults to 'mix')" action { (s,_) => chanString = s }
     }
     if (!parser.parse(args)) sys.exit(1)
-    val dir = dirOption match {
-      case Some(d) => d
-      case None => exit1()
-    }
+
     if (inputs.isEmpty) exit1()
 
     import FeatureExtraction.ChannelsBehavior
@@ -490,8 +464,7 @@ object Strugatzki {
     }
 
     FeatureExtraction.verbose = verbose
-    val inFiles: List[File] = inputs.flatMap(p => {
-      val f = new File(p)
+    val inFiles: List[File] = inputs.flatMap { f =>
       if (f.isFile) {
         f :: Nil
       } else if (f.isDirectory) {
@@ -501,11 +474,11 @@ object Strugatzki {
           case _: IOException => false
         })
       } else {
-        sys.error(s"Not a valid input: $p")
+        sys.error(s"Not a valid input: $f")
       }
-    })(breakOut)
+    } (breakOut)
 
-    val targetDir         = file(dir)
+    val targetDir         = dir
     val con               = ExtrConfig()
     con.channelsBehavior  = chanMode
 
@@ -528,34 +501,32 @@ object Strugatzki {
   }
 
   def featureCross(args: Array[String]): Unit = {
-    var dirOption     = Option.empty[String]
+    var dirOption     = Option.empty[File]
     var verbose       = false
     var temp          = 0.5
-    var input1        = "unspecified"
-    var input2        = "unspecified"
+    var inFile1       = file("")
+    var inFile2       = file("")
     var spanStart1    = Option.empty[Double]
     var spanStop1     = Option.empty[Double]
     var spanStart2    = Option.empty[Double]
     var spanStop2     = Option.empty[Double]
-    var output        = "unspecified"
+    var outFile       = file("")
     var normalize     = true
     var maxBoost      = 8.0
 
-    implicit val parser = new OptionParser(name + " -y") {
-      opt("v", "verbose", "Verbose output", action = { verbose = true })
-      opt("d", "dir", "<directory>", "Database directory (required for normalization file)", (s: String) => dirOption = Some(s))
-      doubleOpt("temp", "Temporal weight (0 to 1, default 0.5)", temp = _)
-      doubleOpt("span1-start", "Correlation begin in first file (secs)", (d: Double) => spanStart1 = Some(d))
-      doubleOpt("span1-stop" , "Correlation end in first file (secs)"  , (d: Double) => spanStop1  = Some(d))
-      doubleOpt("span2-start", "Correlation begin in second file (secs)", (d: Double) => spanStart2 = Some(d))
-      doubleOpt("span2-stop" , "Correlation end in second file (secs)"  , (d: Double) => spanStop2  = Some(d))
-      arg("input1", "Meta file of first input to process" , (i: String) => input1 = i)
-      arg("input2", "Meta file of second input to process", (i: String) => input2 = i)
-      arg("output", "Audio output file", (i: String) => output = i)
-      doubleOpt( "boost-max", "Maximum loudness boost factor (default 8)", maxBoost = _ )
-      opt("no-norm", "Do not apply feature normalization", action = {
-        normalize = false
-      })
+    implicit val parser = new OptionParser[Unit](name + " -y") {
+      opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
+      opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
+      opt[Double]("temp") text "Temporal weight (0 to 1, default 0.5)" action { (d,_) => temp = d }
+      opt[Double]("span1-start") text "Correlation begin in first file (secs)"  action { (d,_) => spanStart1 = Some(d) }
+      opt[Double]("span1-stop" ) text "Correlation end in first file (secs)"    action { (d,_) => spanStop1  = Some(d) }
+      opt[Double]("span2-start") text "Correlation begin in second file (secs)" action { (d,_) => spanStart2 = Some(d) }
+      opt[Double]("span2-stop" ) text "Correlation end in second file (secs)"   action { (d,_) => spanStop2  = Some(d) }
+      arg[File]("input1") required() text "Meta file of first input to process"  action { (f,_) => inFile1 = f }
+      arg[File]("input2") required() text "Meta file of second input to process" action { (f,_) => inFile2 = f }
+      arg[File]("output") required() text "Audio output file" action { (f,_) => outFile = f }
+      opt[Double]("boost-max") text "Maximum loudness boost factor (default 8)" action { (d,_) => maxBoost = d }
+      opt[Unit]("no-norm") text "Do not apply feature normalization" action { (_,_) => normalize = false }
     }
 
     if (!parser.parse(args)) sys.exit(1)
@@ -565,10 +536,8 @@ object Strugatzki {
       sys.exit(1)
     }
 
-    val inFile1 = file(input1)
     val metaIn1 = FeatureExtraction.Config.fromXMLFile(inFile1)
     val inSpec1 = AudioFile.readSpec(metaIn1.audioInput)
-    val inFile2 = file(input2)
     val metaIn2 = FeatureExtraction.Config.fromXMLFile(inFile2)
     val inSpec2 = AudioFile.readSpec(metaIn2.audioInput)
 
@@ -587,12 +556,12 @@ object Strugatzki {
 
     CrossSimilarity.verbose = verbose
     val con             = CrossSimilarity.Config()
-    dirOption.foreach(d => con.databaseFolder = file(d))
+    dirOption.foreach(con.databaseFolder = _)
     con.metaInput1      = inFile1
     con.metaInput2      = inFile2
     con.normalize       = normalize
     con.maxBoost        = maxBoost.toFloat
-    con.audioOutput     = file(output)
+    con.audioOutput     = outFile
     // con.audioOutputType = automatically
     con.span1           = span1
     con.span2           = span2
@@ -608,8 +577,8 @@ object Strugatzki {
       case Result(_, Failure(e)) =>
         println("  Failed: ")
         e.printStackTrace()
-      case Progress(_, perc) =>
-        val i = (perc * 25).toInt
+      case Progress(_, p) =>
+        val i = (p * 25).toInt
         while (lastProg < i) {
           print("#")
           lastProg += 1
@@ -632,8 +601,8 @@ object Strugatzki {
         println("  Failed: ")
         e.printStackTrace()
         whenDone(false)
-      case Progress(_, perc) =>
-        val i = (perc * 25).toInt
+      case Progress(_, p) =>
+        val i = (p * 25).toInt
         while (lastProg < i) {
           print("#")
           lastProg += 1
