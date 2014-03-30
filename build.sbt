@@ -2,11 +2,11 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.4.0-SNAPSHOT"
+version            := "2.4.0"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.0-RC3"
+scalaVersion       := "2.10.4"
 
 crossScalaVersions := Seq("2.11.0-RC3", "2.10.4")
 
@@ -18,7 +18,7 @@ licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "processor"        % "0.2.+",    // provides futures with progess report and cancel
-  "de.sciss"          %% "scalacollider"    % "1.11.+",   // for the feature ugens
+  "de.sciss"          %% "scalacollider"    % "1.11.1+",  // for the feature ugens
   "de.sciss"          %% "span"             % "1.2.+",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.+",    // easy path compositions
@@ -26,7 +26,7 @@ libraryDependencies ++= Seq(
   "org.scalatest"     %% "scalatest"        % "2.1.2" % "test"
 )
 
-// retrieveManaged := true
+retrieveManaged := true
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 
