@@ -165,11 +165,11 @@ private[strugatzki] final class CrossSimilarityImpl(val config: CrossSimilarity.
         logicalOff += 1
         readSz      = 1 // read single frames in successive round (and rotate buffer)
 
-        progress(((len2 - left).toDouble / len2).toFloat)
+        progress = (len2 - left).toDouble / len2
       }
 
       flushOut()
-      progress(1f)
+      progress = 1.0
 
     } finally {
       openFiles.foreach(_.close())

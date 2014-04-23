@@ -2,13 +2,13 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.4.0"
+version            := "2.4.1"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.10.4"
+scalaVersion       := "2.11.0"
 
-crossScalaVersions := Seq("2.11.0-RC3", "2.10.4")
+crossScalaVersions := Seq("2.11.0", "2.10.4")
 
 description        := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -17,18 +17,18 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-  "de.sciss"          %% "processor"        % "0.2.+",    // provides futures with progess report and cancel
-  "de.sciss"          %% "scalacollider"    % "1.11.1+",  // for the feature ugens
-  "de.sciss"          %% "span"             % "1.2.+",    // representation of time spans
+  "de.sciss"          %% "processor"        % "0.3.0",    // provides futures with progess report and cancel
+  "de.sciss"          %% "scalacollider"    % "1.12.0",   // for the feature ugens
+  "de.sciss"          %% "span"             % "1.2.1",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
-  "de.sciss"          %% "fileutil"         % "1.1.+",    // easy path compositions
+  "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
   "com.github.scopt"  %% "scopt"            % "3.2.0",    // parsing command line options
-  "org.scalatest"     %% "scalatest"        % "2.1.2" % "test"
+  "org.scalatest"     %% "scalatest"        % "2.1.3" % "test"
 )
 
-retrieveManaged := true
+// retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
 
 // ---- build info ----
 

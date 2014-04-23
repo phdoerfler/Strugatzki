@@ -482,7 +482,7 @@ object Strugatzki {
     val con               = ExtrConfig()
     con.channelsBehavior  = chanMode
 
-    def iter(list: List[File]) {
+    def iter(list: List[File]): Unit =
       list match {
         case head :: tail =>
           val name1 = {
@@ -496,7 +496,7 @@ object Strugatzki {
           feature(con)(if (_) iter(tail))
         case _ =>
       }
-    }
+
     iter(inFiles)
   }
 

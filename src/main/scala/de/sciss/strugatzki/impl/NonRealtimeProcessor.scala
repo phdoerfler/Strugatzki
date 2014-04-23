@@ -15,13 +15,14 @@ package de.sciss.strugatzki
 package impl
 
 import de.sciss.synth.io.{AudioFile, AudioFileSpec, SampleFormat, AudioFileType}
-import de.sciss.synth.{ControlSetMap, ugen, GE, Buffer, Synth, SynthDef, Server}
+import de.sciss.synth.{ControlSet, ugen, GE, Buffer, Synth, SynthDef, Server}
 import de.sciss.osc.{PacketCodec, Bundle}
-import java.io.{File, RandomAccessFile}
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import sys.process.{ProcessLogger, Process}
 import concurrent.{ExecutionContext, Future, blocking}
 import de.sciss.processor.Processor
+import de.sciss.file._
 
 object NonRealtimeProcessor {
   final case class BufferSpec(control: String, numFrames: Int, numChannels: Int = 1)
@@ -99,7 +100,7 @@ object NonRealtimeProcessor {
     val (userMsgs, userArgs) = config.buffers.map { case BufferSpec(bufName, bufFrames, bufChans) =>
       val buf = Buffer(s)
       val msg = buf.allocMsg(numFrames = bufFrames, numChannels = bufChans)
-      val set = ControlSetMap.Single(key = bufName, value = buf.id)
+      val set = ControlSet.Value(key = bufName, value = buf.id)
       msg -> set
     } .unzip
 
@@ -129,7 +130,7 @@ object NonRealtimeProcessor {
     val dur = bndls.last.timetag.toSecs
 
     val procArgs    = so.toNonRealtimeArgs
-    val procBuilder = Process(procArgs, Some(new File(so.programPath).getParentFile))
+    val procBuilder = Process(procArgs, file(so.program).parentOption)
     lazy val log: ProcessLogger = new ProcessLogger {
       def buffer[T](f: => T): T = f
 

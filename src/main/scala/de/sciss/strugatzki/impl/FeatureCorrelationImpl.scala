@@ -396,7 +396,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
           allPrio ++= entryPrio
           if (allPrio.size > config.numMatches) allPrio = allPrio.take(config.numMatches)
 
-          progress((extrIdx + 1).toFloat / extrDBs.size)
+          progress = (extrIdx + 1).toDouble / extrDBs.size
       }
 
     } finally {

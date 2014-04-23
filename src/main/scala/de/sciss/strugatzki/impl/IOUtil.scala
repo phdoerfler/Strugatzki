@@ -25,7 +25,7 @@ object IOUtil {
   }
 
   def createTempAudioFile(id: String, numChannels: Int, sampleRate: Double = 44100): AudioFile = {
-    val file  = createTempFile("struga_" + id, ".irc")
+    val file  = createTempFile(s"struga_$id", ".irc")
     val spec  = AudioFileSpec(fileType = AudioFileType.IRCAM, sampleFormat = SampleFormat.Float,
       numChannels = numChannels, sampleRate = sampleRate)
     AudioFile.openWrite(file, spec)

@@ -45,9 +45,7 @@ private[strugatzki] final class FeatureStatsImpl(val config: IIdxSeq[File])
           allMaxs(ch) = math.max(allMaxs(ch), maxs(ch))
         ch += 1 }
       }
-//      val prog = ((i + 1).toFloat / paths.size * 100).toInt
-      val prog = (i + 1).toFloat / paths.size
-      progress(prog)
+      progress = (i + 1).toDouble / paths.size
       i += 1
     }
     (allMins zip allMaxs).toIndexedSeq

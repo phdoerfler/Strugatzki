@@ -4,11 +4,11 @@
 
 Strugatzki is a Scala library containing several algorithms for audio feature extraction, with the aim of similarity and dissimilarity measurements. They have been originally used in my live electronic piece ["Inter-Play/Re-Sound"](http://sciss.de/texts/liv_interplay.html), then successively in the tape piece ["Leere Null"](http://sciss.de/texts/tap_leerenull.html), the sound installation ["Writing Machine"](http://sciss.de/texts/ins_writingmachine.html), and the tape piece  ["Leere Null (2)"](http://sciss.de/texts/tap_leerenull2.html).
 
-(C)opyright 2011-2014 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/licenses/Strugatzki-License.txt) v2+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
+(C)opyright 2011-2014 by Hanns Holger Rutz. All rights reserved. It is released under the [GNU General Public License](https://raw.github.com/Sciss/Strugatzki/master/LICENSE) v2+ and comes with absolutely no warranties. To contact the author, send an email to `contact at sciss.de`.
 
 ## requirements / installation
 
-Builds with sbt 0.13 against Scala 2.10. Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
+Builds with sbt 0.13 against Scala 2.11, 2.10. Depends on [ScalaCollider](https://github.com/Sciss/ScalaCollider) and [scopt](https://github.com/jstrachan/scopt).
 
 Strugatzki can be either used as a standalone command line tool, or embedded in your project as a library.
 
@@ -37,7 +37,7 @@ If you build your project with sbt, the following line adds a dependency for Str
 
     "de.sciss" %% "strugatzki" % v
 
-The current version `v` is `"2.4.+"`.
+The current version `v` is `"2.4.1+"`.
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
@@ -70,7 +70,7 @@ The feature vectors used are spectral envelope as defined by the Mel Frequency C
 
 In most processes, there is a parameter `temporalWeight` which specifies the weight assigned to MFCC versus loudness. A temporal weight of `0.0` means the temporal feature vector (loudness) is not taken into account, and a weight of `1.0` means that only the loudness is taken into account, while the spectral features (MFCC) are ignored.
 
-The correlations, segmentations, and so forth are performed directly in Scala, using dedicated threads, providing an API for monitoring completion, failure, progress, and an abortion hook. As of the current version, all processes run single-threaded, so there is plenty of headroom for future performance boosts by providing some forms of parallelism. Strugatzki is an artistic and a research project, not a commercial application, so beware that it is not the fastest MIR system imaginable.
+The correlation, segmentation, and so forth are performed directly in Scala, using dedicated threads, providing an API for monitoring completion, failure, progress, and an abortion hook. As of the current version, all processes run single-threaded, so there is plenty of headroom for future performance boosts by providing some forms of parallelism. Strugatzki is an artistic and a research project, not a commercial application, so beware that it is not the fastest MIR system imaginable.
 
 The feature vectors (MFCC and loudness) are calculated on a frame-by-frame basis using a sliding (FFT) window. They are written out as a regular AIFF sound file, which is a convenient format for storing evenly sampled multichannel floating point streams. Accompanied by a dedicated XML file which contains the extraction settings for future reference and use by the other algorithms.
 

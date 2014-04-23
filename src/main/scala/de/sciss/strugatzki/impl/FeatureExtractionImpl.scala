@@ -61,7 +61,7 @@ private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtract
       stepSize      = stepSize,
       buffers       = fftBuf :: Nil,
       outFile       = Some(config.featureOutput),
-      progress      = progress(_),
+      progress      = progress = _,
       checkAborted  = () => checkAborted()
     )
 
