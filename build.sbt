@@ -2,13 +2,13 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.4.1"
+version            := "2.5.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.0"
+scalaVersion       := "2.11.2"
 
-crossScalaVersions := Seq("2.11.0", "2.10.4")
+crossScalaVersions := Seq("2.11.2", "2.10.4")
 
 description        := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -18,17 +18,17 @@ licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "processor"        % "0.3.0",    // provides futures with progess report and cancel
-  "de.sciss"          %% "scalacollider"    % "1.12.0",   // for the feature ugens
+  "de.sciss"          %% "scalacollider"    % "1.13.0-SNAPSHOT",   // for the feature ugens
   "de.sciss"          %% "span"             % "1.2.1",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
   "com.github.scopt"  %% "scopt"            % "3.2.0",    // parsing command line options
-  "org.scalatest"     %% "scalatest"        % "2.1.3" % "test"
+  "org.scalatest"     %% "scalatest"        % "2.2.2" % "test"
 )
 
 // retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture")
 
 // ---- build info ----
 
@@ -48,7 +48,7 @@ buildInfoPackage := "de.sciss.strugatzki"
 publishMavenStyle := true
 
 publishTo :=
-  Some(if (version.value endsWith "-SNAPSHOT")
+  Some(if (isSnapshot.value)
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
