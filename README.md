@@ -37,7 +37,7 @@ If you build your project with sbt, the following line adds a dependency for Str
 
     "de.sciss" %% "strugatzki" % v
 
-The current version `v` is `"2.4.1+"`.
+The current version `v` is `"2.5.0"`.
 
 As documentation you are referred to the API docs at the moment. These can be created in the standard way (`sbt doc`). The main classes to look are `FeatureExtraction`, `FeatureCorrelation`, and `FeatureSegmentation`. They are used in a similar fashion. E.g. to run feature extraction:
 
