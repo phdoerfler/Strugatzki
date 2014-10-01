@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.5.0"
+version            := "2.6.0"
 
 organization       := "de.sciss"
 
@@ -18,7 +18,7 @@ licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "processor"        % "0.3.0",    // provides futures with progess report and cancel
-  "de.sciss"          %% "scalacollider"    % "1.13.0",   // for the feature ugens
+  "de.sciss"          %% "scalacollider"    % "1.14.0",   // for the feature ugens
   "de.sciss"          %% "span"             % "1.2.1",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
