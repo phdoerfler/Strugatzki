@@ -2,7 +2,7 @@
  *  FeatureExtractionImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,13 +14,14 @@
 package de.sciss.strugatzki
 package impl
 
-import de.sciss.synth
-import synth.GE
-import synth.io.AudioFile
-import xml.XML
-import concurrent.Await
-import concurrent.duration.Duration
 import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.synth
+import de.sciss.synth.GE
+import de.sciss.synth.io.AudioFile
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import scala.xml.XML
 
 private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtraction.Config)
   extends FeatureExtraction with ProcessorImpl[Unit, FeatureExtraction] {

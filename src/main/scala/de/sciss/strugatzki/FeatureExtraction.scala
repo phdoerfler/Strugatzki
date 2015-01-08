@@ -2,7 +2,7 @@
  *  FeatureExtraction.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -13,12 +13,14 @@
 
 package de.sciss.strugatzki
 
-import java.io.{IOException, File}
-import xml.{NodeSeq, XML}
-import language.implicitConversions
-import annotation.switch
-import scala.util.control.NonFatal
+import java.io.{File, IOException}
+
 import de.sciss.processor.{Processor, ProcessorFactory}
+
+import scala.annotation.switch
+import scala.language.implicitConversions
+import scala.util.control.NonFatal
+import scala.xml.{NodeSeq, XML}
 
 object FeatureExtraction extends ProcessorFactory.WithDefaults {
   var verbose = false

@@ -2,7 +2,7 @@
  *  FeatureCorrelation.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -13,24 +13,23 @@
 
 package de.sciss.strugatzki
 
-import xml.{NodeSeq, XML}
-import language.implicitConversions
-import de.sciss.span.Span
-import de.sciss.processor.{Processor, ProcessorFactory}
 import de.sciss.file._
+import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.span.Span
 
-/**
-* A processor which searches through the database and matches
-* entries against a given audio file input. Returns a given
-* number of best matches.
-*/
+import scala.language.implicitConversions
+import scala.xml.{NodeSeq, XML}
+
+/** A processor which searches through the database and matches
+  * entries against a given audio file input. Returns a given
+  * number of best matches.
+  */
 object FeatureCorrelation extends ProcessorFactory.WithDefaults {
    var verbose = false
 
-  /**
-   * The result is a sequence of matches, sorted
-   * by descending similarity
-   */
+  /** The result is a sequence of matches, sorted
+    * by descending similarity
+    */
   type Product  = IndexedSeq[Match]
   type Repr     = FeatureCorrelation
 
@@ -46,13 +45,12 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
     }
   }
 
-  /**
-   * @param   sim      the matched similarity (where 1.0 would be an identical match)
-   * @param   file     the audio file in the database associated with the match
-   * @param   punch    the best matched punch
-   * @param   boostIn  the estimated gain factor for the match at the punch's start
-   * @param   boostOut the estimated gain factor for the match at the punch's stop
-   */
+  /** @param   sim      the matched similarity (where 1.0 would be an identical match)
+    * @param   file     the audio file in the database associated with the match
+    * @param   punch    the best matched punch
+    * @param   boostIn  the estimated gain factor for the match at the punch's start
+    * @param   boostOut the estimated gain factor for the match at the punch's stop
+    */
   final case class Match(sim: Float, file: File, punch: Span, boostIn: Float, boostOut: Float) {
     def toXML =
 <match>
@@ -71,8 +69,8 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
                                   "\n   boostOut = " + boostOut + "\n)"
    }
 
-  // reverse ordering. since sortedset orders ascending according to the ordering,
-  // this means we get a sortedset with high similarities at the head and low
+  // reverse ordering. since sorted-set orders ascending according to the ordering,
+  // this means we get a sorted-set with high similarities at the head and low
   // similarities at the tail, like a priority queue
   private[strugatzki] object MatchMinOrd extends Ordering[Match] {
     def compare(a: Match, b: Match) = b.sim compare a.sim
@@ -101,17 +99,15 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
 </punch>
   }
 
-  /**
-   * All durations, spans and spacings are given in sample frames
-   * with respect to the sample rate of the audio input file.
-   */
+  /** All durations, spans and spacings are given in sample frames
+    * with respect to the sample rate of the audio input file.
+    */
   sealed trait ConfigLike {
-    /**
-     * The folder which is scanned for extraction entries to be used in the search.
-     * This currently includes '''only those files''' ending in `_feat.xml` and which
-     * have the same number of coefficients and time resolution (step size) as the
-     * target file (`metaInput`).
-     */
+    /** The folder which is scanned for extraction entries to be used in the search.
+      * This currently includes '''only those files''' ending in `_feat.xml` and which
+      * have the same number of coefficients and time resolution (step size) as the
+      * target file (`metaInput`).
+      */
     def databaseFolder: File
 
     def metaInput: File

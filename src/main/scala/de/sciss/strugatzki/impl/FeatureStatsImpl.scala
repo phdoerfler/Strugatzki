@@ -2,7 +2,7 @@
  *  FeatureStatsImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -15,12 +15,14 @@ package de.sciss.strugatzki
 package impl
 
 import java.io.File
-import de.sciss.synth.io.AudioFile
-import concurrent.blocking
-import de.sciss.processor.impl.ProcessorImpl
-import collection.immutable.{IndexedSeq => IIdxSeq}
 
-private[strugatzki] final class FeatureStatsImpl(val config: IIdxSeq[File])
+import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.synth.io.AudioFile
+
+import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.blocking
+
+private[strugatzki] final class FeatureStatsImpl(val config: Vec[File])
   extends FeatureStats with ProcessorImpl[FeatureStats.Product, FeatureStats] {
 
   import FeatureStats._

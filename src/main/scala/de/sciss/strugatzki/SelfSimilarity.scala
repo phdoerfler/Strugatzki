@@ -2,7 +2,7 @@
  *  SelfSimilarity.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,10 +14,12 @@
 package de.sciss.strugatzki
 
 import java.io.File
-import xml.{XML, NodeSeq}
-import language.implicitConversions
-import de.sciss.span.Span
+
 import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.span.Span
+
+import scala.language.implicitConversions
+import scala.xml.{NodeSeq, XML}
 
 object SelfSimilarity extends ProcessorFactory.WithDefaults {
   var verbose = false

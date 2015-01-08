@@ -2,7 +2,7 @@
  *  CrossSimilarity.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -13,12 +13,13 @@
 
 package de.sciss.strugatzki
 
+import de.sciss.file._
 import de.sciss.processor.{Processor, ProcessorFactory}
 import de.sciss.span.Span
 import de.sciss.synth.io.AudioFileType
-import de.sciss.file._
-import scala.xml.{XML, NodeSeq}
-import language.implicitConversions
+
+import scala.language.implicitConversions
+import scala.xml.{NodeSeq, XML}
 
 object CrossSimilarity extends ProcessorFactory.WithDefaults {
   var verbose = false // currently unused

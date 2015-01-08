@@ -2,7 +2,7 @@
  *  FeatureStats.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,15 +14,17 @@
 package de.sciss.strugatzki
 
 import java.io.File
-import collection.immutable.{IndexedSeq => IIdxSeq}
+
 import de.sciss.processor.{Processor, ProcessorFactory}
 
+import scala.collection.immutable.{IndexedSeq => Vec}
+
 object FeatureStats extends ProcessorFactory.WithDefaults {
-  type Product  = IIdxSeq[(Double, Double)]
-  type Config   = IIdxSeq[File]
+  type Product  = Vec[(Double, Double)]
+  type Config   = Vec[File]
   type Repr     = FeatureStats
 
-  protected def defaultConfig: IIdxSeq[File] = Vector.empty
+  protected def defaultConfig: Vec[File] = Vector.empty
 
   protected def prepare(config: FeatureStats.Config): Prepared =
     new impl.FeatureStatsImpl(config)

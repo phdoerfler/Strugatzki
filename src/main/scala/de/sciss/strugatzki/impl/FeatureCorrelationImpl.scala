@@ -2,7 +2,7 @@
  *  FeatureCorrelationImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,14 +14,15 @@
 package de.sciss.strugatzki
 package impl
 
-import xml.XML
-import collection.breakOut
-import de.sciss.synth.io.AudioFile
-import collection.immutable.{SortedSet => ISortedSet}
-import concurrent.blocking
-import de.sciss.span.Span
-import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.file._
+import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.span.Span
+import de.sciss.synth.io.AudioFile
+
+import scala.collection.breakOut
+import scala.collection.immutable.{SortedSet => ISortedSet}
+import scala.concurrent.blocking
+import scala.xml.XML
 
 private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrelation.Config)
   extends FeatureCorrelation with ProcessorImpl[FeatureCorrelation.Product, FeatureCorrelation] {
@@ -29,7 +30,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
   import FeatureCorrelation._
 
   protected def body(): Product = blocking {
-    import FeatureExtraction.{Config => ExtrSettings}
+    import de.sciss.strugatzki.FeatureExtraction.{Config => ExtrSettings}
 
     val extrIn    = ExtrSettings.fromXML(XML.loadFile(config.metaInput))
     val stepSize  = extrIn.fftSize / extrIn.fftOverlap
@@ -168,7 +169,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
           val afExtr = AudioFile.openRead(extrDB.featureOutput)
           try {
             //   - create a temp file
-            //   - write the sliding xcorr to that file
+            //   - write the sliding x-corr to that file
             // A simple optimization could be to not begin writing the
             // temp file unless a punch-in correlation is found which is better
             // than the previous best match. This could also trigger

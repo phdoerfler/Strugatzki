@@ -2,7 +2,7 @@
  *  NonRealtimeProcessor.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,15 +14,17 @@
 package de.sciss.strugatzki
 package impl
 
-import de.sciss.synth.io.{AudioFile, AudioFileSpec, SampleFormat, AudioFileType}
-import de.sciss.synth.{ControlSet, ugen, GE, Buffer, Synth, SynthDef, Server}
-import de.sciss.osc.{PacketCodec, Bundle}
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
-import sys.process.{ProcessLogger, Process}
-import concurrent.{ExecutionContext, Future, blocking}
-import de.sciss.processor.Processor
+
 import de.sciss.file._
+import de.sciss.osc.{Bundle, PacketCodec}
+import de.sciss.processor.Processor
+import de.sciss.synth.io.{AudioFile, AudioFileSpec, AudioFileType, SampleFormat}
+import de.sciss.synth.{Buffer, ControlSet, GE, Server, Synth, SynthDef, ugen}
+
+import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.sys.process.{Process, ProcessLogger}
 
 object NonRealtimeProcessor {
   final case class BufferSpec(control: String, numFrames: Int, numChannels: Int = 1)

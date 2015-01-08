@@ -2,7 +2,7 @@
  *  SelfSimilarityImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,13 +14,14 @@
 package de.sciss.strugatzki
 package impl
 
-import de.sciss.synth.io.AudioFile
+import java.awt.image.{BufferedImage, DataBufferInt}
 import java.io.File
-import de.sciss.intensitypalette.IntensityPalette
-import java.awt.image.{DataBufferInt, BufferedImage}
 import javax.imageio.ImageIO
-import de.sciss.span.Span
+
+import de.sciss.intensitypalette.IntensityPalette
 import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.span.Span
+import de.sciss.synth.io.AudioFile
 
 private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Config)
   extends SelfSimilarity with ProcessorImpl[SelfSimilarity.Product, SelfSimilarity] {

@@ -2,7 +2,7 @@
  *  FeatureSegmentation.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,24 +14,24 @@
 package de.sciss.strugatzki
 
 import java.io.File
-import xml.{NodeSeq, XML}
-import language.implicitConversions
-import de.sciss.span.Span
-import impl.SpanUtil
-import de.sciss.processor.{Processor, ProcessorFactory}
 
-/**
-* A processor which performs segmentation on a given file.
-* Returns a given number of best matches (maximum change in
-* the feature vector).
-*/
+import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.span.Span
+import de.sciss.strugatzki.impl.SpanUtil
+
+import scala.language.implicitConversions
+import scala.xml.{NodeSeq, XML}
+
+/** A processor which performs segmentation on a given file.
+  * Returns a given number of best matches (maximum change in
+  * the feature vector).
+  */
 object FeatureSegmentation extends ProcessorFactory.WithDefaults {
   var verbose = false
 
-  /**
-   * The result is a sequence of matches, sorted
-   * by descending dissimilarity
-   */
+  /** The result is a sequence of matches, sorted
+    * by descending dissimilarity
+    */
   type Product  = IndexedSeq[Break]
 
   type Repr     = FeatureSegmentation
@@ -65,74 +65,71 @@ object FeatureSegmentation extends ProcessorFactory.WithDefaults {
 
   protected def prepare(config: Config): Prepared = new impl.FeatureSegmentationImpl(config)
 
-  /**
-    * All durations, spans and spacings are given in sample frames
+  /** All durations, spans and spacings are given in sample frames
     * with respect to the sample rate of the audio input file.
     */
-   sealed trait ConfigLike {
-      /**
-       * The database folder is merely used to retrieve the normalization file,
-       * given that `normalize` is `true`.
-       */
-      def databaseFolder : File
+  sealed trait ConfigLike {
+    /** The database folder is merely used to retrieve the normalization file,
+      * given that `normalize` is `true`.
+      */
+    def databaseFolder: File
 
-      /**
-       * The XML file holding the extractor parameters corresponding to the
-       * audio input file. The audio input file's feature vector output file
-       * is determined from this meta file.
-       */
-      def metaInput: File
+    /** The XML file holding the extractor parameters corresponding to the
+      * audio input file. The audio input file's feature vector output file
+      * is determined from this meta file.
+      */
+    def metaInput: File
 
-      /**
-       * An option which restricts segmentation to a given span within the
-       * input file. That is, only breaking points within this span are
-       * reported. If `None`, the whole file is considered.
-       */
-      def span: Span.NonVoid
+    /** An option which restricts segmentation to a given span within the
+      * input file. That is, only breaking points within this span are
+      * reported. If `None`, the whole file is considered.
+      */
+    def span: Span.NonVoid
 
-      /**
-       * The size of the sliding window over which the features are correlated.
-       * That is, for a length of 1.0 second (given in sample frames, hence
-       * 44100 for a sample rate of 44100 Hz), at any given point in time,
-       * 0.5 seconds left of that point are correlated with 0.5 seconds right
-       * of that point. Breaking points are those where correlation is minimised.
-       */
-      def corrLen: Long
+    /** The size of the sliding window over which the features are correlated.
+      * That is, for a length of 1.0 second (given in sample frames, hence
+      * 44100 for a sample rate of 44100 Hz), at any given point in time,
+      * 0.5 seconds left of that point are correlated with 0.5 seconds right
+      * of that point. Breaking points are those where correlation is minimised.
+      */
+    def corrLen: Long
 
-      /**
-       * The balance between the feature of loudness curve and spectral composition (MFCC).
-       * A value of 0.0 means the segmentation is only performed by considering the
-       * spectral features, and a value of 1.0 means the segmentation is taking only
-       * the loudness into consideration. Values in between give a measure that takes
-       * both features into account with the given priorities.
-       */
-      def temporalWeight: Float
-      /** Whether to apply normalization to the features (recommended) */
-      def normalize : Boolean
-      /** Maximum number of breaks to report */
-      def numBreaks : Int
-      /** Minimum spacing between breaks */
-      def minSpacing : Long
+    /** The balance between the feature of loudness curve and spectral composition (MFCC).
+      * A value of 0.0 means the segmentation is only performed by considering the
+      * spectral features, and a value of 1.0 means the segmentation is taking only
+      * the loudness into consideration. Values in between give a measure that takes
+      * both features into account with the given priorities.
+      */
+    def temporalWeight: Float
 
-      final def pretty: String = {
-         "Config(\n   databaseFolder = " + databaseFolder +
-                  "\n   metaInput      = " + metaInput +
-                  "\n   span           = " + span +
-                  "\n   corrLen        = " + corrLen +
-                  "\n   temporalWeight = " + temporalWeight +
-                  "\n   normalize      = " + normalize +
-                  "\n   numBreaks      = " + numBreaks +
-                  "\n   minSpacing     = " + minSpacing + "\n)"
-      }
-   }
+    /** Whether to apply normalization to the features (recommended) */
+    def normalize: Boolean
 
-   object ConfigBuilder {
-      def apply( settings: Config ) : ConfigBuilder = {
-         val sb = Config()
-         sb.read( settings )
-         sb
-      }
-   }
+    /** Maximum number of breaks to report */
+    def numBreaks: Int
+
+    /** Minimum spacing between breaks */
+    def minSpacing: Long
+
+    final def pretty: String = {
+      "Config(\n   databaseFolder = " + databaseFolder +
+             "\n   metaInput      = " + metaInput +
+             "\n   span           = " + span +
+             "\n   corrLen        = " + corrLen +
+             "\n   temporalWeight = " + temporalWeight +
+             "\n   normalize      = " + normalize +
+             "\n   numBreaks      = " + numBreaks +
+             "\n   minSpacing     = " + minSpacing + "\n)"
+    }
+  }
+
+  object ConfigBuilder {
+    def apply(settings: Config): ConfigBuilder = {
+      val sb = Config()
+      sb.read(settings)
+      sb
+    }
+  }
 
   final class ConfigBuilder private[FeatureSegmentation]() extends ConfigLike {
     /** The database folder defaults to `database` (relative path). */

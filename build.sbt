@@ -2,13 +2,13 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.7.0"
+version            := "2.7.1-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.4"
+scalaVersion       := "2.11.5"
 
-crossScalaVersions := Seq("2.11.4", "2.10.4")
+crossScalaVersions := Seq("2.11.5", "2.10.4")
 
 description        := "Algorithms for extracting audio features and matching audio file similarities"
 
@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
   "com.github.scopt"  %% "scopt"            % "3.2.0",    // parsing command line options
-  "org.scalatest"     %% "scalatest"        % "2.2.2" % "test"
+  "org.scalatest"     %% "scalatest"        % "2.2.3" % "test"
 )
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture")

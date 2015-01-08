@@ -2,7 +2,7 @@
  *  Strugatzki.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -13,20 +13,22 @@
 
 package de.sciss.strugatzki
 
-import scopt.OptionParser
-import collection.breakOut
 import java.io.IOException
-import de.sciss.synth.io.{AudioFileType, SampleFormat, AudioFileSpec, AudioFile}
-import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
-import FeatureExtraction.{Config => ExtrConfig}
-import scala.util.{Failure, Success}
-import de.sciss.processor.{ProcessorFactory, Processor}
-import concurrent.{Future, Await, ExecutionContext}
-import de.sciss.span.Span
-import concurrent.duration.Duration
-import scala.collection.immutable.{IndexedSeq => Vec}
+import java.util.Locale
+
 import de.sciss.file._
+import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.span.Span
+import de.sciss.strugatzki.FeatureExtraction.{Config => ExtrConfig}
+import de.sciss.synth.io.{AudioFile, AudioFileSpec, AudioFileType, SampleFormat}
+import scopt.OptionParser
+
+import scala.collection.breakOut
+import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object Strugatzki {
   import ExecutionContext.Implicits.global
@@ -299,7 +301,7 @@ object Strugatzki {
   }
 
   def featureSelf(args: Array[String]): Unit = {
-    import SelfSimilarity.{ColorScheme, PsychoOptical, Config}
+    import de.sciss.strugatzki.SelfSimilarity.{ColorScheme, Config, PsychoOptical}
     var dirOption     = Option.empty[File]
     var verbose       = false
     var corrLen       = 1.0
@@ -455,7 +457,7 @@ object Strugatzki {
 
     if (inputs.isEmpty) exit1()
 
-    import FeatureExtraction.ChannelsBehavior
+    import de.sciss.strugatzki.FeatureExtraction.ChannelsBehavior
     val chanMode: ChannelsBehavior = chanString.toLowerCase match {
       case "mix"    => ChannelsBehavior.Mix
       case "first"  => ChannelsBehavior.First
@@ -491,8 +493,8 @@ object Strugatzki {
             if (i >= 0) n.substring(0, i) else n
           }
           con.audioInput    = head
-          con.featureOutput = new File(targetDir, name1 + "_feat.aif")
-          con.metaOutput    = Some(new File(targetDir, name1 + "_feat.xml"))
+          con.featureOutput =      new File(targetDir, s"${name1}_feat.aif")
+          con.metaOutput    = Some(new File(targetDir, s"${name1}_feat.xml"))
           feature(con)(if (_) iter(tail))
         case _ =>
       }
@@ -588,7 +590,7 @@ object Strugatzki {
 
   def feature(con: ExtrConfig)(whenDone: Boolean => Unit): Unit = {
     import Processor._
-    println("Starting extraction... " + con.audioInput.getName)
+    println(s"Starting extraction... ${con.audioInput.getName}")
     var lastProg = 0
     go(FeatureExtraction)(con) {
       case Result(_, Success(_)) =>

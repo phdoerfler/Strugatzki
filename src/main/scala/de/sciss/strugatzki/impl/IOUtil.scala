@@ -2,7 +2,7 @@
  *  IOUtil.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -15,7 +15,8 @@ package de.sciss.strugatzki
 package impl
 
 import java.io.File
-import de.sciss.synth.io.{SampleFormat, AudioFileType, AudioFileSpec, AudioFile}
+
+import de.sciss.synth.io.{AudioFile, AudioFileSpec, AudioFileType, SampleFormat}
 
 object IOUtil {
   def createTempFile(prefix: String, suffix: String): File = {

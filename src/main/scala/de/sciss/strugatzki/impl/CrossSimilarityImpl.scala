@@ -2,7 +2,7 @@
  *  CrossSimilarityImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,14 +14,15 @@
 package de.sciss.strugatzki
 package impl
 
-import xml.XML
-import de.sciss.synth.io.{SampleFormat, AudioFileSpec, Frames, AudioFile}
-import collection.immutable.{IndexedSeq => Vec}
-import concurrent.blocking
-import de.sciss.span.Span
-import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.file._
+import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.span.Span
 import de.sciss.strugatzki.FeatureCorrelation.{FeatureMatrix, InputMatrix}
+import de.sciss.synth.io.{AudioFile, AudioFileSpec, Frames, SampleFormat}
+
+import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.blocking
+import scala.xml.XML
 
 private[strugatzki] final class CrossSimilarityImpl(val config: CrossSimilarity.Config)
   extends CrossSimilarity with ProcessorImpl[CrossSimilarity.Product, CrossSimilarity] {

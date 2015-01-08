@@ -2,7 +2,7 @@
  *  FeatureSegmentationImpl.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,12 +14,14 @@
 package de.sciss.strugatzki
 package impl
 
-import xml.XML
-import de.sciss.synth.io.AudioFile
 import java.io.File
-import collection.immutable.{SortedSet => ISortedSet}
-import de.sciss.span.Span
+
 import de.sciss.processor.impl.ProcessorImpl
+import de.sciss.span.Span
+import de.sciss.synth.io.AudioFile
+
+import scala.collection.immutable.{SortedSet => ISortedSet}
+import scala.xml.XML
 
 private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegmentation.Config)
   extends FeatureSegmentation with ProcessorImpl[FeatureSegmentation.Product, FeatureSegmentation] {
@@ -27,7 +29,7 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
   import FeatureSegmentation._
 
   protected def body(): Product = {
-    import FeatureExtraction.{Config => ExtrConfig}
+    import de.sciss.strugatzki.FeatureExtraction.{Config => ExtrConfig}
 
     val extr      = ExtrConfig.fromXML(XML.loadFile(config.metaInput))
     val stepSize  = extr.fftSize / extr.fftOverlap

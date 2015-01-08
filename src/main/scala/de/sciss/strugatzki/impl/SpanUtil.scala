@@ -2,7 +2,7 @@
  *  SpanUtil.scala
  *  (Strugatzki)
  *
- *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2015 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU General Public License v2+
  *
@@ -14,7 +14,8 @@
 package de.sciss.strugatzki.impl
 
 import de.sciss.span.Span
-import xml.NodeSeq
+
+import scala.xml.NodeSeq
 
 object SpanUtil {
   def fromXML(xml: NodeSeq): Span.NonVoid = {
