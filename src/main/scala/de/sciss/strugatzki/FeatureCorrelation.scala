@@ -14,7 +14,7 @@
 package de.sciss.strugatzki
 
 import de.sciss.file._
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, ProcessorFactory}
 import de.sciss.span.Span
 
 import scala.language.implicitConversions
@@ -288,6 +288,6 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
     def numFrames: Int = temporal.numFrames
   }
 }
-trait FeatureCorrelation extends Processor[FeatureCorrelation.Product, FeatureCorrelation] {
+trait FeatureCorrelation extends ProcessorLike[FeatureCorrelation.Product, FeatureCorrelation] {
   def config: FeatureCorrelation.Config
 }

@@ -14,13 +14,13 @@
 package de.sciss.strugatzki
 package impl
 
+import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.synth
 import de.sciss.synth.GE
 import de.sciss.synth.io.AudioFile
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.blocking
 import scala.xml.XML
 
 private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtraction.Config)
@@ -31,7 +31,7 @@ private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtract
   protected def body(): Unit = {
     import NonRealtimeProcessor.{BufferSpec, RenderConfig, render}
 
-    val inSpec      = AudioFile.readSpec(config.audioInput)
+    val inSpec      = blocking(AudioFile.readSpec(config.audioInput))
     val inChannels  = inSpec.numChannels
     val stepSize    = config.fftSize / config.fftOverlap
     val numFeatures = config.numCoeffs + 1
@@ -56,22 +56,23 @@ private[strugatzki] final class FeatureExtractionImpl(val config: FeatureExtract
     val fftBuf = BufferSpec("fft", numFrames = config.fftSize)
 
     val rCfg = RenderConfig(
+      name          = s"extract features from ${config.audioInput.path}",
       inFile        = config.audioInput,
       inSpec        = inSpec,
       numFeatures   = numFeatures,
       stepSize      = stepSize,
       buffers       = fftBuf :: Nil,
-      outFile       = Some(config.featureOutput),
-      progress      = progress = _,
-      checkAborted  = () => checkAborted()
+      outFile       = Some(config.featureOutput)
     )
 
     val r = render(rCfg)(extract)
-    Await.result(r, Duration.Inf)
+    await(r)
 
     config.metaOutput.foreach { metaFile =>
       val xml = config.toXML
-      XML.save(metaFile.getAbsolutePath, xml, "UTF-8", xmlDecl = true, doctype = null)
+      blocking {
+        XML.save(metaFile.getAbsolutePath, xml, "UTF-8", xmlDecl = true, doctype = null)
+      }
     }
   }
 }

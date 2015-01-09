@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.File
 
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
 
 import scala.collection.immutable.{IndexedSeq => Vec}
 
@@ -29,6 +29,6 @@ object FeatureStats extends ProcessorFactory.WithDefaults {
   protected def prepare(config: FeatureStats.Config): Prepared =
     new impl.FeatureStatsImpl(config)
 }
-trait FeatureStats extends Processor[FeatureStats.Product, FeatureStats] {
+trait FeatureStats extends ProcessorLike[FeatureStats.Product, FeatureStats] {
   def config: FeatureStats.Config
 }

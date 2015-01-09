@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.{File, IOException}
 
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
 
 import scala.annotation.switch
 import scala.language.implicitConversions
@@ -203,6 +203,6 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
     def toXML: xml.Node
   }
 }
-trait FeatureExtraction extends Processor[FeatureExtraction.Product, FeatureExtraction] {
+trait FeatureExtraction extends ProcessorLike[FeatureExtraction.Product, FeatureExtraction] {
   def config: FeatureExtraction.Config
 }

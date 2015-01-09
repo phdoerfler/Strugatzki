@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.File
 
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
 import de.sciss.span.Span
 
 import scala.language.implicitConversions
@@ -279,6 +279,6 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
   protected def prepare(config: Config): Prepared =
     new impl.SelfSimilarityImpl(config)
 }
-trait SelfSimilarity extends Processor[SelfSimilarity.Product, SelfSimilarity] {
+trait SelfSimilarity extends ProcessorLike[SelfSimilarity.Product, SelfSimilarity] {
   def config: SelfSimilarity.Config
 }

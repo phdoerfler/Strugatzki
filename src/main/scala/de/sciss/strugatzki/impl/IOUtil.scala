@@ -14,19 +14,12 @@
 package de.sciss.strugatzki
 package impl
 
-import java.io.File
-
+import de.sciss.file._
 import de.sciss.synth.io.{AudioFile, AudioFileSpec, AudioFileType, SampleFormat}
 
 object IOUtil {
-  def createTempFile(prefix: String, suffix: String): File = {
-    val f = File.createTempFile(prefix, suffix, Strugatzki.tmpDir)
-    f.deleteOnExit()
-    f
-  }
-
   def createTempAudioFile(id: String, numChannels: Int, sampleRate: Double = 44100): AudioFile = {
-    val file  = createTempFile(s"struga_$id", ".irc")
+    val file  = File.createTemp(s"struga_$id", suffix = ".irc")
     val spec  = AudioFileSpec(fileType = AudioFileType.IRCAM, sampleFormat = SampleFormat.Float,
       numChannels = numChannels, sampleRate = sampleRate)
     AudioFile.openWrite(file, spec)

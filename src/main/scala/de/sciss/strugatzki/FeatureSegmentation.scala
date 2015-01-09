@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.File
 
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
 import de.sciss.span.Span
 import de.sciss.strugatzki.impl.SpanUtil
 
@@ -216,6 +216,6 @@ object FeatureSegmentation extends ProcessorFactory.WithDefaults {
   }
 }
 
-trait FeatureSegmentation extends Processor[FeatureSegmentation.Product, FeatureSegmentation] {
+trait FeatureSegmentation extends ProcessorLike[FeatureSegmentation.Product, FeatureSegmentation] {
   def config: FeatureSegmentation.Config
 }

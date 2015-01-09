@@ -14,7 +14,7 @@
 package de.sciss.strugatzki
 
 import de.sciss.file._
-import de.sciss.processor.{Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
 import de.sciss.span.Span
 import de.sciss.synth.io.AudioFileType
 
@@ -274,6 +274,6 @@ object CrossSimilarity extends ProcessorFactory.WithDefaults {
     */
   protected def prepare(config: Config): Prepared = new impl.CrossSimilarityImpl(config)
 }
-trait CrossSimilarity extends Processor[CrossSimilarity.Product, CrossSimilarity] {
+trait CrossSimilarity extends ProcessorLike[CrossSimilarity.Product, CrossSimilarity] {
   def config: CrossSimilarity.Config
 }
