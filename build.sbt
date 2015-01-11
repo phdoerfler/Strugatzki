@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.8.0-SNAPSHOT"
+version            := "2.8.0"
 
 organization       := "de.sciss"
 
@@ -17,7 +17,7 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-  "de.sciss"          %% "scalacollider"    % "1.16.0-SNAPSHOT",   // for the feature ugens
+  "de.sciss"          %% "scalacollider"    % "1.16.0",   // for the feature ugens
   "de.sciss"          %% "span"             % "1.2.1",    // representation of time spans
   "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
   "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
