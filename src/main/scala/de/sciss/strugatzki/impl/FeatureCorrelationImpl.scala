@@ -39,15 +39,15 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     def featToFull(i: Int)  = i.toLong * stepSize
 
     // collect all valid database files from the folder
-    val punchMetas = config.databaseFolder.children(_.name.endsWith("_feat.xml")).toSet - config.metaInput
+    val punchMetaFiles = config.databaseFolder.children(_.name.endsWith("_feat.xml")).toSet - config.metaInput
 
     if (verbose) {
-      println("Number of files in database : " + punchMetas.size)
+      println(s"Number of files in database : ${punchMetaFiles.size}")
     }
 
     // collect all database entries which match the input resolution
     // (for simplicity, we ignore the fact that the sample rates could differ)
-    val extrDBs: IndexedSeq[ExtrSettings] = punchMetas.map(file => {
+    val extrDBs: IndexedSeq[ExtrSettings] = punchMetaFiles.map(file => {
       val e = ExtrSettings.fromXMLFile(file)
       if ((e.numCoeffs == extrIn.numCoeffs) && (e.fftSize / e.fftOverlap == stepSize)) Some(e) else None
     })(breakOut).collect {
@@ -55,7 +55,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
     }
 
     if (verbose) {
-      println("Number of compatible files in database : " + extrDBs.size)
+      println(s"Number of compatible files in database : ${extrDBs.size}")
     }
 
     val normBuf = if (config.normalize) {
@@ -335,7 +335,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                     // lowestSim is now
                     // defined as min(inSim, outSim)
                     var low = lowestSim     // cache it here
-                    var hs  = entryHasSpace // cahce it here
+                    var hs  = entryHasSpace // cache it here
                     //                        if( hs || inSim > ws ) // for sim = min( inSim, outSim )
                     if (inSim > (low * low)) {
                       // sqrt( inSim * 1 ) > ws

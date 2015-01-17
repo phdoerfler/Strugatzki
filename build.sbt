@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.8.0"
+version            := "2.9.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
@@ -16,13 +16,25 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
+lazy val scalaColliderVersion = "1.17.0-SNAPSHOT"
+
+lazy val spanVersion          = "1.2.1"
+
+lazy val paletteVersion       = "1.0.0"
+
+lazy val fileUtilVersion      = "1.1.1"
+
+lazy val scoptVersion         = "3.3.0"
+
+lazy val scalaTestVersion     = "2.2.3"
+
 libraryDependencies ++= Seq(
-  "de.sciss"          %% "scalacollider"    % "1.16.0",   // for the feature ugens
-  "de.sciss"          %% "span"             % "1.2.1",    // representation of time spans
-  "de.sciss"          %  "intensitypalette" % "1.0.0",    // color scheme for self similarity
-  "de.sciss"          %% "fileutil"         % "1.1.1",    // easy path compositions
-  "com.github.scopt"  %% "scopt"            % "3.3.0",    // parsing command line options
-  "org.scalatest"     %% "scalatest"        % "2.2.3" % "test"
+  "de.sciss"          %% "scalacollider"    % scalaColliderVersion,   // for the feature ugens
+  "de.sciss"          %% "span"             % spanVersion,            // representation of time spans
+  "de.sciss"          %  "intensitypalette" % paletteVersion,         // color scheme for self similarity
+  "de.sciss"          %% "fileutil"         % fileUtilVersion,        // easy path compositions
+  "com.github.scopt"  %% "scopt"            % scoptVersion,           // parsing command line options
+  "org.scalatest"     %% "scalatest"        % scalaTestVersion % "test"
 )
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture")
