@@ -47,12 +47,11 @@ object NonRealtimeProcessor {
 
     override def toString = config.name
 
-    private var _oscF        : File = null
-    private var _dummyOutputF: File = null
-
-    override protected def cleanUp(): Unit = {
-      if (_oscF         != null) _oscF.delete()
-      if (_dummyOutputF != null) _oscF.delete()
+    private def mkFile(suffix: String, keep: Boolean = false): File = {
+      val f = File.createTemp(prefix = "struga_nrt", suffix = ".aif")
+      val p: PartialFunction[Any, Unit] = { case _ => f.delete() }
+      if (keep) onFailure(p) else onComplete(p)
+      f
     }
 
     def body(): File = {
@@ -60,20 +59,17 @@ object NonRealtimeProcessor {
       val sampleRate        = config.inSpec.sampleRate
       val stepSize          = config.stepSize
       val inFrames          = config.inSpec.numFrames
-      val outFile           = config.outFile getOrElse blocking(File.createTemp(suffix = ".aif"))
-
+      val outFile           = config.outFile getOrElse blocking(mkFile(".aif", keep = true))
       val sCfg              = Server.Config()
-      val tupF              = blocking {
-        (File.createTemp(suffix = ".osc"), File.createTemp(suffix = ".aif"))
+      val (oscF, dummyOutputF) = blocking {
+        (mkFile(".osc"), mkFile(".aif"))
       }
-      _oscF         = tupF._1
-      _dummyOutputF = tupF._2
       sCfg.inputBusChannels = inChannels
       sCfg.sampleRate       = sampleRate.toInt
       sCfg.outputBusChannels= 1
-      sCfg.nrtCommandPath   = _oscF.getAbsolutePath
-      sCfg.nrtInputPath     = Some(config.inFile.getAbsolutePath)
-      sCfg.nrtOutputPath    = _dummyOutputF.getAbsolutePath
+      sCfg.nrtCommandPath   = oscF.absolutePath
+      sCfg.nrtInputPath     = Some(config.inFile.absolutePath)
+      sCfg.nrtOutputPath    = dummyOutputF.absolutePath
       sCfg.nrtHeaderFormat  = AudioFileType.AIFF
       sCfg.nrtSampleFormat  = SampleFormat.Int16
 
@@ -97,7 +93,7 @@ object NonRealtimeProcessor {
       val outFrames = ((inFrames + stepSize - 1) / stepSize).toInt // + 1
       val numWrites = (outFrames + featBufSize - 1) / featBufSize
 
-      val tmpNames  = blocking(Array.fill(numWrites)(File.createTemp("feat_part", suffix = ".aif")))
+      val tmpNames  = blocking(Array.fill(numWrites)(mkFile(suffix = ".aif")))
 
       val bufBndls  = Array.tabulate(numWrites) { i =>
         val startFrame  = i * featBufSize
@@ -105,7 +101,7 @@ object NonRealtimeProcessor {
         val numFrames   = stopFrame - startFrame
 
         val msg         = featBuf.writeMsg(
-          path          = tmpNames(i).getAbsolutePath,
+          path          = tmpNames(i).absolutePath,
           fileType      = AudioFileType.AIFF,
           sampleFormat  = SampleFormat.Float,
           numFrames     = if (i == 0) numFrames - 1 else numFrames,
@@ -137,17 +133,20 @@ object NonRealtimeProcessor {
       val c   = PacketCodec().scsynth().build
       val sz  = bndls.map(_.encodedSize(c)).max
       blocking {
-        val raf = new RandomAccessFile(_oscF, "rw")
-        val bb  = ByteBuffer.allocate(sz)
-        val fch = raf.getChannel
-        bndls.foreach { bndl =>
-          bndl.encode(c, bb)
-          bb.flip()
-          raf.writeInt(bb.limit)
-          fch.write(bb)
-          bb.clear()
+        val raf = new RandomAccessFile(oscF, "rw")
+        try {
+          val bb  = ByteBuffer.allocate(sz)
+          val fch = raf.getChannel
+          bndls.foreach { bndl =>
+            bndl.encode(c, bb)
+            bb.flip()
+            raf.writeInt(bb.limit)
+            fch.write(bb)
+            bb.clear()
+          }
+        } finally {
+          raf.close()
         }
-        raf.close()
       }
 
       // val dur = Bundle.timetagToSecs( bufBndls.last.timetag )

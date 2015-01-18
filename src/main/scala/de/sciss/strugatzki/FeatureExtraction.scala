@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.{File, IOException}
 
-import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorLike, ProcessorFactory}
 
 import scala.annotation.switch
 import scala.language.implicitConversions
@@ -113,12 +113,18 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
     /** The audio input defaults to `input.aif` (relative path). */
     var audioInput: File = new File("input.aif")
 
+    private var _featureOutput: File = null
+
     /** The feature vector output file defaults to a temporary file
       * beginning with `features` and having suffix `.aif`.
       *
       * @see  Strugatzki#tmpDir
       */
-    var featureOutput: File = File.createTempFile("features", ".aif", Strugatzki.tmpDir)
+    def featureOutput: File = {
+      if (_featureOutput == null) _featureOutput = File.createTempFile("features", ".aif", Strugatzki.tmpDir)
+      _featureOutput
+    }
+    def featureOutput_=(value: File): Unit = _featureOutput = value
 
     /** The extraction meta data file option defaults to `None`. */
     var metaOutput = Option.empty[File]

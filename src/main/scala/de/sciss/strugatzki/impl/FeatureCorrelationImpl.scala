@@ -214,6 +214,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                   if (!tInOpen) {
                     if (tIn == null) {
                       tIn = IOUtil.createTempAudioFile("in", 2)
+                      onFailure { case _ => tIn.file.get.delete() }
                     } else {
                       tIn.seek(0L)
                     }
@@ -263,6 +264,7 @@ private[strugatzki] final class FeatureCorrelationImpl(val config: FeatureCorrel
                   // means we actually do at least one full correlation
                   if (tOut == null) {
                     tOut = IOUtil.createTempAudioFile("out", 2)
+                    onFailure { case _ => tOut.file.get.delete() }
                   } else {
                     tOut.seek(0L)
                   }
