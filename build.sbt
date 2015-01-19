@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 name               := "Strugatzki"
 
-version            := "2.9.0-SNAPSHOT"
+version            := "2.9.0"
 
 organization       := "de.sciss"
 
@@ -16,9 +16,9 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-lazy val scalaColliderVersion = "1.17.0-SNAPSHOT"
+lazy val scalaColliderVersion = "1.17.1"
 
-lazy val spanVersion          = "1.2.1"
+lazy val spanVersion          = "1.3.0"
 
 lazy val paletteVersion       = "1.0.0"
 
