@@ -11,12 +11,12 @@ description        := "Algorithms for extracting audio features and matching aud
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-lazy val scalaColliderVersion = "1.17.2"
+lazy val scalaColliderVersion = "1.18.0-SNAPSHOT"
 lazy val spanVersion          = "1.4.0-SNAPSHOT"
 lazy val paletteVersion       = "1.0.0"
 lazy val fileUtilVersion      = "1.1.1"
 lazy val scoptVersion         = "3.3.0"
-lazy val scalaTestVersion     = "2.2.4"
+lazy val scalaTestVersion     = "2.2.5"
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "scalacollider"    % scalaColliderVersion,   // for the feature ugens
