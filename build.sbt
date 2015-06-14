@@ -1,32 +1,22 @@
-import AssemblyKeys._
-
 name               := "Strugatzki"
 
-version            := "2.9.0"
+version            := "2.10.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.5"
-
-crossScalaVersions := Seq("2.11.5", "2.10.4")
+scalaVersion       := "2.11.6"
+crossScalaVersions := Seq("2.11.6", "2.10.5")
 
 description        := "Algorithms for extracting audio features and matching audio file similarities"
-
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
-
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-lazy val scalaColliderVersion = "1.17.1"
-
-lazy val spanVersion          = "1.3.0"
-
+lazy val scalaColliderVersion = "1.17.2"
+lazy val spanVersion          = "1.4.0-SNAPSHOT"
 lazy val paletteVersion       = "1.0.0"
-
 lazy val fileUtilVersion      = "1.1.1"
-
 lazy val scoptVersion         = "3.3.0"
-
-lazy val scalaTestVersion     = "2.2.3"
+lazy val scalaTestVersion     = "2.2.4"
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "scalacollider"    % scalaColliderVersion,   // for the feature ugens
@@ -41,9 +31,7 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "ut
 
 // ---- build info ----
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
+enablePlugins(BuildInfoPlugin)
 
 buildInfoKeys := Seq(name, organization, version, scalaVersion, description,
   BuildInfoKey.map(homepage) { case (k, opt)             => k -> opt.get },
@@ -83,21 +71,15 @@ pomExtra := { val n = name.value
 
 // ---- packaging ----
 
-seq(assemblySettings: _*)
-
 test    in assembly := ()
 
 target  in assembly := baseDirectory.value
 
-jarName in assembly := s"${name.value}.jar"
+assemblyJarName in assembly := s"${name.value}.jar"
 
 // ---- ls.implicit.ly ----
 
-seq(lsSettings :_*)
-
-(LsKeys.tags   in LsKeys.lsync) := Seq("music-information-retrieval", "machine-learning", "music", "dsp", "feature-extraction")
-
-(LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
-
-(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
-
+// seq(lsSettings :_*)
+// (LsKeys.tags   in LsKeys.lsync) := Seq("music-information-retrieval", "machine-learning", "music", "dsp", "feature-extraction")
+// (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
+// (LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
