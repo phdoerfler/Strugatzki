@@ -14,7 +14,7 @@
 package de.sciss.strugatzki
 
 import de.sciss.file._
-import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorFactory, ProcessorLike}
 import de.sciss.span.Span
 import de.sciss.synth.io.AudioFileType
 
