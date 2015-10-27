@@ -146,11 +146,11 @@ private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Co
               val spectral = if (tempWeight < 1f) {
                 MathUtil.correlateHalf(numCoeffs, halfWinLen, eInBuf, 0, 1)
               } else 0f
-              val sim = temporal * tempWeight + spectral * (1f - tempWeight)
+              val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
               val colr = colorFun(math.pow(math.max(0f, sim), colorWarp).toFloat * colorScale)
 
-              val off1 = (imgExtM1 - rightOff / decim) * imgExt + (leftOff / decim)
-              val off2 = (imgExtM1 - leftOff / decim) * imgExt + (rightOff / decim)
+              val off1 = (imgExtM1 - rightOff / decim) * imgExt + (leftOff  / decim)
+              val off2 = (imgExtM1 - leftOff  / decim) * imgExt + (rightOff / decim)
               imgData(off1) = colr
               imgData(off2) = colr
 

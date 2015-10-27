@@ -116,7 +116,7 @@ object Strugatzki {
     var minSpacing    = 0.0 // 0.5
     var normalize     = true
 
-    implicit val parser  = new OptionParser[Unit](name + " -c") {
+    implicit val parser  = new OptionParser[Unit](s"$name -c") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       opt[File]('d', "dir") required() text "Database directory" action { (f,_) => dir = f }
       opt[Double]("in-start") required() text "Punch in begin (secs)" action { (d,_) => punchInStart = d }
@@ -180,16 +180,18 @@ object Strugatzki {
         case Result(_, Success(res)) if res.nonEmpty =>
           println("  Success.")
 
-          res.foreach {
-            m =>
-              println("\nFile      : " + m.file.getAbsolutePath +
-                "\nSimilarity: " + toPercentStr(m.sim) +
-                "\nSpan start: " + m.punch.start +
-                "\nBoost in  : " + toDBStr(m.boostIn))
-              if (punchOutO.isDefined) {
-                println("Span stop : " + m.punch.stop +
-                  "\nBoost out : " + toDBStr(m.boostOut))
-              }
+          res.foreach { m =>
+            val s1 = s"""
+                        |File      ${m.file.absolutePath}
+                        |Similarity: ${toPercentStr(m.sim)}
+                        |Span start: ${m.punch.start}
+                        |Boost in  : ${toDBStr(m.boostIn)}""".stripMargin
+            println(s1)
+            if (punchOutO.isDefined) {
+              val s2 = s"""Span stop : ${m.punch.stop}
+                          |Boost out : ${toDBStr(m.boostOut)}""".stripMargin
+              println(s2)
+            }
           }
           println()
 
@@ -226,7 +228,7 @@ object Strugatzki {
     var inFile        = file("")
     var normalize     = true
 
-    implicit val parser = new OptionParser[Unit](name + " -s") {
+    implicit val parser = new OptionParser[Unit](s"$name -s") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
       opt[Double]("length") text "Correlation length in secs (default: 0.5)" action { (d,_) => corrLen = d }
@@ -279,8 +281,9 @@ object Strugatzki {
         println("  Success.")
 
         res.foreach { b =>
-          println("\nSimilarity: " + toPercentStr(b.sim) +
-                  "\nPosition:   " + b.pos)
+          println(s"""
+                     |Similarity: ${toPercentStr(b.sim)}
+                     |Position:   ${b.pos}""".stripMargin)
         }
         println()
 
@@ -398,7 +401,7 @@ object Strugatzki {
     var dir       = file("")
     var verbose   = false
 
-    implicit val parser = new OptionParser[Unit](name + " --stats") {
+    implicit val parser = new OptionParser[Unit](s"$name --stats") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       opt[File]('d', "dir") required() text "Database directory" action { (f,_) => dir = f }
     }
@@ -450,7 +453,7 @@ object Strugatzki {
     var verbose     = false
     var chanString  = "mix"
 
-    implicit val parser = new OptionParser[Unit](name + " -f") {
+    implicit val parser = new OptionParser[Unit](s"$name -f") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       arg[File]("<input>...") required() unbounded() text "List of input files or directories" action { (f,_) => inputs +:= f }
       opt[File]('d', "dir") required() text "Target directory" action { (f,_) => dir = f }
@@ -532,7 +535,7 @@ object Strugatzki {
     var normalize     = true
     var maxBoost      = 8.0
 
-    implicit val parser = new OptionParser[Unit](name + " -y") {
+    implicit val parser = new OptionParser[Unit](s"$name -y") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
       opt[Double]("temp") text "Temporal weight (0 to 1, default 0.5)" action { (d,_) => temp = d }
