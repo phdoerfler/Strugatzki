@@ -27,7 +27,7 @@ import scopt.OptionParser
 import scala.collection.breakOut
 import scala.collection.immutable.{IndexedSeq => Vec}
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Promise, Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object Strugatzki {
@@ -310,6 +310,7 @@ object Strugatzki {
     var spanStart     = Option.empty[Double]
     var spanStop      = Option.empty[Double]
     var inFile        = file("")
+    var inFile2       = Option.empty[File]
     var outFile       = file("")
     var colorWarp     = 1.0
     var colorCeil     = 1.0
@@ -317,7 +318,7 @@ object Strugatzki {
     var colorInv      = false
     var normalize     = true
 
-    implicit val parser = new OptionParser[Unit](name + " -x") {
+    implicit val parser = new OptionParser[Unit](s"$name -x") {
       opt[Unit]('v', "verbose") text "Verbose output" action { (_,_) => verbose = true }
       opt[File]('d', "dir") text "Database directory (required for normalization file)" action { (f,_) => dirOption = Some(f) }
       opt[Double]("length") text "Correlation length in secs (default: 1.0)" action { (d,_) => corrLen = d }
@@ -332,6 +333,7 @@ object Strugatzki {
       arg[File]("input" ) required() text "Meta file of input to process" action { (f,_) => inFile  = f }
       arg[File]("output") required() text "Image output file"             action { (f,_) => outFile = f }
       opt[Unit]("no-norm") text "Do not apply feature normalization" action { (_,_) => normalize = false }
+      opt[File]("input2") text "Second meta input file for cross- instead of self-similarity" action { (f,_) => inFile2 = Some(f) }
     }
 
     if (!parser.parse(args)) sys.exit(1)
@@ -354,6 +356,7 @@ object Strugatzki {
     SelfSimilarity.verbose = verbose
     val con             = Config()
     con.metaInput       = inFile
+    con.metaInput2      = inFile2
     con.imageOutput     = outFile
     con.span            = span
     con.corrLen         = corrFrames
@@ -484,6 +487,8 @@ object Strugatzki {
     val con               = ExtrConfig()
     con.channelsBehavior  = chanMode
 
+    val p = Promise[Boolean]()
+
     def iter(list: List[File]): Unit =
       list match {
         case head :: tail =>
@@ -495,11 +500,22 @@ object Strugatzki {
           con.audioInput    = head
           con.featureOutput =      new File(targetDir, s"${name1}_feat.aif")
           con.metaOutput    = Some(new File(targetDir, s"${name1}_feat.xml"))
-          feature(con)(if (_) iter(tail))
+          feature(con) { success =>
+            println(s"success = $success - tail? ${tail.nonEmpty}")
+            if (success && tail.nonEmpty) iter(tail) else p.success(success)
+          }
         case _ =>
       }
 
+    // idiotic -- first time `go` returns, VM exits otherwise
+//    val t = new Thread {
+//      override def run(): Unit = synchronized(this.wait())
+//      start()
+//    }
+
     iter(inFiles)
+    val ok = Await.result(p.future, Duration.Inf)
+    sys.exit(if (ok) 0 else 1)
   }
 
   def featureCross(args: Array[String]): Unit = {

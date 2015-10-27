@@ -15,7 +15,7 @@ package de.sciss.strugatzki
 
 import java.io.File
 
-import de.sciss.processor.{ProcessorLike, Processor, ProcessorFactory}
+import de.sciss.processor.{ProcessorFactory, ProcessorLike}
 import de.sciss.span.Span
 
 import scala.language.implicitConversions
@@ -69,6 +69,8 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
       * is determined from this meta file.
       */
     def metaInput: File
+
+    def metaInput2: Option[File]
 
     /** The file to which the self similarity matrix image is written. */
     def imageOutput: File
@@ -126,6 +128,7 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
     final def pretty: String = {
       "Config(\n   databaseFolder = " + databaseFolder +
              "\n   metaInput      = " + metaInput +
+             "\n   metaInput2     = " + metaInput2 +
              "\n   imageOutput    = " + imageOutput +
              "\n   span           = " + span +
              "\n   corrLen        = " + corrLen +
@@ -154,6 +157,12 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
       * to `input_feat.xml` (relative path).
       */
     var metaInput = new File("input_feat.xml")
+
+    /** If present, cross-correlate with this file instead of self-similarity.
+      * Default is `None`.
+      */
+    var metaInput2 = Option.empty[File]
+
     /** The image output file defaults to `output_selfsim.png` (relative path). */
     var imageOutput = new File("output_selfsim.png")
     /** The optional span restriction defaults to `Span.all`. */
@@ -177,12 +186,14 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
     /** The feature vector normalization flag defaults to `true`. */
     var normalize = true
 
-    def build: Config = Impl(databaseFolder, metaInput, imageOutput, span, corrLen, decimation, temporalWeight,
+    def build: Config = Impl(databaseFolder, metaInput, metaInput2,
+      imageOutput, span, corrLen, decimation, temporalWeight,
       colors, colorWarp, colorCeil, colorInv, normalize)
 
     def read(settings: Config): Unit = {
       databaseFolder = settings.databaseFolder
       metaInput      = settings.metaInput
+      metaInput2     = settings.metaInput2
       imageOutput    = settings.imageOutput
       span           = settings.span
       corrLen        = settings.corrLen
@@ -195,7 +206,8 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
       normalize      = settings.normalize
     }
 
-    private final case class Impl(databaseFolder: File, metaInput: File, imageOutput: File, span: Span.NonVoid,
+    private final case class Impl(databaseFolder: File, metaInput: File, metaInput2: Option[File],
+                                  imageOutput: File, span: Span.NonVoid,
                                   corrLen: Long, decimation: Int, temporalWeight: Float,
                                   colors: ColorScheme, colorWarp: Float, colorCeil: Float, colorInv: Boolean,
                                   normalize: Boolean)
@@ -212,6 +224,7 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
 <selfsimilarity>
   <database>{databaseFolder.getPath}</database>
   <input>{metaInput.getPath}</input>
+  {metaInput2 match { case None => Nil; case Some(f) => <input2>{f.getPath}</input2>}}
   <output>{imageOutput.getPath}</output>
   {span match { case Span.All => Nil; case _ @ Span(_, _) => <span>{spanToXML(span).child}</span> }}
   <corr>{corrLen}</corr>
@@ -248,6 +261,10 @@ object SelfSimilarity extends ProcessorFactory.WithDefaults {
       val sb            = Config()
       sb.databaseFolder = new File((xml \ "database").text)
       sb.metaInput      = new File((xml \ "input"   ).text)
+      sb.metaInput2     = {
+        val e = xml \ "input2"
+        if (e.isEmpty) None else Some(new File(e.text))
+      }
       sb.imageOutput    = new File((xml \ "output"  ).text)
       sb.span           = {
         val e = xml \ "span"

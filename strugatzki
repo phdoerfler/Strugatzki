@@ -1,2 +1,2 @@
 #!/bin/sh
-java -jar Strugatzki.jar "$@"
+java -Xmx4096m -jar Strugatzki.jar "$@"
