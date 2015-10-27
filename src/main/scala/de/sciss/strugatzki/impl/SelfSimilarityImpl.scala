@@ -21,7 +21,7 @@ import javax.imageio.ImageIO
 import de.sciss.intensitypalette.IntensityPalette
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.span.Span
-import de.sciss.synth.io.AudioFile
+import de.sciss.synth.io.{AudioFileType, SampleFormat, AudioFileSpec, AudioFile}
 
 private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Config)
   extends SelfSimilarity with ProcessorImpl[SelfSimilarity.Product, SelfSimilarity] {
@@ -124,6 +124,17 @@ private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Co
           var progBlock = 0
           val stop      = numCorrs / decim * decim
 
+          val AF_TEST_BUF     = new Array[Float](8192)
+          val AF_TEST_FRAMES  = Array(AF_TEST_BUF)
+          var AF_TEST_OFF     = 0
+          import de.sciss.file._
+          val AF_TEST         = AudioFile.openWrite(userHome / "Documents" / "temp" / "SIM_OUT.aif",
+            AudioFileSpec(AudioFileType.AIFF, SampleFormat.Float, numChannels = 1, sampleRate = 44100.0))
+          def AF_TEST_FLUSH(): Unit = {
+            AF_TEST.write(AF_TEST_FRAMES, 0, AF_TEST_OFF)
+            AF_TEST_OFF = 0
+          }
+
           while (leftOff < stop) {
             checkAborted()
 
@@ -148,6 +159,9 @@ private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Co
               } else 0f
               val sim  = temporal * tempWeight + spectral * (1f - tempWeight)
               val colr = colorFun(math.pow(math.max(0f, sim), colorWarp).toFloat * colorScale)
+              AF_TEST_BUF(AF_TEST_OFF) = sim
+              AF_TEST_OFF += 1
+              if (AF_TEST_OFF == AF_TEST_BUF.length) AF_TEST_FLUSH()
 
               val off1 = (imgExtM1 - rightOff / decim) * imgExt + (leftOff  / decim)
               val off2 = (imgExtM1 - leftOff  / decim) * imgExt + (rightOff / decim)
@@ -163,6 +177,9 @@ private[strugatzki] final class SelfSimilarityImpl(val config: SelfSimilarity.Co
             }
             leftOff += decim
           }
+
+          AF_TEST_FLUSH()
+          AF_TEST.close()
 
           ImageIO.write(img, "png", config.imageOutput)
           progress = 1.0
