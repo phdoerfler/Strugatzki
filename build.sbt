@@ -1,6 +1,6 @@
 name               := "Strugatzki"
 
-version            := "2.9.1-SNAPSHOT"
+version            := "2.10.0"
 
 organization       := "de.sciss"
 
@@ -14,7 +14,7 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
 licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-lazy val scalaColliderVersion = "1.17.4"
+lazy val scalaColliderVersion = "1.18.0"
 lazy val spanVersion          = "1.3.1"
 lazy val paletteVersion       = "1.0.0"
 lazy val fileUtilVersion      = "1.1.1"
