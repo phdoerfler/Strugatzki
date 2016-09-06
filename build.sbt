@@ -1,25 +1,18 @@
 name               := "Strugatzki"
-
-version            := "2.11.0"
-
+version            := "2.12.0"
 organization       := "de.sciss"
-
 scalaVersion       := "2.11.8"
-
 crossScalaVersions := Seq("2.11.8", "2.10.6")
-
 description        := "Algorithms for extracting audio features and matching audio file similarities"
+homepage           := Some(url(s"https://github.com/Sciss/${name.value}"))
+licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
-homepage           := Some(url("https://github.com/Sciss/" + name.value))
-
-licenses           := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
-
-lazy val scalaColliderVersion = "1.18.1"
+lazy val scalaColliderVersion = "1.20.0"
 lazy val spanVersion          = "1.3.1"
 lazy val paletteVersion       = "1.0.0"
 lazy val fileUtilVersion      = "1.1.1"
-lazy val scoptVersion         = "3.4.0"
-lazy val scalaTestVersion     = "2.2.6"
+lazy val scoptVersion         = "3.5.0"
+lazy val scalaTestVersion     = "3.0.0"
 
 libraryDependencies ++= Seq(
   "de.sciss"          %% "scalacollider"    % scalaColliderVersion,   // for the feature ugens
@@ -77,10 +70,3 @@ pomExtra := { val n = name.value
 test    in assembly := ()
 target  in assembly := baseDirectory.value
 jarName in assembly := s"${name.value}.jar"
-
-// ---- ls.implicit.ly ----
-
-// seq(lsSettings :_*)
-// (LsKeys.tags   in LsKeys.lsync) := Seq("music-information-retrieval", "machine-learning", "music", "dsp", "feature-extraction")
-// (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
-// (LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
