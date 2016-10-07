@@ -42,13 +42,13 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
     }
 
     /** Input signal's channels are mixed together before taking the analysis */
-    case object Mix extends ChannelsBehavior { final val id = 0 }
+    case object Mix   extends ChannelsBehavior { final val id = 0 }
 
     /** Just the first channel is used in the analysis (i.e. the left channel if the audio input is stereo */
     case object First extends ChannelsBehavior { final val id = 1 }
 
     /** Just the last channel is used in the analysis (i.e. the right channel if the audio input is stereo */
-    case object Last extends ChannelsBehavior { final val id = 2 }
+    case object Last  extends ChannelsBehavior { final val id = 2 }
   }
 
   /** Defines how analysis data is taken from multi channel files */
@@ -164,7 +164,7 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
 <feature>
   <input>{audioInput.getPath}</input>
   <output>{featureOutput.getPath}</output>
-  <meta>{metaOutput.map( _.getPath ).getOrElse( "" )}</meta>
+  <meta>{metaOutput.map(_.getPath).getOrElse("")}</meta>
   <numCoeffs>{numCoeffs}</numCoeffs>
   <fftSize>{fftSize}</fftSize>
   <fftOverlap>{fftOverlap}</fftOverlap>
@@ -182,7 +182,7 @@ object FeatureExtraction extends ProcessorFactory.WithDefaults {
       val xml = try {
         XML.loadFile(file)
       } catch {
-        case NonFatal(e) => throw new IOException("In file: " + file.getPath, e)
+        case NonFatal(e) => throw new IOException(s"In file: ${file.getPath}", e)
       }
       fromXML(xml)
     }

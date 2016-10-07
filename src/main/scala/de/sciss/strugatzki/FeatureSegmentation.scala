@@ -51,10 +51,10 @@ object FeatureSegmentation extends ProcessorFactory.WithDefaults {
   <pos>{pos}</pos>
 </break>
 
-    def pretty: String = "Break( sim = " + sim + ", pos = " + pos + ")"
+    def pretty: String = s"Break(sim = $sim, pos = $pos)"
   }
 
-  // sortedset orders ascending according to the ordering, and with this
+  // sorted-set orders ascending according to the ordering, and with this
   // ordering we will have low similarities (high dissimilarities)
   // at the head and high similarities at the tail
   private[strugatzki] object BreakMaxOrd extends Ordering[Break] {

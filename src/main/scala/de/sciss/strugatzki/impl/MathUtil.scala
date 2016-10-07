@@ -61,10 +61,10 @@ object MathUtil {
     (mean, stddev)
   }
 
-  /** Perform cross correlation between two horizontal halves of a matrix 'a'.
+  /** Perform cross correlation between two horizontal halves of a matrix `a`.
     *
-    * For efficiency reasons, a may be updated in a rotational manner, thus frameOff + halfWinSize
-    * may exceed the number of frames in a (the algorithm automatically takes the modulus).
+    * For efficiency reasons, `a` may be updated in a rotational manner, thus `frameOff + halfWinSize`
+    * may exceed the number of frames in `a` (the algorithm automatically takes the modulus).
     *
     * @param   chanOff     the channel or row offset in the matrix
     * @param   numChannels the number of channels or rows to process in the matrix

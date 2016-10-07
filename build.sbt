@@ -1,5 +1,5 @@
 name               := "Strugatzki"
-version            := "2.12.0"
+version            := "2.13.0"
 organization       := "de.sciss"
 scalaVersion       := "2.11.8"
 crossScalaVersions := Seq("2.11.8", "2.10.6")
@@ -7,10 +7,10 @@ description        := "Algorithms for extracting audio features and matching aud
 homepage           := Some(url(s"https://github.com/Sciss/${name.value}"))
 licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
-lazy val scalaColliderVersion = "1.20.0"
+lazy val scalaColliderVersion = "1.21.0"
 lazy val spanVersion          = "1.3.1"
 lazy val paletteVersion       = "1.0.0"
-lazy val fileUtilVersion      = "1.1.1"
+lazy val fileUtilVersion      = "1.1.2"
 lazy val scoptVersion         = "3.5.0"
 lazy val scalaTestVersion     = "3.0.0"
 
@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
   "org.scalatest"     %% "scalatest"        % scalaTestVersion % "test"
 )
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-encoding", "utf8", "-Xfuture", "-Xlint")
 
 // ---- build info ----
 

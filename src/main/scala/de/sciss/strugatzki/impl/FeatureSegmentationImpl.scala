@@ -29,7 +29,7 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
   import FeatureSegmentation._
 
   protected def body(): Product = {
-    import de.sciss.strugatzki.FeatureExtraction.{Config => ExtrConfig}
+    import FeatureExtraction.{Config => ExtrConfig}
 
     val extr      = ExtrConfig.fromXML(XML.loadFile(config.metaInput))
     val stepSize  = extr.fftSize / extr.fftOverlap
@@ -49,11 +49,11 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
       }
     } else null // None
 
-    val halfWinLen = fullToFeat(config.corrLen)
-    val tempWeight = config.temporalWeight
+    val halfWinLen  = fullToFeat(config.corrLen)
+    val tempWeight  = config.temporalWeight
 
-    var prio      = ISortedSet.empty[Break](BreakMaxOrd)
-    var lastBreak = null: Break
+    var prio        = ISortedSet.empty[Break](BreakMaxOrd)
+    var lastBreak   = null: Break
 
     def entryHasSpace: Boolean = prio.size < config.numBreaks
 
@@ -89,7 +89,7 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
     try {
       val afStart = config.span match {
         case Span.HasStart(s) => math.max(0, fullToFeat(s))
-        case _ => 0
+        case _                => 0
       }
       val afStop = config.span match {
         case Span.HasStop(s)  => math.min(afExtr.numFrames.toInt, fullToFeat(s))
@@ -120,15 +120,15 @@ private[strugatzki] final class FeatureSegmentationImpl(val config: FeatureSegme
         val sim = temporal * tempWeight + spectral * (1f - tempWeight)
         if (entryHasSpace || sim < highestSim) {
           val pos = featToFull(afStart + logicalOff + halfWinLen)
-          val b = Break(sim, pos)
+          val b   = Break(sim, pos)
           addBreak(b)
         }
-        left -= chunkLen
-        readOff = (readOff + chunkLen) % winLen
+        left       -= chunkLen
+        readOff     = (readOff + chunkLen) % winLen
         logicalOff += 1
-        readSz = 1 // read single frames in successive round (and rotate buffer)
+        readSz      = 1 // read single frames in successive round (and rotate buffer)
 
-        progBlock = (progBlock + 1) % 128
+        progBlock   = (progBlock + 1) % 128
         if (progBlock == 0) progress = left.toDouble / afLen
       }
       progress = 1.0

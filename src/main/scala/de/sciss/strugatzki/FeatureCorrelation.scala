@@ -35,11 +35,11 @@ object FeatureCorrelation extends ProcessorFactory.WithDefaults {
 
   object Match {
     def fromXML(xml: NodeSeq): Match = {
-      val sim       = (xml \ "sim").text.toFloat
+      val sim       = (xml \ "sim"     ).text.toFloat
       val f         = file((xml \ "file").text)
-      val start     = (xml \ "start").text.toLong
-      val stop      = (xml \ "stop").text.toLong
-      val boostIn   = (xml \ "boostIn").text.toFloat
+      val start     = (xml \ "start"   ).text.toLong
+      val stop      = (xml \ "stop"    ).text.toLong
+      val boostIn   = (xml \ "boostIn" ).text.toFloat
       val boostOut  = (xml \ "boostOut").text.toFloat
       Match(sim, f, Span(start, stop), boostIn, boostOut)
     }
