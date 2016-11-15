@@ -5,3 +5,4 @@ project/boot/
 out/
 .idea/
 .idea_modules/
+/*.jar
