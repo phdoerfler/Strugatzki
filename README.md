@@ -64,7 +64,7 @@ As documentation you are referred to the API docs at the moment. These can be cr
     // the process is constructed with the settings and a partial function which
     // acts as a process observer
     val f = FeatureExtraction.run(fs) {
-      case Processor.Success(_, _) => println("Done.")
+      case Processor.Result(_, _) => println("Done.")
     }
     // f is a `Future` of the result you may want to work with
 
